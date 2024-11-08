@@ -1,5 +1,4 @@
 import sql from "../database/index.js"
-import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js"
 
 interface ProductColorImage {
     product_color_image_id: number
@@ -10,31 +9,27 @@ interface ProductColorImage {
 
 class ProductColorImagesModel {
 
-    static async insertColorImage(colorImage: ProductColorImage, connection = sql) {
-        try {
-            return await connection("product_color_images")
-                .insert(colorImage)
-        } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                throw new ErrorHandlerDataBase(error.code)
-            } else {
-                throw error
-            }
-        }
+    static insert(colorImage: ProductColorImage | Array<ProductColorImage>) {
+        return sql("product_color_images")
+            .insert(colorImage)
     }
 
-    static async updateColorImage({ product_color_image_id,...colorImage }: ProductColorImage, connection = sql) {
-        try {
-            return await connection("product_color_images")
-                .update(colorImage)
-                .where("product_color_image_id", "=", product_color_image_id)
-        } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                throw new ErrorHandlerDataBase(error.code)
-            } else {
-                throw error
-            }
-        }
+    static update({ product_color_image_id, ...colorImage }: ProductColorImage) {
+        return sql("product_color_images")
+            .update(colorImage)
+            .where("product_color_image_id",product_color_image_id)
+    }
+
+    static delete(product_color_image_id: Array<number>) {
+        return sql("product_color_images")
+            .whereIn("product_color_image_id", product_color_image_id)
+            .delete()
+    }
+
+    static select({ product_color_fk }: { product_color_fk: string | number }) {
+        const query = sql("product_color_images ")
+            .where("product_color_fk", product_color_fk)
+        return query
     }
 
 

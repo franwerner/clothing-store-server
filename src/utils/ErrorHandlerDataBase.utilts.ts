@@ -27,6 +27,7 @@ class ErrorHandlerDataBase extends ErrorHandler {
     static isSqlError(error: any): error is QueryError {
         return error?.sql
     }
+
 }
 
 export default ErrorHandlerDataBase

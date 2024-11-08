@@ -35,7 +35,6 @@ class ErrorHandler extends Error {
     response(res: Response) {
         res.status(this.status)
             .json({
-                status: this.status,
                 message: this.message
             })
     }

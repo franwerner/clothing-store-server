@@ -6,23 +6,23 @@ type ProductPreviewFilters = {
     price?: [string, string],
     search?: string,
     size?: string[]
-    brand?: string,
-    category?: string
+    brand_id?: string,
+    category_id?: string
 }
 
 const generateProductPreviewFilters = (query: Request) => {
 
     const { color = "", price = "", search = "", size = "" } = query.query as Record<"color" | "price" | "size" | "search", string>
 
-    const { brand, category } = query.params as Record<"brand" | "category", string>
+    const { brand_id, category_id } = query.params as Record<"brand_id" | "category_id", string>
 
     const filterProperties = {
         color,
         price,
         search,
         size,
-        brand,
-        category
+        brand_id,
+        category_id
     }
 
     let res = {} as ProductPreviewFilters
@@ -35,7 +35,7 @@ const generateProductPreviewFilters = (query: Request) => {
                 const [_min, _max] = current.split("-")
                 const min = toNumber(_min)
                 const toNumberMax = toNumber(_max)
-                const max = !toNumberMax ? 10000000000 : toNumber(_max)//En caso de que no este definido deseamos que se muestre "el maximo infinito".
+                const max = !toNumberMax ? 10000000000 : toNumberMax//En caso de que no este definido deseamos que se muestre "el maximo infinito".
                 const op = (prop: "max" | "min") => Math[prop](min, max).toString()
                 res[k] = [
                     op("min"),
