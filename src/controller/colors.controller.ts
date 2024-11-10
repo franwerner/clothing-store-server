@@ -35,7 +35,7 @@ class ColorsController {
                 error.response(res)
             }
             else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error.code).response(res)
+                new ErrorHandlerDataBase(error).response(res)
             } else {
                 next()
             }
@@ -62,7 +62,7 @@ class ColorsController {
                 error.response(res)
             }
             else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error.code).response(res)
+                new ErrorHandlerDataBase(error).response(res)
             } else {
                 next()
             }
@@ -81,7 +81,7 @@ class ColorsController {
             })
         } catch (error) {
             if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error.code).response(res)
+                new ErrorHandlerDataBase(error).response(res)
             } else {
                 next()
             }
@@ -97,7 +97,7 @@ class ColorsController {
             })
         } catch (error) {
             if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error.code).response(res)
+                new ErrorHandlerDataBase(error).response(res)
             } else {
                 next()
             }

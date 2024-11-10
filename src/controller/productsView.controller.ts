@@ -22,7 +22,7 @@ class ProductsViewController {
                 error.response(res)
             }
             else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error.code).response(res)
+                new ErrorHandlerDataBase(error).response(res)
             }
             else {
                 next()
@@ -67,7 +67,7 @@ class ProductsViewController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             } else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error.code).response(res)
+                new ErrorHandlerDataBase(error).response(res)
             }
             else {
                 next()

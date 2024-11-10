@@ -6,11 +6,11 @@ import categoriesRouter from "./router/categories.router.js"
 import productsRouter from "./router/products.router.js"
 import productsViewRouter from "./router/productsView.router.js"
 import productColorsRouter from "./router/productColors.router.js"
-import productColorSizesRouter from "./router/ProductColorSizes.router.js"
-import productColorImagesRouter from "./router/ProductColorImages.router.js"
 import sizesRouter from "./router/sizes.router.js"
 import colorsRouter from "./router/colors.router.js"
 import usersRouter from "./router/users.router.js"
+import productColorSizesRouter from "./router/ProductColorSizes.router.js"
+import productColorImagesRouter from "./router/ProductColorImages.router.js"
 
 const port = 3000
 const app = express()

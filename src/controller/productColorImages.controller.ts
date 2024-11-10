@@ -18,7 +18,7 @@ class ProductColorImagesController {
             })
         } catch (error) {
             if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error.code).response(res)
+                new ErrorHandlerDataBase(error).response(res)
             }
             else {
                 next()
@@ -40,7 +40,7 @@ class ProductColorImagesController {
 
         } catch (error) {
             if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error.code).response(res)
+                new ErrorHandlerDataBase(error).response(res)
             }
             else {
                 next()
@@ -57,7 +57,7 @@ class ProductColorImagesController {
             })
         } catch (error) {
             if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error.code).response(res)
+                new ErrorHandlerDataBase(error).response(res)
             }
             else {
                 next()
