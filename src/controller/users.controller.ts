@@ -4,6 +4,8 @@ import UserAuthService from "../service/userAuth.service.js";
 import ErrorHandler from "../utils/ErrorHandler.utilts.js";
 import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js";
 import UserRegisterService from "../service/userRegister.service.js";
+import UserTokenService from "../service/userToken.service.js";
+import emailService from "../service/email/index.js";
 
 interface LoginBody {
     email: string
@@ -21,13 +23,27 @@ class UsersController {
     static async register(req: Request<any, any, RegisterBody>, res: Response, next: NextFunction) {
         try {
             const { email, fullname, phone, password } = req.body
+            const ip = req.ip as string
 
             const insertID = await UserRegisterService.createAccount({
-                ip: req.ip as string,
+                ip,
                 password,
                 email,
                 fullname,
                 phone,
+            })
+
+            const token = await UserTokenService.createToken({
+                ip,
+                request: "email_confirmation",
+                user_fk: insertID
+            },
+                { type: "hour", value: 1 }
+            )
+
+            await emailService.sendVerificationEmail({
+                email,
+                token
             })
 
             res.json({
@@ -67,6 +83,45 @@ class UsersController {
             })
 
         } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else if (ErrorHandlerDataBase.isSqlError(error)) {
+                new ErrorHandlerDataBase(error).response(res)
+            } else {
+                next()
+            }
+        }
+    }
+
+    static async registerConfirm(req: Request<any, any, any>, res: Response, next: NextFunction) {
+        try {
+
+        } catch (error) {
+
+        }
+    }
+
+    static async registerReSendToken(req: Request<any, any, any>, res: Response, next: NextFunction) {
+        const idTest = 34
+        const emailTest = "ifrank4444@gmail.com"
+        try {
+            const token = await UserTokenService.createToken({
+                ip: req.ip as string,
+                request: "email_confirmation",
+                user_fk: idTest
+            }, {
+                type: "hour",
+                value: 1
+            })
+
+            await emailService.sendVerificationEmail({ email: emailTest, token })
+
+            res.json({
+                message : "Re-envio exitoso, revisa tu email."
+            })
+        } catch (error) {
+            console.log(error)
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }

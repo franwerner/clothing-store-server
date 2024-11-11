@@ -7,8 +7,10 @@ interface User {
     phone?: string
     email: string
     password: string
-    permission?: "admin" | 'standard',
+    permission?: "admin" | 'standard'
     ip: string
+    email_confirmed ?: boolean
+    create_at ?: number
 }
 
 class UsersModel {
@@ -18,11 +20,13 @@ class UsersModel {
             .insert(user)
     }
 
-    static update() {
-
+    static update({ user_id, ...rest }: { user_id: number, phone?: string, email?: string }) {
+        return sql("users")
+            .update(rest)
+            .where("user_id", user_id)
     }
 
-    static async insertByLimitIP(user: User, ip_limit = 0){
+    static async insertByLimitIP(user: User, ip_limit = 0) {
         const { email, fullname, ip, password, phone = null } = user
         return await sql.raw(`
           INSERT INTO users (fullname,phone,email,password,ip)
@@ -35,7 +39,7 @@ class UsersModel {
             password,
             ip,
             ip
-        ]) as [ResultSetHeader,undefined]
+        ]) as [ResultSetHeader, undefined]
     }
 
     static selectByIP(ip: string) {
@@ -43,9 +47,10 @@ class UsersModel {
             .where("ip", ip)
     }
 
-    static select({ email }: { email?: string }) {
+    static select({ email,user_id }: { email?: string ,user_id?:string | number} = {}) {
         const query = sql("users")
         email && query.where("email", email)
+        user_id && query.where("user_id",user_id)
         return query
     }
 }

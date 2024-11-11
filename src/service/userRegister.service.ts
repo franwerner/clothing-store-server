@@ -1,9 +1,6 @@
 import bcrypt from "bcrypt"
 import UsersModel, { User } from "../model/users.model.js"
-import { ResultSetHeader } from "mysql2"
 import ErrorHandler from "../utils/ErrorHandler.utilts.js"
-import sql from "../database/index.js"
-
 class UserRegisterService {
     static isValidPassword(password: string) {
         const passwordRequirements: Array<{ regexp: RegExp, description: string }> = [
@@ -24,26 +21,29 @@ class UserRegisterService {
     }
 
     static async createAccount(user: User) {
+
         const maxAccoutPerIP = 10
-        
+
         const { password, email, fullname } = user
 
-        UserRegisterService.isValidPassword(password)
-        UserRegisterService.isValidEmail(email)
-        UserRegisterService.isValidFullname(fullname)
+        this.isValidPassword(password)
+        this.isValidEmail(email)
+        this.isValidFullname(fullname)
 
-        const hash = await UserRegisterService.createPassword(password)
-
+        const hash = await this.createPassword(password)
+         
         const [rawHeaders] = await UsersModel.insertByLimitIP({
             ...user,
             password: hash
         }, maxAccoutPerIP)
+
         const { insertId, affectedRows } = rawHeaders
 
         if (affectedRows == 0) throw new ErrorHandler({
             message: `Superaste el limite de ${maxAccoutPerIP} por IP`,
             status: 429
         })
+
         return insertId
     }
 
@@ -74,7 +74,6 @@ class UserRegisterService {
         const hash = await bcrypt.hash(password, salt)
         return hash
     }
-
 
 
 }
