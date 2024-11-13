@@ -1,29 +1,39 @@
 import { ResultSetHeader } from "mysql2"
 import sql from "../database/index.js"
+import ModelUtils from "../utils/model.utils.js"
 
 interface User {
-    user_id?: number
+    user_id?: KEYDB
     fullname: string
     phone?: string
     email: string
     password: string
     permission?: "admin" | 'standard'
     ip: string
-    email_confirmed ?: boolean
-    create_at ?: number
+    email_confirmed?: boolean
+    create_at?: number
 }
 
-class UsersModel {
+type SelectProps = Partial<User>
 
-    static insert(user: User) {
-        return sql("users")
-            .insert(user)
-    }
+interface UpdateProps {
+    user_id: KEYDB
+    phone?: string
+    email?: string
+    email_confirmed?: boolean
+}
 
-    static update({ user_id, ...rest }: { user_id: number, phone?: string, email?: string }) {
+class UsersModel extends ModelUtils {
+
+    static update({ user_id, ...rest }: UpdateProps) {
         return sql("users")
             .update(rest)
             .where("user_id", user_id)
+    }
+
+    static updateUnconfirmedEmail(props: UpdateProps) {
+        return this.update(props)
+            .where("email_confirmed", false)
     }
 
     static async insertByLimitIP(user: User, ip_limit = 0) {
@@ -42,16 +52,9 @@ class UsersModel {
         ]) as [ResultSetHeader, undefined]
     }
 
-    static selectByIP(ip: string) {
+    static select(props:SelectProps = {}) {
         return sql("users")
-            .where("ip", ip)
-    }
-
-    static select({ email,user_id }: { email?: string ,user_id?:string | number} = {}) {
-        const query = sql("users")
-        email && query.where("email", email)
-        user_id && query.where("user_id",user_id)
-        return query
+        .where(this.removePropertiesUndefined(props))
     }
 }
 

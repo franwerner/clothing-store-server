@@ -1,8 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import BrandsModel, { Brand } from "../model/brands.model.js";
 import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js";
-
-
 class BrandsController {
 
     static async getBrands(req: Request, res: Response, next: NextFunction) {

@@ -1,14 +1,17 @@
 import sql from "../database/index.js"
+import ModelUtils from "../utils/model.utils.js"
 
 interface Color {
-    color_id: number,
+    color_id: KEYDB,
     color: string,
     hexadecimal: `#${string}`
 }
 
-class ColorsModel {
-    static select() {
+type SelectProps = Partial<Color>
+class ColorsModel extends ModelUtils {
+    static select(props: SelectProps = {}) {
         return sql("colors")
+            .where(this.removePropertiesUndefined(props))
     }
 
     static insert(color: Array<Color> | Color) {
@@ -22,10 +25,10 @@ class ColorsModel {
             .where("color_id", color_id)
     }
 
-    static delete(colorsIDs:Array<number>){
+    static delete(colorsIDs: Array<KEYDB>) {
         return sql("colors")
-        .whereIn("color_id",colorsIDs)
-        .delete()
+            .whereIn("color_id", colorsIDs)
+            .delete()
     }
 }
 

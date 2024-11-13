@@ -1,14 +1,15 @@
 import sql from "../database/index.js"
+import ModelUtils from "../utils/model.utils.js"
 type RequestType = "email_confirmation" | "email_update" | "password_update"
 
 
 interface UserToken {
-    id_user_token?: number
+    id_user_token?: KEYDB
     request: RequestType
     token: string
     ip: string
     used?: boolean
-    user_fk: number
+    user_fk: KEYDB
     expired_at?: string
     created_at?: string
 }
@@ -20,21 +21,40 @@ interface ExpiredConfig {
 
 const table_name = "user_tokens"
 
-class UserTokensModel {
+type SelectProps = Partial<UserToken>
+class UserTokensModel extends ModelUtils {
 
-    static select({ token }: { token: string }) {
+    static select(props: SelectProps = {}) {
         return sql(table_name)
-            .where("token", token)
+            .where(this.removePropertiesUndefined(props))
     }
 
-    static insert(props: UserToken, expired: ExpiredConfig) {
-        const { type = "minute", value = 1 } = expired
+    static selectNotExpiredTokens(props: SelectProps) {
+        return this.select(props)
+            .whereRaw("expired_at > NOW()")
+    }
+
+    static insertWithExpiration(props: UserToken, expired: ExpiredConfig) {
+        const { type, value } = expired
         return sql(table_name)
             .insert({
                 ...props,
                 expired_at: sql.raw(`DATE_ADD(CURRENT_TIMESTAMP,INTERVAL ${value} ${type})`)
             })
     }
+
+    static deleteByToken(token:string) {
+        return sql(table_name)
+            .where("token", token)
+            .delete()
+    }
+
+    static deleteAllExpiredTokens() {
+        return sql(table_name)
+            .whereRaw("expired_at < NOW()")
+            .delete()
+    }
+
 
 }
 

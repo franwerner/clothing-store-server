@@ -8,6 +8,7 @@ class CategoriesController {
         try {
             const { brand_id } = req.params
             const data = await CategoriesModel.select({ brand_fk : brand_id})
+
             res.json({
                 data
             })
@@ -45,6 +46,7 @@ class CategoriesController {
             const data = await Promise.all(
                 categories.map((i) => CategoriesModel.update(i))
             )
+            
             res.json({
                 data
             })

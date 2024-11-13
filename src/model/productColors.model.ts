@@ -1,12 +1,12 @@
 import sql from "../database/index.js"
 
 interface ProductColor {
-    product_color_id: number
-    color_fk: number
-    product_fk: number
+    product_color_id: KEYDB
+    color_fk: KEYDB
+    product_fk: KEYDB
 }
 
-type selectProps = { product_fk: string | number }
+type SelectProps = Partial<ProductColor>
 
 class ProductColorsModel {
 
@@ -22,21 +22,25 @@ class ProductColorsModel {
             .where("product_color_id", "=", product_color_id)
     }
 
-    static delete(product_color_ids: Array<number>) {
+    static delete(product_color_ids: Array<KEYDB>) {
         return sql("product_colors")
             .whereIn("product_color_id", product_color_ids)
             .delete()
     }
 
-    static select({ product_fk }: selectProps) {
-        const query = sql("product_colors as pc")
-            .where("pc.product_fk", "=", product_fk)
-            .leftJoin("colors as c", "c.color_id", "pc.color_fk")
-        return query
+    static select(props: SelectProps = {}) {
+        return sql("product_colors as pc")
+            .where(props)
     }
 
-    static selectExistsSizes({ product_fk }: selectProps) {
-        return this.select({ product_fk })
+    static selectWithTableColor(props: SelectProps) {
+        return this.select(props)
+            .leftJoin("colors as c", "c.color_id", "pc.color_fk")
+        
+    }
+
+    static selectExistsSizes(props: SelectProps) {
+        return this.select(props)
             .whereExists(
                 sql("product_color_sizes")
                     .whereRaw("product_color_fk = pc.product_color_id")

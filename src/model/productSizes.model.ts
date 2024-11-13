@@ -1,14 +1,16 @@
 import sql from "../database/index.js"
+import ModelUtils from "../utils/model.utils.js"
 
 interface ProductColorSize {
-    product_color_size_id: number
-    product_color_fk: number
-    size_fk: number
+    product_color_size_id: KEYDB
+    product_color_fk: KEYDB
+    size_fk: KEYDB
     stock: boolean,
 }
 
+type SelectProps = Partial<ProductColorSize>
 
-class ProductColorSizesModel {
+class ProductColorSizesModel extends ModelUtils {
 
     static insert(size: ProductColorSize | ProductColorSize[]) {
         return sql("product_color_sizes")
@@ -21,17 +23,20 @@ class ProductColorSizesModel {
 
     }
 
-    static delete(product_color_size_ids: Array<number>) {
+    static delete(product_color_size_ids: Array<KEYDB>) {
         return sql("product_color_sizes")
             .whereIn("product_color_size_id", product_color_size_ids)
             .delete()
     }
 
-    static select({ product_color_fk }: { product_color_fk: string | number }) {
-        const query = sql("product_color_sizes as pcs")
+    static select(props: SelectProps = {}) {
+        return sql("product_color_sizes as pcs")
+            .where(this.removePropertiesUndefined(props))
+    }
+
+    static selectWithTableSize(props: SelectProps) {
+        return this.select(props)
             .leftJoin("sizes as s", "s.size_id", "pcs.size_fk")
-            .where("product_color_fk", product_color_fk)
-        return query
     }
 
 }

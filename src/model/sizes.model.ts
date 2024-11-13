@@ -1,13 +1,16 @@
 import sql from "../database/index.js"
+import ModelUtils from "../utils/model.utils.js"
 
 interface Size {
-    size_id: number,
+    size_id: KEYDB,
     size: string,
 }
 
-class SizesModel {
-    static select() {
+type SelectProps = Partial<Size>
+class SizesModel extends ModelUtils {
+    static select(props: SelectProps = {}) {
         return sql("sizes")
+            .where(this.removePropertiesUndefined(props))
     }
 
     static insert(size: Array<Size> | Size) {
@@ -20,7 +23,7 @@ class SizesModel {
             .update(size)
             .where("size_id", size_id)
     }
-    static delete(sizesIds: Array<number>) {
+    static delete(sizesIds: Array<KEYDB>) {
         return sql("sizes")
             .whereIn("size_id", sizesIds)
             .delete()

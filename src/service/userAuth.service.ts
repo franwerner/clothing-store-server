@@ -1,15 +1,22 @@
 import bcrypt from "bcrypt"
-import { User } from "../model/users.model"
+import UsersModel, { User } from "../model/users.model.js"
+import ErrorHandler from "../utils/ErrorHandler.utilts.js"
 
 class UserAuthService {
 
-    static async validatePassword(password:string,hash:string){
-       return await bcrypt.compare(password,hash)
+    static async findUserByEmail (email: string) {
+        const [user] = await UsersModel.select({ email })
+        if (!user) throw new ErrorHandler({ message: "El email no esta asociado a ningun usuario.", status: 422 })
+        return user
+    }
+    static async verifyPassword (password: string, hash: string) {
+        const compare = await bcrypt.compare(password, hash)
+        if (!compare) throw new ErrorHandler({ message: "La contraseña ingresada es incorrecta.", status: 422 })
     }
 
-    static formatUser(user:User){
+    static formatUser(user: User) {
         const omitPropertyPassword = Object.entries(user)
-        .filter(([key]) => key !== "password" )
+            .filter(([key]) => key !== "password")
         return Object.fromEntries(omitPropertyPassword)
     }
 

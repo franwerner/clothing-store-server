@@ -20,22 +20,22 @@ class UserRegisterService {
         }
     }
 
+    static async completeRegister(user_id: KEYDB) {
+        const updateAffects = await UsersModel.updateUnconfirmedEmail({ user_id, email_confirmed: true })
+
+        if (!updateAffects) {
+            throw new ErrorHandler({
+                message: "El email ya ha sido confirmado previamente.",
+                status: 409
+            })
+        }
+    }
+
     static async createAccount(user: User) {
 
         const maxAccoutPerIP = 10
 
-        const { password, email, fullname } = user
-
-        this.isValidPassword(password)
-        this.isValidEmail(email)
-        this.isValidFullname(fullname)
-
-        const hash = await this.createPassword(password)
-         
-        const [rawHeaders] = await UsersModel.insertByLimitIP({
-            ...user,
-            password: hash
-        }, maxAccoutPerIP)
+        const [rawHeaders] = await UsersModel.insertByLimitIP(user, maxAccoutPerIP)
 
         const { insertId, affectedRows } = rawHeaders
 
@@ -75,7 +75,22 @@ class UserRegisterService {
         return hash
     }
 
+    static async main(user: User) {
 
+        const { password, email, fullname } = user
+
+        this.isValidPassword(password)
+        this.isValidEmail(email)
+        this.isValidFullname(fullname)
+
+        const hash = await this.createPassword(password)
+
+        return this.createAccount({
+            ...user,
+            password: hash
+        })
+
+    }
 }
 
 export default UserRegisterService

@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response } from "express";
-import UsersModel from "../model/users.model.js";
+import emailService from "../service/email/index.js";
 import UserAuthService from "../service/userAuth.service.js";
-import ErrorHandler from "../utils/ErrorHandler.utilts.js";
-import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js";
 import UserRegisterService from "../service/userRegister.service.js";
 import UserTokenService from "../service/userToken.service.js";
-import emailService from "../service/email/index.js";
+import ErrorHandler from "../utils/ErrorHandler.utilts.js";
+import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js";
+import IPservice from "../service/ip.service.js";
 
 interface LoginBody {
     email: string
@@ -23,9 +23,10 @@ class UsersController {
     static async register(req: Request<any, any, RegisterBody>, res: Response, next: NextFunction) {
         try {
             const { email, fullname, phone, password } = req.body
-            const ip = req.ip as string
+            
+            const ip = IPservice.isValidIP(req.body)
 
-            const insertID = await UserRegisterService.createAccount({
+            const insertID = await UserRegisterService.main({
                 ip,
                 password,
                 email,
@@ -38,7 +39,7 @@ class UsersController {
                 request: "email_confirmation",
                 user_fk: insertID
             },
-                { type: "hour", value: 1 }
+                { type: "hour", value: 24 }
             )
 
             await emailService.sendVerificationEmail({
@@ -47,7 +48,7 @@ class UsersController {
             })
 
             res.json({
-                message: "Usuario ha sido creado con éxito",
+                message: "Cuena creada creado con éxito, por favor confirma el email registrado.",
                 data: {
                     created_id: insertID
                 }
@@ -70,13 +71,9 @@ class UsersController {
         try {
             const { email, password } = req.body
 
-            const [user] = await UsersModel.select({ email })
+            const user = await UserAuthService.findUserByEmail(email)
 
-            if (!user) throw new ErrorHandler({ message: "El email no esta asociado a ningun usuario.", status: 422 })
-
-            const compare = await UserAuthService.validatePassword(password, user.password)
-
-            if (!compare) throw new ErrorHandler({ message: "La contraseña ingresada es incorrecta.", status: 422 })
+            await UserAuthService.verifyPassword(password, user.password)
 
             res.json({
                 data: UserAuthService.formatUser(user)
@@ -94,34 +91,53 @@ class UsersController {
         }
     }
 
-    static async registerConfirm(req: Request<any, any, any>, res: Response, next: NextFunction) {
+    static async registerConfirm(req: Request<{ token: string }, any, any>, res: Response, next: NextFunction) {
         try {
 
-        } catch (error) {
+            const { token } = req.params
+            
+            const userID = await UserTokenService.useToken(token)
 
+            await UserRegisterService.completeRegister(userID)
+
+            res.json({
+                message: "Registro confirmado con exito!"
+            })
+
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else if (ErrorHandlerDataBase.isSqlError(error)) {
+                new ErrorHandlerDataBase(error).response(res)
+            } else {
+                next()
+            }
         }
     }
 
     static async registerReSendToken(req: Request<any, any, any>, res: Response, next: NextFunction) {
-        const idTest = 34
+        const idTest = 37
         const emailTest = "ifrank4444@gmail.com"
         try {
+
+            const ip = IPservice.isValidIP(req.body)
+            
             const token = await UserTokenService.createToken({
-                ip: req.ip as string,
+                ip ,
                 request: "email_confirmation",
                 user_fk: idTest
             }, {
                 type: "hour",
-                value: 1
+                value: 24
             })
 
             await emailService.sendVerificationEmail({ email: emailTest, token })
 
             res.json({
-                message : "Re-envio exitoso, revisa tu email."
+                message: "Re-envio exitoso, revisa tu email."
             })
         } catch (error) {
-            console.log(error)
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }

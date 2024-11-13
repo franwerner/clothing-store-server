@@ -1,19 +1,19 @@
 import sql from "../database/index.js"
+import ModelUtils from "../utils/model.utils.js"
 
 interface Category {
     category: string
     status: boolean
-    category_id: number
-    brand_fk: number
+    category_id: KEYDB
+    brand_fk: KEYDB
 }
 
-class CategoriesModel {
+type SelectProps = Partial<Category>
+class CategoriesModel extends ModelUtils {
 
-    static select({ brand_fk }: { brand_fk?: string } = {}) {
-        const query = sql("categories")
-        if (brand_fk) query.where("brand_fk", brand_fk)
-        return query
-
+    static select(props: SelectProps = {}) {
+        return sql("categories")
+            .where(this.removePropertiesUndefined(props))
     }
     static insert(props: Category | Array<Category>) {
         return sql("categories")
@@ -26,10 +26,10 @@ class CategoriesModel {
             .where("category_id", category_id)
     }
 
-    static delete(categorieIDs:Array<Number>){
+    static delete(categorieIDs: Array<KEYDB>) {
         return sql("categories")
-        .whereIn("category_id",categorieIDs)
-        .delete()
+            .whereIn("category_id", categorieIDs)
+            .delete()
     }
 
 }

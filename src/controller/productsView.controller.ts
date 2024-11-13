@@ -1,19 +1,35 @@
 import { NextFunction, Request, Response } from "express"
-import ProductColorImagesModel from "../model/productColorImages.model.js"
-import ProductColorsModel from "../model/productColors.model.js"
-import ProductsModel from "../model/products.model.js"
-import ProductColorSizesModel from "../model/productSizes.model.js"
-import productsPreviewModel from "../model/productsPreview.model.js"
+import ProductFullViewService from "../service/productFullview.service.js"
+import ProductsPreviewService from "../service/productsPreview.service.js"
 import ErrorHandler from "../utils/ErrorHandler.utilts.js"
 import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js"
-import generateProductPreviewFilters from "../utils/generateProductPreviewFilters.js"
 
+type Params = {
+    brand_id: string,
+    category_id: string
+}
+type Query = {
+    color: string
+    price: string,
+    search: string,
+    size: string
+}
 class ProductsViewController {
 
-    static async getProductsPreview(req: Request, res: Response, next: NextFunction) {
+    static async getProductsPreview(req: Request<Params, any, any, Query>, res: Response, next: NextFunction) {
         try {
-            const filterParams = generateProductPreviewFilters(req)
-            const data = await productsPreviewModel(filterParams)
+            const { brand_id, category_id } = req.params
+            const { color, price, search, size } = req.query
+
+            const data = await ProductsPreviewService.main({
+                brand_id,
+                category_id,
+                color,
+                price,
+                search,
+                size
+            })
+
             res.json({
                 data
             })
@@ -36,32 +52,10 @@ class ProductsViewController {
 
             const { product_id } = req.params
 
-            const [product] = await ProductsModel.selectExistsColors({ product_id, status: true })
-
-            if (!product) throw new ErrorHandler({ message: "No se encontro ningun producto", status: 404 })
-
-            const productColorModel = await ProductColorsModel.selectExistsSizes({ product_fk: product.product_id })
-
-            if (productColorModel.length == 0) throw new ErrorHandler({ message: "No se encontro ningun producto", status: 404 })
-
-            const colors = await Promise.all(
-                productColorModel.map(async (i) => {
-                    const product_color_id = i.product_color_id
-                    const color_images = await ProductColorImagesModel.select({ product_color_fk: product_color_id })
-                    const color_sizes = await ProductColorSizesModel.select({ product_color_fk: product_color_id })
-                    return {
-                        color: i,
-                        color_images,
-                        color_sizes,
-                    }
-                })
-            )
+            const data = await ProductFullViewService.main(product_id)
 
             res.json({
-                data: {
-                    product,
-                    colors
-                },
+                data
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

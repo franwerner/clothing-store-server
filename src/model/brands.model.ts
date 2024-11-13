@@ -1,14 +1,18 @@
 import sql from "../database/index.js"
+import ModelUtils from "../utils/model.utils.js"
 
 interface Brand {
-    brand_id: number,
+    brand_id: KEYDB,
     brand: string
     status: boolean
 }
-class BrandsModel {
 
-    static select() {
+type SelectProps = Partial<Brand>
+class BrandsModel extends ModelUtils {
+
+    static select(props: SelectProps = {}) {
         return sql("brands")
+        .where(this.removePropertiesUndefined(props))
     }
 
     static insert(props: Brand | Array<Brand>) {
@@ -21,7 +25,7 @@ class BrandsModel {
             .where("brand_id", brand_id)
     }
 
-    static delete(brandIDs: Array<number>) {
+    static delete(brandIDs: Array<KEYDB>) {
         return sql("brands")
             .whereIn("brand_id", brandIDs)
             .delete()
