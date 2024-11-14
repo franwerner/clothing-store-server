@@ -63,5 +63,5 @@ class ProductsPreviewService {
     }
 }
 
-
+export type {ProductPreviewFilters}
 export default ProductsPreviewService

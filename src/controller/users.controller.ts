@@ -119,6 +119,7 @@ class UsersController {
     static async registerReSendToken(req: Request<any, any, any>, res: Response, next: NextFunction) {
         const idTest = 37
         const emailTest = "ifrank4444@gmail.com"
+        //Aca verificamos que en la session no tenga el email verificado para que no puedo re-enviar tokens
         try {
 
             const ip = IPservice.isValidIP(req.body)

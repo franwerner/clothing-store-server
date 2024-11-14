@@ -1,13 +1,15 @@
 import knex from "knex"
+import _env from "../constant/_env.constant.js"
 
+const { DB_HOST, DB_USER, DB_PORT, DB_PASSWORD, DB } = _env
 const sql = knex({
    client: "mysql2",
    connection: {
-      host: "127.0.0.1",
-      user: "root",
-      port: 3306,
-      password: "carlos15",
-      database: "chothingstore",
+      host: DB_HOST,
+      user: DB_USER,
+      port: DB_PORT,
+      password: DB_PASSWORD,
+      database: DB,
    },
    pool: {
       min: 1,

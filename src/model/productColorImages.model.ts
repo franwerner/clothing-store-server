@@ -1,4 +1,4 @@
-import sql from "../database/index.js"
+import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
 
 interface ProductColorImage {

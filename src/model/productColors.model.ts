@@ -1,4 +1,4 @@
-import sql from "../database/index.js"
+import sql from "../config/knex.config.js"
 
 interface ProductColor {
     product_color_id: KEYDB

@@ -1,5 +1,5 @@
-import sql from "../database/index.js"
-import { ProductPreviewFilters } from "../utils/generateProductPreviewFilters.js"
+import sql from "../config/knex.config.js"
+import { ProductPreviewFilters } from "../service/productsPreview.service.js";
 
 const productsPreviewModel = (querys: ProductPreviewFilters) => {
     const { color, price, search, size, brand_id, category_id } = querys

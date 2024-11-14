@@ -1,10 +1,11 @@
 import nodemailer from "nodemailer"
+import _env from "../constant/_env.constant.js"
 
 const transport = nodemailer.createTransport({
     service : "gmail",
     auth : {
-      user : "ifrank44445@gmail.com",
-      pass : "thee qwxq pgxk ebvm"
+      user : _env.EMAIL,
+      pass : _env.EMAIL_PASSWORD
     }
  })
 

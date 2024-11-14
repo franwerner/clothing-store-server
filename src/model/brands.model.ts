@@ -1,4 +1,4 @@
-import sql from "../database/index.js"
+import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
 
 interface Brand {
@@ -11,7 +11,7 @@ type SelectProps = Partial<Brand>
 class BrandsModel extends ModelUtils {
 
     static select(props: SelectProps = {}) {
-        return sql("brands")
+        return sql("brands as b")
         .where(this.removePropertiesUndefined(props))
     }
 

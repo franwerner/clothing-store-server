@@ -20,6 +20,7 @@ class UserAuthService {
         return Object.fromEntries(omitPropertyPassword)
     }
 
+
 }
 
 export default UserAuthService
