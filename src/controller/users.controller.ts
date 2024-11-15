@@ -78,13 +78,13 @@ class UsersController {
 
             const token = await UserTokenService.createToken({
                 ip,
-                request: "email_confirmation",
+                request: "register_confirm",
                 user_fk: account.user_id
             },
-                { type: "hour", value: 24 }
+                { timeUnit: "hour", timeValue: 24, maxTokens: 10 }
             )
 
-            await emailService.sendVerificationEmail({
+            await emailService.sendVerification({
                 email,
                 token
             })
@@ -143,24 +143,21 @@ class UsersController {
     static async registerReSendToken(req: Request<any, any, any>, res: Response, next: NextFunction) {
         try {
             const { user_id, email } = getSessionData("user", req.session)
-
+            
             const ip = IPservice.isValidIP(req.ip)
 
             const token = await UserTokenService.createToken({
                 ip,
-                request: "email_confirmation",
+                request: "register_confirm",
                 user_fk: user_id
-            }, {
-                type: "hour",
-                value: 24,
-            })
+            }, { timeUnit: "hour", timeValue: 24, maxTokens: 10 })
 
-            await emailService.sendVerificationEmail({ email, token })
+            await emailService.sendVerification({ email, token })
 
             res.json({
                 message: "Re-envio exitoso, revisa tu bandeja de entrada."
             })
-            
+
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)

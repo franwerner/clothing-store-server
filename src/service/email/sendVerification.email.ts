@@ -5,7 +5,7 @@ interface SendVerificationEmail{
  token : string
 }
 
-const sendVerificationEmail = async ({email,token}:SendVerificationEmail) => {
+const sendVerification = async ({email,token}:SendVerificationEmail) => {
     return await transport.sendMail({
         from: "Olga Hat's <olgahats@noreply.com>", 
         to: email,
@@ -19,4 +19,4 @@ const sendVerificationEmail = async ({email,token}:SendVerificationEmail) => {
 }
 
 
-export default sendVerificationEmail
+export default sendVerification

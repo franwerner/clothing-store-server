@@ -1,9 +1,9 @@
-import sendVerificationEmail from "./sendVerificationEmail.js"
+import sendVerification from "./sendVerification.email.js"
 
 
 
 const emailService = {
-    sendVerificationEmail
+    sendVerification
 }
 
 

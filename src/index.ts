@@ -16,6 +16,7 @@ import usersRouter from "./router/users.router.js"
 import UserTokenService from "./service/userToken.service.js"
 import sessionConfig from "./config/session.config.js"
 import isAdmin from "./middleware/isAdmin.middleware.js"
+import sql from "./config/knex.config.js"
 
 const port = 3000
 const app = express()

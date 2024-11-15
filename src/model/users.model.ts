@@ -43,14 +43,15 @@ class UsersModel extends ModelUtils {
         return await sql.raw(`
           INSERT INTO users (fullname,phone,email,password,ip)
           SELECT ?, ?, ?, ?, ?
-         WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ${ip_limit}
+         WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ?
             `, [
             fullname,
             phone,
             email,
             password,
             ip,
-            ip
+            ip,
+            ip_limit,
         ]) as [ResultSetHeader, undefined]
     }
 

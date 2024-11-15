@@ -1,35 +1,52 @@
 import crypto from "crypto";
-import UserTokensModel, { ExpiredConfig, RequestType } from "../model/userTokens.model.js";
+import UserTokensModel, { RequestType } from "../model/userTokens.model.js";
 import ErrorHandler from "../utils/ErrorHandler.utilts.js";
-import sql from "../config/knex.config.js";
+import { ResultSetHeader } from "mysql2";
+import getAdjustedUTCDate from "../utils/getAdjustedUTCDate.utils.js";
+
+interface TokenDate {
+    timeUnit: "minute" | "hour" | "day",
+    timeValue: number,
+}
 
 class UserTokenService {
 
-    static async createToken(props: { ip: string, request: RequestType, user_fk: KEYDB }, expiredConfig: ExpiredConfig) {
+    static createTokenDate({ timeUnit, timeValue }: TokenDate) {
+        const date = getAdjustedUTCDate(-3)
+        if (timeUnit == "day") {
+            date.setUTCDate(date.getUTCDate() + timeValue)
+        } else if (timeUnit == "hour") {
+            date.setUTCHours(date.getUTCHours() + timeValue)
+        } else {
+            date.setUTCMinutes(date.getUTCMinutes() + timeValue)
+        }
+        return date.toISOString().replace('T', ' ').substring(0, 19) //Quitamos para que se adapte el CURRENT_TIMESTAMP DE MYSQL
+    }
+
+    static async createToken(props: { ip: string, request: RequestType, user_fk: KEYDB }, { maxTokens, ...tokenDate }: TokenDate & { maxTokens: number }) {
 
         const token = crypto.randomUUID()
 
-        const res = await UserTokensModel.insertWithExpiration({
+        const [ResultSetHeader] = await UserTokensModel.insertWithExpiration({
             ...props,
             token,
+            expired_at: this.createTokenDate(tokenDate)
         },
-            expiredConfig
+            maxTokens
         )
 
-        if (res.length == 0) {
+        if (ResultSetHeader.affectedRows == 0) {
             throw new ErrorHandler({
                 status: 429,
-                message: "Se ha excedido el límite de solicitudes de generación de tokens para este usuario en el día."
+                message: "Se ha excedido el límite de solicitudes de generación de tokens para este usuario."
             })
-
         }
 
         return token
     }
 
     static async useToken(token: string) {
-        const [user] = await UserTokensModel.selectNotExpiredTokens({ token })
-            .select("user_fk") as Array<{ user_fk: KEYDB }>
+        const [user] = await UserTokensModel.selectActiveToken({ token }, (builder) => builder.select("user_fk"))
 
         if (!user) {
             throw new ErrorHandler({
@@ -38,44 +55,42 @@ class UserTokenService {
             })
         }
 
-        await UserTokensModel.deleteByToken(token)
+        await UserTokensModel.updateNotUsedToken({ token, used: true })
 
         return user.user_fk
     }
 
-    static cleanExpiredTokens({ cleaning_hour, cleaning_minute }: { cleaning_hour: number, cleaning_minute: number }) {
+    static async cleanExpiredTokens({ cleaning_hour, cleaning_minute }: { cleaning_hour: number, cleaning_minute: number }) {
 
         if (cleaning_hour > 23 || cleaning_hour < 0 || cleaning_minute > 60 || cleaning_minute < 0) {
             console.log("The expired token cleanup process failed to initialize due to incorrect time range data.")
             return
         }
 
-        const UTC_ARG = -3
+        const current_date = getAdjustedUTCDate(-3)
+        const expected_date = getAdjustedUTCDate(-3)
 
-        const date = new Date()
-        date.setUTCHours(date.getUTCHours() + UTC_ARG)
+        expected_date.setUTCHours(cleaning_hour)
+        expected_date.setUTCMinutes(cleaning_minute)
+        expected_date.setUTCSeconds(0)
 
-        const hour = date.getUTCHours() - cleaning_hour
-        const minutes = date.getUTCMinutes() - cleaning_minute
-        const seconds = date.getUTCSeconds()
-        const milliseconds = date.getUTCMilliseconds()
-        const calculateDiffHour = hour > 0 || (minutes >= 0 && hour === 0) ? 24 - hour : Math.abs(hour)
+        if (expected_date.getTime() - current_date.getTime() <= 0) {
+            expected_date.setUTCDate(expected_date.getUTCDate() + 1)
+        }
+        const milliseconds = (expected_date.getTime() - current_date.getTime())
 
-        const calculateMilliseconds =
-            (calculateDiffHour * 60 * 60 * 1000) -
-            (minutes * 60 * 1000) -
-            (seconds * 1000) -
-            milliseconds
+        const hours = Math.floor(milliseconds / 3600000)
+        const minutes = Math.ceil((milliseconds % 3600000) / 60000)
 
-        const hourlog = Math.floor((calculateMilliseconds / 3600000))
-        const minuteslog = Math.ceil((calculateMilliseconds % 3600000) / 60000)
+        const cleanCount = await UserTokensModel.deleteAllExpiredTokens()
 
-        console.log(`Starting expired token cleanup process in ${hourlog}H ${minuteslog}M`)
+        console.log(`${cleanCount} tokens were cleaned`)
+
+        console.log(`The next token cleanup is in ${hours}H ${minutes}M`)
+
         setTimeout(async () => {
-            const cleanCount = await UserTokensModel.deleteAllExpiredTokens()
-            console.log(`${cleanCount} tokens were cleaned`)
             this.cleanExpiredTokens({ cleaning_hour, cleaning_minute })
-        }, calculateMilliseconds)
+        }, milliseconds)
     }
 
 }

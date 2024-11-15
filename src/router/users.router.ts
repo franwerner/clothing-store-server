@@ -1,7 +1,7 @@
 import express from "express"
 import UserController from "../controller/users.controller.js"
-import isConfirmedEmail from "../middleware/isConfirmedEmail.middleware.js"
 import isUser from "../middleware/isUser.middleware.js"
+import isConfirmedEmail from "../middleware/isConfirmedEmail.middleware.js"
 
 const usersRouter = express.Router()
 

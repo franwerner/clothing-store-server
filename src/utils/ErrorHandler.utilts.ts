@@ -1,4 +1,5 @@
 import { Response } from "express"
+import _env from "../constant/_env.constant.js"
 
 interface ErrorHandlerProps {
     message: string
@@ -14,7 +15,7 @@ class ErrorHandler extends Error {
     data: any
     code: string
 
-    constructor({ message, status, data,code }: ErrorHandlerProps) {
+    constructor({ message, status, data, code }: ErrorHandlerProps) {
         super()
         this.message = message
         this.name = "ErrorHandler",
@@ -25,15 +26,6 @@ class ErrorHandler extends Error {
     static isInstanceOf(instance: any): instance is ErrorHandler {
         return instance instanceof ErrorHandler
     }
-
-    log() {
-        console.log(`
-            ${this.status}
-             ${this.name}
-             ${this.message}
-            `)
-    }
-
 
     response(res: Response) {
         res.status(this.status)
