@@ -10,7 +10,7 @@ interface ENV {
     DB_USER: string
     DB_PASSWORD: string
     DB_PORT: number
-    NODE_ENV : string
+    NODE_ENV : "dev" | "prod"
 }
 /**
  * Accedemos de forma segura a los ENV declarados.

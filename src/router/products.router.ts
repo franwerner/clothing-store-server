@@ -1,13 +1,14 @@
 import express from "express"
 import ProductsController from "../controller/products.controller.js"
+import isAdmin from "../middleware/isAdmin.middleware.js"
 
 
 const productsRouter = express.Router()
 
-productsRouter.post("/", ProductsController.setProducts)
-productsRouter.patch("/", ProductsController.modifyProducts)
 productsRouter.get("/category/:category_id", ProductsController.getProductsPerCategory)
-productsRouter.delete("/",ProductsController.removeProducts)
+productsRouter.post("/", isAdmin, ProductsController.setProducts)
+productsRouter.patch("/", isAdmin, ProductsController.modifyProducts)
+productsRouter.delete("/", isAdmin, ProductsController.removeProducts)
 
 
 export default productsRouter

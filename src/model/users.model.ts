@@ -3,7 +3,7 @@ import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
 
 interface User {
-    user_id?: KEYDB
+    user_id: KEYDB
     fullname: string
     phone?: string
     email: string
@@ -13,6 +13,8 @@ interface User {
     email_confirmed?: boolean
     create_at?: number
 }
+
+type UserWithoutID = Omit<User, 'user_id'> & { user_id?: KEYDB }
 
 type SelectProps = Partial<User>
 
@@ -36,7 +38,7 @@ class UsersModel extends ModelUtils {
             .where("email_confirmed", false)
     }
 
-    static async insertByLimitIP(user: User, ip_limit = 0) {
+    static async insertByLimitIP(user: UserWithoutID, ip_limit = 0) {
         const { email, fullname, ip, password, phone = null } = user
         return await sql.raw(`
           INSERT INTO users (fullname,phone,email,password,ip)
@@ -52,13 +54,14 @@ class UsersModel extends ModelUtils {
         ]) as [ResultSetHeader, undefined]
     }
 
-    static select(props:SelectProps = {}) {
+    static select(props: SelectProps = {}) {
         return sql("users")
-        .where(this.removePropertiesUndefined(props))
+            .where(this.removePropertiesUndefined(props))
     }
 }
 
-export {
-    type User
+export type {
+    User,
+    UserWithoutID
 }
 export default UsersModel

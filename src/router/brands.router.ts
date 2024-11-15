@@ -1,12 +1,12 @@
 import express from "express"
 import BrandsController from "../controller/brands.controller.js"
-
+import isAdmin from "../middleware/isAdmin.middleware.js"
 
 const brandsRouter = express.Router()
 
 brandsRouter.get("/", BrandsController.getBrands)
-brandsRouter.post("/",BrandsController.setBrands)
-brandsRouter.patch("/",BrandsController.modifyBrands)
-brandsRouter.delete("/",BrandsController.removeBrands)
+brandsRouter.post("/", isAdmin, BrandsController.setBrands)
+brandsRouter.patch("/", isAdmin, BrandsController.modifyBrands)
+brandsRouter.delete("/", isAdmin, BrandsController.removeBrands)
 
 export default brandsRouter

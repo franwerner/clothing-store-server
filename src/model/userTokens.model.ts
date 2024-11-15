@@ -16,7 +16,8 @@ interface UserToken {
 
 interface ExpiredConfig {
     type: "minute" | "hour" | "day" | "week",
-    value: number
+    value: number,
+    // max_tokens : number
 }
 
 const table_name = "user_tokens"
@@ -36,6 +37,7 @@ class UserTokensModel extends ModelUtils {
 
     static insertWithExpiration(props: UserToken, expired: ExpiredConfig) {
         const { type, value } = expired
+        //Agregar le limite dinamico de tokens.
         return sql(table_name)
             .insert({
                 ...props,

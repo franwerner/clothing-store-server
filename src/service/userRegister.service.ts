@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt"
-import UsersModel, { User } from "../model/users.model.js"
+import UsersModel, { User, UserWithoutID } from "../model/users.model.js"
 import ErrorHandler from "../utils/ErrorHandler.utilts.js"
 class UserRegisterService {
     static isValidPassword(password: string) {
@@ -31,7 +31,7 @@ class UserRegisterService {
         }
     }
 
-    static async createAccount(user: User) {
+    static async createAccount(user: UserWithoutID): Promise<User> {
 
         const maxAccoutPerIP = 10
 
@@ -44,7 +44,10 @@ class UserRegisterService {
             status: 429
         })
 
-        return insertId
+        return {
+            ...user,
+            user_id: insertId
+        }
     }
 
     static isValidEmail(email: string) {
@@ -75,7 +78,7 @@ class UserRegisterService {
         return hash
     }
 
-    static async main(user: User) {
+    static async main(user: UserWithoutID): Promise<User> {
 
         const { password, email, fullname } = user
 
@@ -85,10 +88,13 @@ class UserRegisterService {
 
         const hash = await this.createPassword(password)
 
-        return this.createAccount({
+        const obj: UserWithoutID = {
             ...user,
-            password: hash
-        })
+            password: hash,
+            permission: "standard"
+        }
+        return await this.createAccount(obj)
+
 
     }
 }

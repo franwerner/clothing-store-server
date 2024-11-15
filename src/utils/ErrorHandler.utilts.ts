@@ -4,20 +4,23 @@ interface ErrorHandlerProps {
     message: string
     status: number
     data?: any
+    code?: any
 }
 
 class ErrorHandler extends Error {
     message: string
     name: string
     status: number
-    data: any 
+    data: any
+    code: string
 
-    constructor({ message, status, data }: ErrorHandlerProps) {
+    constructor({ message, status, data,code }: ErrorHandlerProps) {
         super()
         this.message = message
         this.name = "ErrorHandler",
-        this.status = status || 500
+            this.status = status || 500
         this.data = data
+        this.code = code || ""
     }
     static isInstanceOf(instance: any): instance is ErrorHandler {
         return instance instanceof ErrorHandler
@@ -36,7 +39,7 @@ class ErrorHandler extends Error {
         res.status(this.status)
             .json({
                 message: this.message,
-                data : this.data
+                data: this.data
             })
     }
 }

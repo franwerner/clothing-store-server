@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import UserTokensModel, { ExpiredConfig, RequestType } from "../model/userTokens.model.js";
 import ErrorHandler from "../utils/ErrorHandler.utilts.js";
+import sql from "../config/knex.config.js";
 
 class UserTokenService {
 
@@ -70,7 +71,6 @@ class UserTokenService {
         const minuteslog = Math.ceil((calculateMilliseconds % 3600000) / 60000)
 
         console.log(`Starting expired token cleanup process in ${hourlog}H ${minuteslog}M`)
-
         setTimeout(async () => {
             const cleanCount = await UserTokensModel.deleteAllExpiredTokens()
             console.log(`${cleanCount} tokens were cleaned`)

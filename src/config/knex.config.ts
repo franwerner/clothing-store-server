@@ -18,4 +18,5 @@ const sql = knex({
       idleTimeoutMillis: 30000,
    }
 })
+
 export default sql

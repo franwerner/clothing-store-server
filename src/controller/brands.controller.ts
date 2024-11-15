@@ -19,7 +19,6 @@ class BrandsController {
         }
     }
 
-
     static async setBrands(req: Request<any, any, { brands: Array<Brand> }>, res: Response, next: NextFunction) {
         try {
             const data = await BrandsModel.insert(req.body.brands)
