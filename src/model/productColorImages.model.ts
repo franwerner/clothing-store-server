@@ -7,29 +7,49 @@ interface ProductColorImage {
     url: string
 }
 
-type SelectProps = Partial<ProductColorImage>
-
+type ProductColorImageKeys = keyof ProductColorImage
+type ProductColorImagePartial = Partial<ProductColorImage>
+type ProductColorImageUpdate = ProductColorImagePartial & { product_color_image_id: KEYDB }
+type ProductColorImageInsert = Omit<ProductColorImage, "product_color_image_id">
 class ProductColorImagesModel extends ModelUtils {
 
-    static select(props: SelectProps = {}) {
-        return sql("product_color_images ")
-            .where(this.removePropertiesUndefined(props))
+    static async select<T extends ProductColorImageKeys = ProductColorImageKeys>(props: ProductColorImagePartial = {}, modify?: ModifySQL<Pick<ProductColorImagePartial, T>>) {
+        try {
+            const query = sql<Pick<ProductColorImagePartial, T>>("product_color_images ")
+                .where(this.removePropertiesUndefined(props))
+            modify && query.modify(modify)
+            return await query
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
-    static insert(colorImage: ProductColorImage | Array<ProductColorImage>) {
-        return sql("product_color_images")
-            .insert(colorImage)
+    static async insert(colorImage: ProductColorImageInsert | Array<ProductColorImageInsert>) {
+        try {
+            return await sql("product_color_images")
+                .insert(colorImage)
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
 
-    static update({ product_color_image_id, ...colorImage }: ProductColorImage) {
-        return sql("product_color_images")
-            .update(colorImage)
-            .where("product_color_image_id", product_color_image_id)
+    static async update({ product_color_image_id, ...colorImage }: ProductColorImageUpdate) {
+        try {
+            return await sql("product_color_images")
+                .update(colorImage)
+                .where("product_color_image_id", product_color_image_id)
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
 
-    static delete(product_color_image_id: Array<KEYDB>) {
-        return sql("product_color_images")
-            .whereIn("product_color_image_id", product_color_image_id)
-            .delete()
+    static async delete(product_color_image_id: Array<KEYDB>) {
+        try {
+            return await sql("product_color_images")
+                .whereIn("product_color_image_id", product_color_image_id)
+                .delete()
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
 
 

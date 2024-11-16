@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import CategoriesModel, { Category } from "../model/categories.model.js";
-import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js";
+import ErrorHandler from "../utils/ErrorHandler.utilts.js";
 
 class CategoriesController {
 
@@ -13,8 +13,8 @@ class CategoriesController {
                 data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()
@@ -30,8 +30,8 @@ class CategoriesController {
                 data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()
@@ -51,8 +51,8 @@ class CategoriesController {
                 data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()
@@ -69,8 +69,8 @@ class CategoriesController {
                 data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()

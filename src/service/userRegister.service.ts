@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt"
-import UsersModel, { User, UserWithoutID } from "../model/users.model.js"
+import UsersModel, { User, UserInsert } from "../model/users.model.js"
 import ErrorHandler from "../utils/ErrorHandler.utilts.js"
 class UserRegisterService {
     static isValidPassword(password: string) {
@@ -31,9 +31,21 @@ class UserRegisterService {
         }
     }
 
-    static async createAccount(user: UserWithoutID): Promise<User> {
+    static async createAccount(user: UserInsert) {
 
         const maxAccoutPerIP = 10
+
+        if (user.permission === "admin") {
+            /**
+     * Los datos del usuario ingresado siempre serán "standard", ya que los agregamos manualmente.
+     * Esta validación asegura que no se creen cuentas con permisos de ADMIN por error.
+     * Es una medida preventiva para evitar problemas derivados de una asignación incorrecta de permisos.
+     */
+            throw new ErrorHandler({
+                message: "No puede crear una cuenta con permisos de ADMIN.",
+                status: 400
+            })
+        }
 
         const [rawHeaders] = await UsersModel.insertByLimitIP(user, maxAccoutPerIP)
 
@@ -78,7 +90,7 @@ class UserRegisterService {
         return hash
     }
 
-    static async main(user: UserWithoutID): Promise<User> {
+    static async main(user: UserInsert) {
 
         const { password, email, fullname } = user
 
@@ -88,7 +100,7 @@ class UserRegisterService {
 
         const hash = await this.createPassword(password)
 
-        const obj: UserWithoutID = {
+        const obj: UserInsert = {
             ...user,
             password: hash,
             permission: "standard"

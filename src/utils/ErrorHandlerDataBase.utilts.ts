@@ -3,7 +3,7 @@ import ErrorHandler from "./ErrorHandler.utilts.js";
 
 type SlqErrorKeys = keyof typeof sqlErrorMapping
 
-type Messages = {
+type CustomSQLQueryErrorMessages = {
     [K in SlqErrorKeys]?: string
 }
 const sqlErrorMapping = {
@@ -32,7 +32,7 @@ class ErrorHandlerDataBase extends ErrorHandler {
 
     queryError: QueryError
     
-    constructor(queryError: QueryError, messages: Messages = {}) {
+    constructor(queryError: QueryError, messages: CustomSQLQueryErrorMessages = {}) {
         super({
             message: messages[queryError.code as SlqErrorKeys] || defaultMessage,
             status: (sqlErrorMapping[queryError.code as SlqErrorKeys] || 500)
@@ -51,4 +51,7 @@ class ErrorHandlerDataBase extends ErrorHandler {
 
 }
 
+export type {
+    CustomSQLQueryErrorMessages
+}
 export default ErrorHandlerDataBase

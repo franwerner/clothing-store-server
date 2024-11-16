@@ -1,7 +1,9 @@
 import express from "express"
 import corsConfig from "./config/cors.config.js"
 import "./config/dotenv.config.js"
+import sessionConfig from "./config/session.config.js"
 import errorGlobal from "./middleware/errorGlobal.middleware.js"
+import isAdmin from "./middleware/isAdmin.middleware.js"
 import brandsRouter from "./router/brands.router.js"
 import categoriesRouter from "./router/categories.router.js"
 import colorsRouter from "./router/colors.router.js"
@@ -14,9 +16,6 @@ import productsViewRouter from "./router/productsView.router.js"
 import sizesRouter from "./router/sizes.router.js"
 import usersRouter from "./router/users.router.js"
 import UserTokenService from "./service/userToken.service.js"
-import sessionConfig from "./config/session.config.js"
-import isAdmin from "./middleware/isAdmin.middleware.js"
-import sql from "./config/knex.config.js"
 
 const port = 3000
 const app = express()

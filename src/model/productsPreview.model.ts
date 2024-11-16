@@ -2,6 +2,7 @@ import sql from "../config/knex.config.js"
 import { ProductPreviewFilters } from "../service/productsPreview.service.js";
 
 const productsPreviewModel = (querys: ProductPreviewFilters) => {
+    
     const { color, price, search, size, brand_id, category_id } = querys
 
     const subQueryForOneImagePerProductColor = sql('product_color_images as pci')

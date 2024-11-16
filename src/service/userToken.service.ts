@@ -1,7 +1,6 @@
 import crypto from "crypto";
 import UserTokensModel, { RequestType } from "../model/userTokens.model.js";
 import ErrorHandler from "../utils/ErrorHandler.utilts.js";
-import { ResultSetHeader } from "mysql2";
 import getAdjustedUTCDate from "../utils/getAdjustedUTCDate.utils.js";
 
 interface TokenDate {
@@ -46,7 +45,7 @@ class UserTokenService {
     }
 
     static async useToken(token: string) {
-        const [user] = await UserTokensModel.selectActiveToken({ token }, (builder) => builder.select("user_fk"))
+        const [user] = await UserTokensModel.selectActiveToken<"user_fk">({ token }, (builder) => builder.select("user_fk"))
 
         if (!user) {
             throw new ErrorHandler({
@@ -72,7 +71,6 @@ class UserTokenService {
 
         expected_date.setUTCHours(cleaning_hour)
         expected_date.setUTCMinutes(cleaning_minute)
-        expected_date.setUTCSeconds(0)
 
         if (expected_date.getTime() - current_date.getTime() <= 0) {
             expected_date.setUTCDate(expected_date.getUTCDate() + 1)
@@ -94,6 +92,7 @@ class UserTokenService {
     }
 
 }
+
 
 
 export default UserTokenService

@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import BrandsModel, { Brand } from "../model/brands.model.js";
-import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js";
+import ErrorHandler from "../utils/ErrorHandler.utilts.js";
 class BrandsController {
 
     static async getBrands(req: Request, res: Response, next: NextFunction) {
@@ -10,8 +10,8 @@ class BrandsController {
                 data: data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()
@@ -26,8 +26,8 @@ class BrandsController {
                 data: data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()
@@ -43,8 +43,8 @@ class BrandsController {
                 data: data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()
@@ -60,8 +60,8 @@ class BrandsController {
                 data: data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()

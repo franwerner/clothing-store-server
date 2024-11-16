@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express"
 import ProductColorImagesModel, { ProductColorImage } from "../model/productColorImages.model.js"
-import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js"
+import ErrorHandler from "../utils/ErrorHandler.utilts.js"
 
 type ProductColorSizeBody = {
     images: Array<ProductColorImage>
@@ -17,8 +17,8 @@ class ProductColorImagesController {
                 data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()
@@ -39,8 +39,8 @@ class ProductColorImagesController {
             })
 
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()
@@ -56,8 +56,8 @@ class ProductColorImagesController {
                 data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
             }
             else {
                 next()

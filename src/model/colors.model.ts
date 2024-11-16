@@ -7,28 +7,51 @@ interface Color {
     hexadecimal: `#${string}`
 }
 
-type SelectProps = Partial<Color>
+type ColorKeys = keyof Color
+type ColorPartial = Partial<Color>
+type ColorRequerid = Required<Color>
+type ColorInsert = Omit<Color, "color_id">
+type ColorUpdate = ColorPartial & { color_id: KEYDB }
 class ColorsModel extends ModelUtils {
-    static select(props: SelectProps = {}) {
-        return sql("colors")
-            .where(this.removePropertiesUndefined(props))
+    static async select<T extends ColorKeys = ColorKeys>(props: ColorPartial = {}, modify?: ModifySQL<Pick<ColorRequerid, T>>) {
+        try {
+            const query = sql<Pick<ColorRequerid, T>>("colors")
+                .where(this.removePropertiesUndefined(props))
+            modify && query.modify(modify)
+            return await query
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
 
-    static insert(color: Array<Color> | Color) {
-        return sql("colors")
-            .insert(color)
+    static async insert(color: Array<ColorInsert> | ColorInsert) {
+        try {
+            return await sql("colors")
+                .insert(color)
+        } catch (error) {
+            throw this.generateError(error)
+
+        }
     }
 
-    static update({ color_id, ...color }: Color) {
-        return sql("colors")
-            .update(color)
-            .where("color_id", color_id)
+    static async update({ color_id, ...color }: ColorUpdate) {
+        try {
+            return await sql("colors")
+                .update(color)
+                .where("color_id", color_id)
+        } catch (error) {
+            this.generateError(error)
+        }
     }
 
-    static delete(colorsIDs: Array<KEYDB>) {
-        return sql("colors")
-            .whereIn("color_id", colorsIDs)
-            .delete()
+    static async delete(colorsIDs: Array<KEYDB>) {
+        try {
+            return await sql("colors")
+                .whereIn("color_id", colorsIDs)
+                .delete()
+        } catch (error) {
+            this.generateError(error)
+        }
     }
 }
 
@@ -36,3 +59,5 @@ export {
     type Color
 }
 export default ColorsModel
+
+

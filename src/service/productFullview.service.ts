@@ -1,7 +1,7 @@
-import ProductColorImagesModel, { ProductColorImage } from "../model/productColorImages.model.js"
+import ProductColorImagesModel from "../model/productColorImages.model.js"
 import ProductColorsModel, { ProductColor } from "../model/productColors.model.js"
-import ProductsModel, { Product } from "../model/products.model.js"
-import ProductColorSizesModel, { ProductColorSize } from "../model/productSizes.model.js"
+import ProductsModel from "../model/products.model.js"
+import ProductColorSizesModel from "../model/productSizes.model.js"
 import ErrorHandler from "../utils/ErrorHandler.utilts.js"
 
 const handleEmptyResult = (isError: boolean, message: string) => {
@@ -10,26 +10,26 @@ const handleEmptyResult = (isError: boolean, message: string) => {
 
 class ProductFullViewService {
 
-    static async getProduct(product_id: string): Promise<Product> {
+    static async getProduct(product_id: string) {
         const [product] = await ProductsModel.selectExistsColors({ product_id, status: true })
         handleEmptyResult(!product, "No se encontro ningun producto")
         return product
     }
 
 
-    static async getProductColors(product_fk: KEYDB): Promise<Array<ProductColor>> {
+    static async getProductColors(product_fk: KEYDB) {
         const productColorModel = await ProductColorsModel.selectExistsSizes({ product_fk })
         handleEmptyResult(productColorModel.length === 0, "No se encontro ningun color asociado al producto")
         return productColorModel
     }
 
-    static async getProductColorSize(product_color_fk: KEYDB): Promise<Array<ProductColorSize>> {
+    static async getProductColorSize(product_color_fk: KEYDB){
         const color_sizes = await ProductColorSizesModel.selectWithTableSize({ product_color_fk })
         handleEmptyResult(color_sizes.length === 0, "No se encontro ningun tamaño asociado al color")
         return color_sizes
     }
 
-    static async getProductColorImage(product_color_fk: KEYDB): Promise<Array<ProductColorImage | void>> {
+    static async getProductColorImage(product_color_fk: KEYDB) {
         const color_images = await ProductColorImagesModel.select({ product_color_fk })
         //No causar error, ya que no importa si no hay imagenes, no es crucial.
         return color_images

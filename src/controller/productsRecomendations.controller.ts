@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
-import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js";
 import ProductsRecomendationsService from "../service/productsRecomendations.service.js";
+import ErrorHandler from "../utils/ErrorHandler.utilts.js";
 
 class ProductsRecomendationsController {
 
@@ -8,16 +8,16 @@ class ProductsRecomendationsController {
         try {
             
             const products = await ProductsRecomendationsService.getRandomProductRecomendation()
-                
             res.json({
                 data : {
                     products
                 }
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
-            } else {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else {
                 next()
             }
         }

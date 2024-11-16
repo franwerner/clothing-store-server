@@ -1,68 +1,97 @@
 import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
+import ErrorHandler from "../utils/ErrorHandler.utilts.js"
 
 interface User {
     user_id: KEYDB
     fullname: string
-    phone?: string
+    phone?: string | null
     email: string
     password: string
-    permission?: "admin" | 'standard'
+    permission?: "admin" | "standard"
     ip: string
     email_confirmed?: boolean
-    create_at?: number
+    create_at?: string
 }
 
-type UserWithoutID = Omit<User, 'user_id'> & { user_id?: KEYDB }
-
-type SelectProps = Partial<User>
-
-interface UpdateProps {
-    user_id: KEYDB
-    phone?: string
-    email?: string
-    email_confirmed?: boolean
-}
+type UserKeys = keyof User
+type UserPartial = Partial<User>
+type UserRequired = Required<User>
+type UserInsert = Pick<User, "fullname" | "email" | "password" | "ip" | "phone" | "permission">
+type UserUpdate = UserPartial & { user_id: KEYDB }
 
 class UsersModel extends ModelUtils {
 
-    static update({ user_id, ...rest }: UpdateProps) {
-        return sql("users")
-            .update(rest)
-            .where("user_id", user_id)
+    static async select<T extends UserKeys = UserKeys>(
+        props: UserPartial = {},
+        modify?: ModifySQL<Pick<UserRequired, T>>
+    ) {
+        try {
+            const query = sql<Pick<UserRequired, T>>("users")
+                .where(this.removePropertiesUndefined(props))
+            modify && query.modify(modify)
+            return await query
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
 
-    static updateUnconfirmedEmail(props: UpdateProps) {
-        return this.update(props)
-            .where("email_confirmed", false)
+    static async update({ user_id, ...props }: UserUpdate, modify?: ModifySQL) {
+        try {
+            const query = sql("users")
+                .update(props)
+                .where("user_id", user_id)
+            modify && query.modify(modify)
+            return await query
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
 
-    static async insertByLimitIP(user: UserWithoutID, ip_limit = 0) {
-        const { email, fullname, ip, password, phone = null } = user
-        return await sql.raw(`
-          INSERT INTO users (fullname,phone,email,password,ip)
-          SELECT ?, ?, ?, ?, ?
-         WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ?
-            `, [
-            fullname,
-            phone,
-            email,
-            password,
-            ip,
-            ip,
-            ip_limit,
-        ]) as [ResultSetHeader, undefined]
+    static updateUnconfirmedEmail(props: UserUpdate) {
+        return this.update(props, (builder) => {
+            builder.where("email_confirmed", false)
+        })
     }
 
-    static select(props: SelectProps = {}) {
-        return sql("users")
-            .where(this.removePropertiesUndefined(props))
+    static async insertByLimitIP(user: UserInsert, ip_limit = 0) {
+        const { email, fullname, ip, password, phone = null, permission = "standard" } = user
+        try {
+            return await sql.raw<Array<ResultSetHeader>>(`
+            INSERT INTO users (fullname,phone,email,password,ip,permission)
+            SELECT ?, ?, ?, ?, ?,?
+            WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ?
+              `, [
+                fullname,
+                phone,
+                email,
+                password,
+                ip,
+                permission,
+                ip,
+                ip_limit,
+            ])
+        } catch (error) {
+            throw this.generateError(error, {
+                ER_DUP_ENTRY: "El email que estás intentando registrar ya está en uso."
+            })
+        }
+    }
+
+    static async delete(userIDs: Array<KEYDB>) {
+        try {
+            return await sql("users")
+                .whereIn("user_id", userIDs)
+                .delete()
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
 }
 
 export type {
     User,
-    UserWithoutID
+    UserInsert
 }
 export default UsersModel

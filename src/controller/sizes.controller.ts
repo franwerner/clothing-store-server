@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
-import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js";
 import SizesModel, { Size } from "../model/sizes.model.js";
+import ErrorHandler from "../utils/ErrorHandler.utilts.js";
 
 type SizesBody = { sizes: Array<Size> }
 
@@ -14,9 +14,10 @@ class SizeController {
             })
 
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
-            } else {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else {
                 next()
             }
         }
@@ -33,9 +34,10 @@ class SizeController {
             })
 
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
-            } else {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else {
                 next()
             }
         }
@@ -48,9 +50,10 @@ class SizeController {
                 data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
-            } else {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else {
                 next()
             }
         }
@@ -63,9 +66,10 @@ class SizeController {
                 data
             })
         } catch (error) {
-            if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
-            } else {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else {
                 next()
             }
         }

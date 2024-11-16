@@ -1,12 +1,11 @@
 import { NextFunction, Request, Response } from "express";
+import getSessionData from "../helper/getSessionData.helper.js";
 import emailService from "../service/email/index.js";
+import IPservice from "../service/ip.service.js";
 import UserAuthService from "../service/userAuth.service.js";
 import UserRegisterService from "../service/userRegister.service.js";
 import UserTokenService from "../service/userToken.service.js";
 import ErrorHandler from "../utils/ErrorHandler.utilts.js";
-import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js";
-import IPservice from "../service/ip.service.js";
-import getSessionData from "../helper/getSessionData.helper.js";
 
 interface LoginBody {
     email: string
@@ -37,9 +36,6 @@ class UsersController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            }
-            else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
             } else {
                 next()
             }
@@ -101,10 +97,6 @@ class UsersController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            } else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error,
-                    { ER_DUP_ENTRY: "Email ya esta registrado." }
-                ).response(res)
             } else {
                 next()
             }
@@ -132,9 +124,7 @@ class UsersController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
-            } else {
+            else {
                 next()
             }
         }
@@ -143,7 +133,7 @@ class UsersController {
     static async registerReSendToken(req: Request<any, any, any>, res: Response, next: NextFunction) {
         try {
             const { user_id, email } = getSessionData("user", req.session)
-            
+
             const ip = IPservice.isValidIP(req.ip)
 
             const token = await UserTokenService.createToken({
@@ -162,9 +152,7 @@ class UsersController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
-            } else {
+            else {
                 next()
             }
         }

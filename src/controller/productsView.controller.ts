@@ -2,7 +2,6 @@ import { NextFunction, Request, Response } from "express"
 import ProductFullViewService from "../service/productFullview.service.js"
 import ProductsPreviewService from "../service/productsPreview.service.js"
 import ErrorHandler from "../utils/ErrorHandler.utilts.js"
-import ErrorHandlerDataBase from "../utils/ErrorHandlerDataBase.utilts.js"
 
 type Params = {
     brand_id: string,
@@ -37,9 +36,6 @@ class ProductsViewController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
-            }
             else {
                 next()
             }
@@ -60,9 +56,7 @@ class ProductsViewController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            } else if (ErrorHandlerDataBase.isSqlError(error)) {
-                new ErrorHandlerDataBase(error).response(res)
-            }
+            } 
             else {
                 next()
             }
