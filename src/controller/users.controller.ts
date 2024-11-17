@@ -5,7 +5,7 @@ import IPservice from "../service/ip.service.js";
 import UserAuthService from "../service/userAuth.service.js";
 import UserRegisterService from "../service/userRegister.service.js";
 import UserTokenService from "../service/userToken.service.js";
-import ErrorHandler from "../utils/ErrorHandler.utilts.js";
+import ErrorHandler from "../utils/errorHandler.utilts.js";
 
 interface LoginBody {
     email: string
@@ -58,18 +58,18 @@ class UsersController {
         }
     }
 
-    static async register(req: Request<any, any, RegisterBody>, res: Response, next: NextFunction) {
+    static async register(
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) {
         try {
-            const { email, fullname, phone, password } = req.body
 
             const ip = IPservice.isValidIP(req.ip)
 
             const account = await UserRegisterService.main({
                 ip,
-                password,
-                email,
-                fullname,
-                phone,
+                ...req.body
             })
 
             const token = await UserTokenService.createToken({
@@ -81,7 +81,7 @@ class UsersController {
             )
 
             await emailService.sendVerification({
-                email,
+                email : account.email,
                 token
             })
 

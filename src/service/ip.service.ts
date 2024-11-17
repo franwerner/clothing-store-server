@@ -1,4 +1,4 @@
-import ErrorHandler from "../utils/ErrorHandler.utilts.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 class IPservice {
     static IPv4(ip: string) {

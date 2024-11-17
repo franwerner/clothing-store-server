@@ -1,17 +1,19 @@
-import { NextFunction, Request, Response } from "express";
-import ProductColorsModel, { ProductColor } from "../model/productColors.model.js";
-import ErrorHandler from "../utils/ErrorHandler.utilts.js";
+import { NextFunction, Request } from "express";
+import { ProductColorSchema } from "../schema/productColor.schema.js";
+import ProductColorsService from "../service/productColors.service.js";
+import ErrorHandler from "../utils/errorHandler.utilts.js";
+import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js";
 
-type ProductColorBody = {
-    colors: Array<ProductColor>
-}
 
 class ProductColorsController {
-    static async setProductColors(req: Request<any, any, ProductColorBody>, res: Response, next: NextFunction) {
+    static async setProductColors(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductColorSchema.Insert>,
+        next: NextFunction
+    ) {
 
         try {
-            const { colors } = req.body
-            const data = await ProductColorsModel.insert(colors)
+            const data = await ProductColorsService.insert(req.body)
 
             res.json({
                 data
@@ -19,6 +21,9 @@ class ProductColorsController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
@@ -26,20 +31,23 @@ class ProductColorsController {
         }
     }
 
-    static async modifyProductColors(req: Request<any, any, ProductColorBody>, res: Response, next: NextFunction) {
+    static async modifyProductColors(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductColorSchema.Update>,
+        next: NextFunction
+    ) {
         try {
-            const { colors } = req.body
-            
-            const data = await Promise.all(
-                colors.map(i => ProductColorsModel.update(i))
-            )
+            const data = await ProductColorsService.update(req.body)
             res.json({
                 data
             })
-          
+
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
@@ -47,16 +55,22 @@ class ProductColorsController {
         }
     }
 
-    static async removeProductColors(req: Request<any, any, { colors: Array<number> }>, res: Response, next: NextFunction) {
+    static async removeProductColors(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductColorSchema.Delete>, 
+        next: NextFunction
+    ) {
         try {
-            const { colors } = req.body
-            const data = await ProductColorsModel.delete(colors)
+            const data = await ProductColorsService.delete(req.body)
             res.json({
                 data
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()

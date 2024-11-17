@@ -3,7 +3,7 @@ import ProductColorImagesController from "../controller/productColorImages.contr
 
 const productColorImagesRouter = express.Router()
 
-productColorImagesRouter.post("/", ProductColorImagesController.setProductColorImages)
+productColorImagesRouter.post("/", ProductColorImagesController.addProductColorImages)
 productColorImagesRouter.delete("/", ProductColorImagesController.removeProductColorImages)
 productColorImagesRouter.patch("/", ProductColorImagesController.modifyProductColorImages)
 

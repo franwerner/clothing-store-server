@@ -1,17 +1,19 @@
-import { NextFunction, Request, Response } from "express"
-import ProductColorImagesModel, { ProductColorImage } from "../model/productColorImages.model.js"
-import ErrorHandler from "../utils/ErrorHandler.utilts.js"
+import { NextFunction, Request } from "express"
+import { ProductColorImageSchema } from "../schema/productColorImage.schema.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
+import ProductColorImagesService from "../service/productColorImages.service.js"
+import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js"
 
-type ProductColorSizeBody = {
-    images: Array<ProductColorImage>
-}
 
 class ProductColorImagesController {
-    static async setProductColorImages(req: Request<any, any, ProductColorSizeBody>, res: Response, next: NextFunction) {
+    static async addProductColorImages(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductColorImageSchema.Insert>,
+        next: NextFunction
+    ) {
 
         try {
-            const { images } = req.body
-            const data = await ProductColorImagesModel.insert(images)
+            const data = await ProductColorImagesService.insert(req.body)
 
             res.json({
                 data
@@ -19,6 +21,9 @@ class ProductColorImagesController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
@@ -26,14 +31,14 @@ class ProductColorImagesController {
         }
     }
 
-    static async modifyProductColorImages(req: Request<any, any, ProductColorSizeBody>, res: Response, next: NextFunction){
+    static async modifyProductColorImages(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductColorImageSchema.Update>,
+        next: NextFunction
+    ) {
         try {
-            const { images } = req.body
 
-            const data = await Promise.all(
-                images.map(i => ProductColorImagesModel.update(i))
-            )
-            
+            const data = await ProductColorImagesService.update(req.body)
             res.json({
                 data
             })
@@ -41,6 +46,9 @@ class ProductColorImagesController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
@@ -48,16 +56,21 @@ class ProductColorImagesController {
         }
     }
 
-    static async removeProductColorImages(req: Request<any, any, { images: Array<number> }>, res: Response, next: NextFunction) {
+    static async removeProductColorImages(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductColorImageSchema.Delete>,
+        next: NextFunction) {
         try {
-            const { images } = req.body
-            const data = await ProductColorImagesModel.delete(images)
+            const data = await ProductColorImagesService.delete(req.body)
             res.json({
                 data
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import UserTokensModel, { RequestType } from "../model/userTokens.model.js";
-import ErrorHandler from "../utils/ErrorHandler.utilts.js";
+import ErrorHandler from "../utils/errorHandler.utilts.js";
 import getAdjustedUTCDate from "../utils/getAdjustedUTCDate.utils.js";
 
 interface TokenDate {
@@ -22,7 +22,7 @@ class UserTokenService {
         return date.toISOString().replace('T', ' ').substring(0, 19) //Quitamos para que se adapte el CURRENT_TIMESTAMP DE MYSQL
     }
 
-    static async createToken(props: { ip: string, request: RequestType, user_fk: KEYDB }, { maxTokens, ...tokenDate }: TokenDate & { maxTokens: number }) {
+    static async createToken(props: { ip: string, request: RequestType, user_fk: APP.DatabaseKey }, { maxTokens, ...tokenDate }: TokenDate & { maxTokens: number }) {
 
         const token = crypto.randomUUID()
 
@@ -80,15 +80,19 @@ class UserTokenService {
         const hours = Math.floor(milliseconds / 3600000)
         const minutes = Math.ceil((milliseconds % 3600000) / 60000)
 
-        const cleanCount = await UserTokensModel.deleteAllExpiredTokens()
+        try {
+            const cleanCount = await UserTokensModel.deleteAllExpiredTokens()
 
-        console.log(`${cleanCount} tokens were cleaned`)
+            console.log(`${cleanCount} tokens were cleaned`)
 
-        console.log(`The next token cleanup is in ${hours}H ${minutes}M`)
+            console.log(`The next token cleanup is in ${hours}H ${minutes}M`)
 
-        setTimeout(async () => {
-            this.cleanExpiredTokens({ cleaning_hour, cleaning_minute })
-        }, milliseconds)
+            setTimeout(() => {
+                this.cleanExpiredTokens({ cleaning_hour, cleaning_minute })
+            }, milliseconds)
+        } catch (error) {      
+            console.error("Error crítico: Fallo al intentar eliminar los tokens expirados. Se requiere atención inmediata.")
+        }
     }
 
 }

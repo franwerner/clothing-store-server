@@ -1,5 +1,5 @@
 import { QueryError } from "mysql2";
-import ErrorHandler from "./ErrorHandler.utilts.js";
+import ErrorHandler from "./errorHandler.utilts.js";
 
 type SlqErrorKeys = keyof typeof sqlErrorMapping
 
@@ -28,7 +28,7 @@ const sqlErrorMapping = {
 
 const defaultMessage = "Ocurrio un error desconocido en la base de datos."
 
-class ErrorHandlerDataBase extends ErrorHandler {
+class DatabaseErrorHandler extends ErrorHandler {
 
     queryError: QueryError
     
@@ -38,11 +38,11 @@ class ErrorHandlerDataBase extends ErrorHandler {
             status: (sqlErrorMapping[queryError.code as SlqErrorKeys] || 500)
         })
         this.queryError = queryError
-        this.name = "ErrorHandlerDataBase"
+        this.name = "DatabaseErrorHandler"
     }
 
-    static isInstanceOf(instance: any): instance is ErrorHandlerDataBase {
-        return instance instanceof ErrorHandlerDataBase
+    static isInstanceOf(instance: unknown): instance is DatabaseErrorHandler {
+        return instance instanceof DatabaseErrorHandler
     }
 
     static isSqlError(error: any): error is QueryError {
@@ -54,4 +54,4 @@ class ErrorHandlerDataBase extends ErrorHandler {
 export type {
     CustomSQLQueryErrorMessages
 }
-export default ErrorHandlerDataBase
+export default DatabaseErrorHandler

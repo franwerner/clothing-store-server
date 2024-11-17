@@ -1,5 +1,5 @@
 import productsPreviewModel from "../model/productsPreview.model.js"
-import ErrorHandler from "../utils/ErrorHandler.utilts.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
 import toNumber from "../utils/toNumber.utilts.js"
 
 type ProductPreviewFilters = {

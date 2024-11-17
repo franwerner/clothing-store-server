@@ -1,27 +1,28 @@
 import { NextFunction, Request, Response } from "express";
-import ColorsModel, { Color } from "../model/colors.model.js";
-import ColorService from "../service/color.service.js";
-import ErrorHandler from "../utils/ErrorHandler.utilts.js";
+import ColorsModel from "../model/colors.model.js";
+import { ColorSchema } from "../schema/color.schema.js";
+import ColorsService from "../service/colors.service.js";
+import ErrorHandler from "../utils/errorHandler.utilts.js";
+import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js";
 
-interface ColorBody {
-    colors: Array<Color>
-}
 class ColorsController {
 
-    static async setColor(req: Request<any, any, ColorBody>, res: Response, next: NextFunction) {
+    static async addColors(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ColorSchema.Insert>,
+        next: NextFunction
+    ) {
         try {
-            const { colors } = req.body
-
-            ColorService.findNotHexadecimal(colors)
-
-            const data = await ColorsModel.insert(colors)
-
+            const data = await ColorsService.insert(req.body)
             res.json({
                 data
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if (ZodErrorHandler.isInstanceOf(error)) {
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
@@ -29,15 +30,14 @@ class ColorsController {
         }
     }
 
-    static async modifyColor(req: Request<any, any, ColorBody>, res: Response, next: NextFunction) {
+    static async modifyColors
+        (req: Request,
+            res: APP.ResponseTemplateWithWOR<ColorSchema.Update>,
+            next: NextFunction
+        ) {
 
         try {
-            const { colors } = req.body
-
-            ColorService.findNotHexadecimal(colors)
-
-            const data = await Promise.all(colors.map(i => ColorsModel.update(i)))
-
+            const data = await ColorsService.update(req.body)
             res.json({
                 data
             })
@@ -45,18 +45,21 @@ class ColorsController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            } else if (ZodErrorHandler.isInstanceOf(error)) {
+                new ZodErrorHandler(error).response(res)
             } else {
                 next()
             }
         }
     }
 
-    static async removeColors(req: Request<any, any, { colors: Array<number> }>, res: Response, next: NextFunction) {
-
+    static async removeColors(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ColorSchema.Delete>,
+        next: NextFunction
+    ) {
         try {
-            const { colors } = req.body
-
-            const data = await ColorsModel.delete(colors)
+            const data = await ColorsService.delete(req.body)
 
             res.json({
                 data
@@ -64,16 +67,23 @@ class ColorsController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            } else {
+            } 
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
+            }
+            else {
                 next()
             }
         }
     }
 
-    static async getColors(_: Request, res: Response, next: NextFunction) {
+    static async getColors(
+        _: Request, 
+        res: APP.ResponseTemplate<ColorSchema.Base[]>,
+        next: NextFunction
+    ) {
         try {
             const data = await ColorsModel.select()
-
             res.json({
                 data
             })

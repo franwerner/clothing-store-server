@@ -1,5 +1,5 @@
 import { SessionData } from "express-session";
-import ErrorHandler from "../utils/ErrorHandler.utilts.js";
+import ErrorHandler from "../utils/errorHandler.utilts.js";
 
 const getSessionData = (keys:keyof Omit<SessionData,"cookie">,session:SessionGlobal) => {
     const data = session[keys]

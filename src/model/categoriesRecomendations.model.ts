@@ -1,8 +1,7 @@
 import sql from "../config/knex.config.js"
+import { BrandSchema } from "../schema/brand.schema.js"
+import { CategorySchema } from "../schema/category.schema.js"
 import ModelUtils from "../utils/model.utils.js"
-import { Brand } from "./brands.model.js"
-import { Category } from "./categories.model.js"
-import ProductsModel from "./products.model.js"
 
 
 class CategoriesRecomendationsModel extends ModelUtils {
@@ -15,15 +14,16 @@ class CategoriesRecomendationsModel extends ModelUtils {
                     "*",
                     sql.raw('ROW_NUMBER() OVER (PARTITION BY brand_fk ORDER BY RAND()) AS row_num')
                 )
-                .whereExists(
-                    ProductsModel.select().select("category_fk")
+                .whereExists(//Selecciona las categorias si unicamente tienen al menos un producto activo.
+                    sql("products as p")
+                        .select("category_fk")
                         .whereRaw("p.category_fk = category_id")
                         .where("status", true)
                 ).where("status", true)
 
-            const query = sql<Brand>("brands as b")
+            const query = sql<BrandSchema.Base>("brands as b")  //Selecciona por MARCA una CATEGORIA al azar y las que cumplen con los criterios de la subquery.
                 .select("brand", "category", "brand_id", "category_id")
-                .innerJoin<Category & { row_numb: number }>(subQueryCategoriesPerBrand.as("c"), (c) => {
+                .innerJoin<Required<CategorySchema.Base> & { row_numb: number }>(subQueryCategoriesPerBrand.as("c"), (c) => {
                     c.on("c.brand_fk", "b.brand_id")
                 })
                 .where("c.row_num", 1)

@@ -21,6 +21,15 @@ const app = express();
 app.use(express.json());
 app.use(sessionConfig);
 app.use(corsConfig);
+app.use("/", (req, res, next) => {
+    req.session.user = {
+        permission: "admin",
+        fullname: "fsdada",
+        user_id: 1,
+        email: "ifrank4444@gmail.com"
+    };
+    next();
+});
 app.use("/categories", categoriesRouter);
 app.use("/products", productsRouter);
 app.use("/products/recomendations", productRecomendationsRouter);

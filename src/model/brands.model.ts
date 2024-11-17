@@ -1,16 +1,11 @@
 import sql from "../config/knex.config.js"
+import { BrandSchema } from "../schema/brand.schema.js"
+import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
-interface Brand {
-    brand_id: KEYDB,
-    brand: string
-    status?: boolean
-}
-type BrandKeys = keyof Brand
-type BrandPartial = Partial<Brand>
-type BrandRequired = Required<Brand>
-type BrandInsert = Omit<Brand,"brand_id">
-type BrandUpdate = BrandPartial & {brand_id : KEYDB}
+type BrandKeys = keyof BrandSchema.Base
+type BrandPartial = Partial<BrandSchema.Base>
+type BrandRequired = Required<BrandSchema.Base>
 
 class BrandsModel extends ModelUtils {
 
@@ -24,38 +19,42 @@ class BrandsModel extends ModelUtils {
         }
     }
 
-    static async insert(props: BrandInsert | Array<BrandInsert>) {
+    static async insert<T extends BrandSchema.Insert>(props: Exact<T, BrandSchema.Insert>) {
         try {
             return await sql("brands").insert(props)
         } catch (error) {
-            throw this.generateError(error)
+            throw this.generateError(error, {
+                ER_DUP_ENTRY: "La marca que intentas registrar ya se existe en la base de datos."
+            })
         }
     }
 
-    static async update({ brand_id, ...brand }: BrandUpdate) {
+    static async update<T extends BrandSchema.Update>({ brand_id, ...brand }: Exact<T, BrandSchema.Update>) {
         try {
             return await sql("brands")
                 .update(brand)
                 .where("brand_id", brand_id)
         } catch (error) {
-            throw this.generateError(error)
+            throw this.generateError(error, {
+                ER_DUP_ENTRY: "El nombre de la marca que intentas actualizar ya se existe en la base de datos."
+            })
 
         }
     }
 
-    static async delete(brandIDs: Array<KEYDB>) {
+    static async delete(brandID: BrandSchema.Delete) {
         try {
             return await sql("brands")
-                .whereIn("brand_id", brandIDs)
+                .where("brand_id", brandID)
                 .delete()
         } catch (error) {
-            throw this.generateError(error)
+            throw this.generateError(error, {
+                ER_ROW_IS_REFERENCED_2: "No se puede eliminar la marca porque existen productos asociados a la lista de compras de usuarios."
+            })
 
         }
     }
 
 }
-export {
-    type Brand
-}
+
 export default BrandsModel

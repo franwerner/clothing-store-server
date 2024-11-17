@@ -1,75 +1,84 @@
-import { NextFunction, Request, Response } from "express";
-import SizesModel, { Size } from "../model/sizes.model.js";
-import ErrorHandler from "../utils/ErrorHandler.utilts.js";
-
-type SizesBody = { sizes: Array<Size> }
-
+import { NextFunction, Request } from "express";
+import { SizeSchema } from "../schema/size.schema.js";
+import SizeService from "../service/sizes.service.js";
+import ErrorHandler from "../utils/errorHandler.utilts.js";
+import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js";
 class SizeController {
-    static async setSizes(req: Request<any, any, SizesBody>, res: Response, next: NextFunction) {
+    static async getSizes(
+        _: Request,
+        res: APP.ResponseTemplate<Array<SizeSchema.Base>>,
+        next: NextFunction
+    ) {
         try {
-
-            const data = await SizesModel.insert(req.body.sizes)
-            res.json({
-                data
-            })
-
+            const data = await SizeService.get();
+            res.json({ data });
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
-                error.response(res)
+                error.response(res);
+            } else {
+                next();
             }
-            else {
+        }
+    }
+
+    static async addSizes(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<SizeSchema.Insert>,
+        next: NextFunction
+    ) {
+        try {
+            const data = await SizeService.insert(req.body)
+
+            res.json({ data });
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res);
+            } else if (ZodErrorHandler.isInstanceOf(error)) {
+                new ZodErrorHandler(error).response(res);
+            } else {
+                next();
+            }
+        }
+    }
+
+    static async modifySizes(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<SizeSchema.Update>,
+        next: NextFunction
+    ) {
+        try {
+            const data = await SizeService.update(req.body)
+
+            res.json({
+                data,
+
+            })
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res);
+            } else if (ZodErrorHandler.isInstanceOf(error)) {
+                new ZodErrorHandler(error).response(res)
+            } else {
                 next()
             }
         }
     }
 
-    static async modifySizes(req: Request<any, any, SizesBody>, res: Response, next: NextFunction) {
+    static async removeSizes(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<SizeSchema.Delete>,
+        next: NextFunction
+    ) {
         try {
-            const sizes = req.body.sizes
-            const data = await Promise.all(
-                sizes.map(i => SizesModel.update(i))
-            )
-            res.json({
-                data
-            })
+            const data = await SizeService.delete(req.body.sizes)
 
+            res.json({ data })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            }
-            else {
-                next()
-            }
-        }
-    }
-
-    static async getSizes(req: Request, res: Response, next: NextFunction) {
-        try {
-            const data = await SizesModel.select()
-            res.json({
-                data
-            })
-        } catch (error) {
-            if (ErrorHandler.isInstanceOf(error)) {
-                error.response(res)
-            }
-            else {
-                next()
-            }
-        }
-    }
-
-    static async removeSizes(req: Request<any, any, { sizes: Array<number> }>, res: Response, next: NextFunction) {
-        try {
-            const data = await SizesModel.delete(req.body.sizes)
-            res.json({
-                data
-            })
-        } catch (error) {
-            if (ErrorHandler.isInstanceOf(error)) {
-                error.response(res)
-            }
-            else {
+            } else if (ZodErrorHandler.isInstanceOf(error)) {
+                new ZodErrorHandler(error).response(res);
+            } else {
                 next()
             }
         }

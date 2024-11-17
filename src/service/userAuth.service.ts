@@ -1,7 +1,8 @@
 import bcrypt from "bcrypt"
-import UsersModel, { User } from "../model/users.model.js"
+import UsersModel from "../model/users.model.js"
 import FormatUser from "../types/formatUser.types.js"
-import ErrorHandler from "../utils/ErrorHandler.utilts.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
+import { UserSchema } from "../schema/user.schema.js"
 class UserAuthService {
 
     static async findUserByEmail(email: string) {
@@ -14,7 +15,7 @@ class UserAuthService {
         if (!compare) throw new ErrorHandler({ message: "La contraseña ingresada es incorrecta.", status: 422 })
     }
 
-    static formatUser(user: User) {
+    static formatUser(user: UserSchema.Base) {
         const omitPropertyPassword = Object.entries(user)
             .filter(([key]) => key !== "password")
         return Object.fromEntries(omitPropertyPassword) as FormatUser

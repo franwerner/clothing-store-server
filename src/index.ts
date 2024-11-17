@@ -1,4 +1,4 @@
-import express from "express"
+import express, { Request } from "express"
 import corsConfig from "./config/cors.config.js"
 import "./config/dotenv.config.js"
 import sessionConfig from "./config/session.config.js"
@@ -25,6 +25,16 @@ app.use(express.json())
 app.use(sessionConfig)
 
 app.use(corsConfig)
+
+app.use("/", (req: Request, res, next) => {
+    req.session.user = {
+        permission: "admin",
+        fullname : "fsdada",
+        user_id: 1,
+        email: "ifrank4444@gmail.com"
+    }
+    next()
+})
 
 app.use("/categories", categoriesRouter)
 app.use("/products", productsRouter)

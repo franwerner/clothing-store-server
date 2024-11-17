@@ -2,7 +2,7 @@ import ProductColorImagesModel from "../model/productColorImages.model.js"
 import ProductColorsModel, { ProductColor } from "../model/productColors.model.js"
 import ProductsModel from "../model/products.model.js"
 import ProductColorSizesModel from "../model/productSizes.model.js"
-import ErrorHandler from "../utils/ErrorHandler.utilts.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 const handleEmptyResult = (isError: boolean, message: string) => {
     if (isError) throw new ErrorHandler({ message, status: 404 })
@@ -17,19 +17,19 @@ class ProductFullViewService {
     }
 
 
-    static async getProductColors(product_fk: KEYDB) {
+    static async getProductColors(product_fk: APP.DatabaseKey) {
         const productColorModel = await ProductColorsModel.selectExistsSizes({ product_fk })
         handleEmptyResult(productColorModel.length === 0, "No se encontro ningun color asociado al producto")
         return productColorModel
     }
 
-    static async getProductColorSize(product_color_fk: KEYDB){
+    static async getProductColorSize(product_color_fk: APP.DatabaseKey){
         const color_sizes = await ProductColorSizesModel.selectWithTableSize({ product_color_fk })
         handleEmptyResult(color_sizes.length === 0, "No se encontro ningun tamaño asociado al color")
         return color_sizes
     }
 
-    static async getProductColorImage(product_color_fk: KEYDB) {
+    static async getProductColorImage(product_color_fk: APP.DatabaseKey) {
         const color_images = await ProductColorImagesModel.select({ product_color_fk })
         //No causar error, ya que no importa si no hay imagenes, no es crucial.
         return color_images

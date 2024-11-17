@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express"
 import ProductFullViewService from "../service/productFullview.service.js"
 import ProductsPreviewService from "../service/productsPreview.service.js"
-import ErrorHandler from "../utils/ErrorHandler.utilts.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 type Params = {
     brand_id: string,
@@ -15,7 +15,11 @@ type Query = {
 }
 class ProductsViewController {
 
-    static async getProductsPreview(req: Request<Params, any, any, Query>, res: Response, next: NextFunction) {
+    static async getProductsPreview
+    (req: Request<Params, any, any, Query>, 
+        res: Response, 
+        next: NextFunction
+    ) {
         try {
             const { brand_id, category_id } = req.params
             const { color, price, search, size } = req.query
@@ -43,7 +47,11 @@ class ProductsViewController {
         }
     }
 
-    static async getProductFullView(req: Request, res: Response, next: NextFunction) {
+    static async getProductFullView(
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) {
         try {
 
             const { product_id } = req.params
@@ -56,7 +64,7 @@ class ProductsViewController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            } 
+            }
             else {
                 next()
             }

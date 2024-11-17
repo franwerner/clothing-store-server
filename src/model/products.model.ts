@@ -1,25 +1,19 @@
 import sql from "../config/knex.config.js"
+import { ProductSchema } from "../schema/product.schema.js"
+import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
-interface Product {
-    product_id: KEYDB
-    category_fk: KEYDB,
-    product: string,
-    discount?: number,
-    price: number,
-    status?: boolean
-}
 
-type ProductKeys = keyof Product
-type ProductPartial = Partial<Product>
-type ProductRequerid = Required<Product>
-type ProductInsert = Omit<Product, "product_id">
-type ProductUpdate = ProductPartial & { product_id: KEYDB }
+
+type ProductKeys = keyof ProductSchema.Base
+type ProductPartial = Partial<ProductSchema.Base>
+type ProductRequerid = Required<ProductSchema.Base>
+
 
 class ProductsModel extends ModelUtils {
 
     static async select<T extends ProductKeys = ProductKeys>(
         props: ProductPartial = {},
-        modify?: ModifySQL<Pick<ProductRequerid, T>>
+        modify?: APP.ModifySQL<Pick<ProductRequerid, T>>
     ) {
         try {
             const query = sql<Pick<ProductRequerid, T>>("products as p")
@@ -33,7 +27,7 @@ class ProductsModel extends ModelUtils {
 
     static selectExistsColors<T extends ProductKeys = ProductKeys>(
         props?: ProductPartial,
-        modify?: ModifySQL<Pick<ProductRequerid, T>>
+        modify?: APP.ModifySQL<Pick<ProductRequerid, T>>
     ) {
         return this.select<T>(props, (builder) => {
             modify && builder.modify(modify)
@@ -44,7 +38,7 @@ class ProductsModel extends ModelUtils {
         })
     }
 
-    static async insert(product: Array<ProductInsert> | ProductInsert) {
+    static async insert<T extends ProductSchema.Update>(product: Exact<T, ProductSchema.Insert>) {
         try {
             return await sql("products")
                 .insert(product)
@@ -53,7 +47,7 @@ class ProductsModel extends ModelUtils {
         }
     }
 
-    static async update({ product_id, ...props }: ProductUpdate) {
+    static async update<T extends ProductSchema.Update>({ product_id, ...props }: Exact<T, ProductSchema.Update>) {
         try {
             return await sql("products")
                 .update(props)
@@ -63,10 +57,10 @@ class ProductsModel extends ModelUtils {
         }
     }
 
-    static async delete(productIDs: Array<KEYDB>) {
+    static async delete(productID: ProductSchema.Delete) {
         try {
             return await sql("products")
-                .whereIn("product_id", productIDs)
+                .where("product_id", productID)
                 .delete()
         } catch (error) {
             throw this.generateError(error)
@@ -74,7 +68,5 @@ class ProductsModel extends ModelUtils {
     }
 
 }
-export {
-    type Product
-}
+
 export default ProductsModel

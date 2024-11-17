@@ -1,13 +1,21 @@
-import { NextFunction, Request, Response } from "express";
-import CategoriesModel, { Category } from "../model/categories.model.js";
-import ErrorHandler from "../utils/ErrorHandler.utilts.js";
+import { NextFunction, Request } from "express";
+import CategoriesModel from "../model/categories.model.js";
+import brandSchema, { BrandSchema } from "../schema/brand.schema.js";
+import categorySchema, { CategorySchema } from "../schema/category.schema.js";
+import CategoriesService from "../service/categories.service.js";
+import ErrorHandler from "../utils/errorHandler.utilts.js";
+import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js";
 
 class CategoriesController {
 
-    static async getCategoriesPerBrand(req: Request, res: Response, next: NextFunction) {
+    static async getCategoriesPerBrand(
+        req: Request,
+        res: APP.ResponseTemplate<CategorySchema.Base[]>,
+         next: NextFunction
+        ) {
         try {
             const { brand_id } = req.params
-            const data = await CategoriesModel.select({ brand_fk : brand_id})
+            const data = await CategoriesModel.select({ brand_fk: brand_id })
 
             res.json({
                 data
@@ -23,15 +31,26 @@ class CategoriesController {
     }
 
 
-    static async setCategories(req: Request<any, any, { categories: Array<Category> }>, res: Response, next: NextFunction) {
+    static async addCategories(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<CategorySchema.Insert>,
+        next: NextFunction
+    ) {
         try {
-            const data = await CategoriesModel.insert(req.body.categories)
+            const categories = categorySchema.insert.array().parse(req.body)
+
+            const data = await CategoriesService.insert(categories)
+
             res.json({
                 data
             })
+
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
@@ -39,20 +58,25 @@ class CategoriesController {
         }
     }
 
-    static async modifyCategories(req: Request<any, any, { categories: Array<Category> }>, res: Response, next: NextFunction) {
+    static async modifyCategories(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<CategorySchema.Update>,
+        next: NextFunction
+    ) {
         try {
-            const categories = req.body.categories
+            const categories = categorySchema.update.array().parse(req.body)
 
-            const data = await Promise.all(
-                categories.map((i) => CategoriesModel.update(i))
-            )
-            
+            const data = await CategoriesService.update(categories)
+
             res.json({
                 data
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
@@ -60,17 +84,25 @@ class CategoriesController {
         }
     }
 
-    static async removeCategories(req: Request<any, any, { categories: Array<number> }>, res: Response, next: NextFunction) {
+    static async removeCategories(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<BrandSchema.Delete>,
+        next: NextFunction
+    ) {
 
         try {
-            const categories = req.body.categories
-            const data = await CategoriesModel.delete(categories)
+            const categories = brandSchema.delete.array().parse(req.body)
+            const data = await CategoriesService.delete(categories)
+
             res.json({
-                data
+                data,
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
+            }
+            else if(ZodErrorHandler.isInstanceOf(error)){
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()

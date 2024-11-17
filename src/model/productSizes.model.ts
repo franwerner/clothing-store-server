@@ -1,23 +1,18 @@
 import sql from "../config/knex.config.js"
+import { ProductColorSizeSchema } from "../schema/productColorSize.schema.js"
+import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
-interface ProductColorSize {
-    product_color_size_id: KEYDB
-    product_color_fk: KEYDB
-    size_fk: KEYDB
-    stock?: boolean,
-}
-type ProductColorSizeKeys = keyof ProductColorSize
-type ProductColorSizePartial = Partial<ProductColorSize>
-type ProductColorSizeRequired = Required<ProductColorSize>
-type ProductColorSizeInsert = Omit<ProductColorSize, "product_color_size_id">
-type ProductColorSizeUpdate = ProductColorSizePartial & { product_color_size_id: KEYDB }
+
+type ProductColorSizeKeys = keyof ProductColorSizeSchema.Base
+type ProductColorSizePartial = Partial<ProductColorSizeSchema.Base>
+type ProductColorSizeRequired = Required<ProductColorSizeSchema.Base>
 
 class ProductColorSizesModel extends ModelUtils {
 
     static async select<T extends ProductColorSizeKeys = ProductColorSizeKeys>(
         props: ProductColorSizePartial = {},
-        modify?: ModifySQL<Pick<ProductColorSizeRequired, T>>
+        modify?: APP.ModifySQL<Pick<ProductColorSizeRequired, T>>
     ) {
         try {
             const query = sql<Pick<ProductColorSizeRequired, T>>("product_color_sizes as pcs")
@@ -31,7 +26,7 @@ class ProductColorSizesModel extends ModelUtils {
 
     static selectWithTableSize<T extends ProductColorSizeKeys = ProductColorSizeKeys>(
         props?: ProductColorSizePartial,
-        modify?: ModifySQL<Pick<ProductColorSizeRequired, T>>
+        modify?: APP.ModifySQL<Pick<ProductColorSizeRequired, T>>
     ) {
         return this.select<T>(props, (builder) => {
             modify && builder.modify(modify)
@@ -39,7 +34,7 @@ class ProductColorSizesModel extends ModelUtils {
         })
     }
 
-    static async insert(size: ProductColorSizeInsert | ProductColorSizeInsert[]) {
+    static async insert<T extends ProductColorSizeSchema.Insert>(size: Exact<T, ProductColorSizeSchema.Insert>) {
         try {
             return await sql("product_color_sizes")
                 .insert(size)
@@ -48,7 +43,7 @@ class ProductColorSizesModel extends ModelUtils {
         }
     }
 
-    static async update({ product_color_size_id, ...size }: ProductColorSizeUpdate) {
+    static async update<T extends ProductColorSizeSchema.Update>({ product_color_size_id, ...size }: Exact<T, ProductColorSizeSchema.Update>) {
         try {
             return await sql("product_color_sizes")
                 .update(size)
@@ -58,10 +53,10 @@ class ProductColorSizesModel extends ModelUtils {
         }
     }
 
-    static async delete(product_color_size_ids: Array<KEYDB>) {
+    static async delete(product_color_size_ids: ProductColorSizeSchema.Delete) {
         try {
             return await sql("product_color_sizes")
-                .whereIn("product_color_size_id", product_color_size_ids)
+                .where("product_color_size_id", product_color_size_ids)
                 .delete()
         } catch (error) {
             throw this.generateError(error);
@@ -69,7 +64,5 @@ class ProductColorSizesModel extends ModelUtils {
     }
 
 }
-export {
-    type ProductColorSize
-}
+
 export default ProductColorSizesModel

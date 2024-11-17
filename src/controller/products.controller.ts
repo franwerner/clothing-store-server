@@ -1,19 +1,18 @@
-import { NextFunction, Request, Response } from "express"
-import ProductsModel, { Product } from "../model/products.model.js"
-import ErrorHandler from "../utils/ErrorHandler.utilts.js"
-
-type ProductBody = {
-    products: Array<Product>,
-}
+import { NextFunction, Request } from "express"
+import { ProductSchema } from "../schema/product.schema.js"
+import ProductsService from "../service/products.service.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
+import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js"
 
 class ProductsController {
 
-    static async setProducts(req: Request<any, any, ProductBody>, res: Response, next: NextFunction) {
+    static async getProductsPerCategory(
+        _: Request, 
+        res: APP.ResponseTemplate<ProductSchema.Base[]>,
+        next: NextFunction
+    ) {
         try {
-            const { products } = req.body
-
-            const data = await ProductsModel.insert(products)
-
+            const data = await ProductsService.get()
             res.json({
                 data
             })
@@ -27,11 +26,37 @@ class ProductsController {
         }
     }
 
-    static async removeProducts(req: Request<any, any, { products: Array<number> }>, res: Response, next: NextFunction) {
-
+    static async addProducts(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductSchema.Insert>,
+        next: NextFunction
+    ) {
         try {
-            const products = req.body.products
-            const data = await ProductsModel.delete(products)
+            const data = await ProductsService.insert(req.body)
+            res.json({
+                data
+            })
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else if (ZodErrorHandler.isInstanceOf(error)) {
+                new ZodErrorHandler(error).response(res)
+            }
+            else {
+                next()
+            }
+        }
+    }
+
+    static async modifyProducts(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductSchema.Update>,
+        next: NextFunction
+    ) {
+        try {
+            const data = await ProductsService.update(req.body)
+
             res.json({
                 data
             })
@@ -40,16 +65,22 @@ class ProductsController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
+            else if (ZodErrorHandler.isInstanceOf(error)) {
+                new ZodErrorHandler(error).response(res)
+            }
             else {
                 next()
             }
         }
     }
 
-    static async modifyProducts(req: Request<any, any, ProductBody>, res: Response, next: NextFunction) {
+    static async removeProducts(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductSchema.Delete>,
+        next: NextFunction
+    ) {
         try {
-            const { products } = req.body
-            const data = await Promise.all(products.map(i => ProductsModel.update(i)))
+            const data = await ProductsService.delete(req.body)
             res.json({
                 data
             })
@@ -57,29 +88,14 @@ class ProductsController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else {
-                next()
-            }
-        }
-    }
-
-    static async getProductsPerCategory(req: Request, res: Response, next: NextFunction) {
-        try {
-            const { category_id } = req.params
-            const data = await ProductsModel.select({ category_fk: category_id})
-            res.json({
-                data
-            })
-        } catch (error) {
-            if (ErrorHandler.isInstanceOf(error)) {
-                error.response(res)
+            else if (ZodErrorHandler.isInstanceOf(error)) {
+                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
             }
         }
     }
-
 }
 
 export default ProductsController

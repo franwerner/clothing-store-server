@@ -1,21 +1,17 @@
 import sql from "../config/knex.config.js"
+import { ProductColorSchema } from "../schema/productColor.schema.js"
+import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
-interface ProductColor {
-    product_color_id: KEYDB
-    color_fk: KEYDB
-    product_fk: KEYDB
-}
 
-type ProductColorKeys = keyof ProductColor
-type ProductColorPartial = Partial<ProductColor>
-type ProductColorRequerid = Required<ProductColor>
-type ProductColorInsert = Omit<ProductColor, "product_color_id">
-type ProductColorUpdate = ProductColorPartial & { product_color_id: KEYDB }
+type ProductColorKeys = keyof ProductColorSchema.Base
+type ProductColorPartial = Partial<ProductColorSchema.Base>
+type ProductColorRequerid = Required<ProductColorSchema.Base>
+
 class ProductColorsModel extends ModelUtils {
     static async select<T extends ProductColorKeys = ProductColorKeys>(
         props: ProductColorPartial = {},
-        modify?: ModifySQL<Pick<ProductColorRequerid, T>>
+        modify?: APP.ModifySQL<Pick<ProductColorRequerid, T>>
     ) {
         try {
             const query = sql<Pick<ProductColorRequerid, T>>("product_colors as pc")
@@ -27,7 +23,7 @@ class ProductColorsModel extends ModelUtils {
         }
     }
 
-    static async insert(productColor: Array<ProductColorInsert> | ProductColorInsert) {
+    static async insert<T extends ProductColorSchema.Insert>(productColor: Exact<T,ProductColorSchema.Insert>) {
         try {
             return await sql("product_colors")
                 .insert(productColor)
@@ -36,29 +32,29 @@ class ProductColorsModel extends ModelUtils {
         }
     }
 
-    static async update({ product_color_id, ...productColor }: ProductColorUpdate) {
+    static async update<T extends ProductColorSchema.Insert>({ product_color_id, ...productColor }: Exact<T,ProductColorSchema.Update>) {
         try {
             return await sql("product_colors")
                 .update(productColor)
                 .where("product_color_id", product_color_id)
         } catch (error) {
-            this.generateError(error)
+           throw this.generateError(error)
         }
     }
 
-    static async delete(productColorIDs: Array<KEYDB>) {
+    static async delete(productColorID:ProductColorSchema.Delete) {
         try {
             return await sql("product_colors")
-                .whereIn("product_color_id", productColorIDs)
+                .where("product_color_id", productColorID)
                 .delete()
         } catch (error) {
-            this.generateError(error)
+            throw this.generateError(error)
         }
     }
 
     static selectWithTableColor<T extends ProductColorKeys = ProductColorKeys>(
         props?: ProductColorPartial ,
-        modify?: ModifySQL<Pick<ProductColorRequerid, T>>) {
+        modify?: APP.ModifySQL<Pick<ProductColorRequerid, T>>) {
         return this.select<T>(props, (builder) => {
             modify && builder.modify(modify)
             builder
@@ -68,7 +64,7 @@ class ProductColorsModel extends ModelUtils {
 
     static selectExistsSizes<T extends ProductColorKeys = ProductColorKeys>(
         props?: ProductColorPartial,
-        modify?: ModifySQL<Pick<ProductColorRequerid, T>>
+        modify?: APP.ModifySQL<Pick<ProductColorRequerid, T>>
     ) {
         return this.selectWithTableColor<T>(props, (builder) => {
             modify && builder.modify(modify)
@@ -82,7 +78,4 @@ class ProductColorsModel extends ModelUtils {
 }
 
 
-export {
-    type ProductColor
-}
 export default ProductColorsModel

@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt"
-import UsersModel, { User, UserInsert } from "../model/users.model.js"
-import ErrorHandler from "../utils/ErrorHandler.utilts.js"
+import UsersModel from "../model/users.model.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
+import userSchema, { UserSchema } from "../schema/user.schema.js"
 class UserRegisterService {
     static isValidPassword(password: string) {
         const passwordRequirements: Array<{ regexp: RegExp, description: string }> = [
@@ -20,7 +21,7 @@ class UserRegisterService {
         }
     }
 
-    static async completeRegister(user_id: KEYDB) {
+    static async completeRegister(user_id: UserSchema.Delete) {
         const updateAffects = await UsersModel.updateUnconfirmedEmail({ user_id, email_confirmed: true })
 
         if (!updateAffects) {
@@ -31,11 +32,13 @@ class UserRegisterService {
         }
     }
 
-    static async createAccount(user: UserInsert) {
+    static async createAccount(user: UserSchema.Insert) {
+
+        const data = userSchema.insert.parse(user)
 
         const maxAccoutPerIP = 10
 
-        if (user.permission === "admin") {
+        if (data.permission === "admin") {
             /**
      * Los datos del usuario ingresado siempre serán "standard", ya que los agregamos manualmente.
      * Esta validación asegura que no se creen cuentas con permisos de ADMIN por error.
@@ -47,7 +50,7 @@ class UserRegisterService {
             })
         }
 
-        const [rawHeaders] = await UsersModel.insertByLimitIP(user, maxAccoutPerIP)
+        const [rawHeaders] = await UsersModel.insertByLimitIP(data, maxAccoutPerIP)
 
         const { insertId, affectedRows } = rawHeaders
 
@@ -90,7 +93,7 @@ class UserRegisterService {
         return hash
     }
 
-    static async main(user: UserInsert) {
+    static async main(user: UserSchema.Insert) {
 
         const { password, email, fullname } = user
 
@@ -100,7 +103,7 @@ class UserRegisterService {
 
         const hash = await this.createPassword(password)
 
-        const obj: UserInsert = {
+        const obj: UserSchema.Insert = {
             ...user,
             password: hash,
             permission: "standard"

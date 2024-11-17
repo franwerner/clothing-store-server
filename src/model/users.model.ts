@@ -1,31 +1,18 @@
 import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
-import ErrorHandler from "../utils/ErrorHandler.utilts.js"
+import { UserSchema } from "../schema/user.schema.js"
+import Exact from "../types/Exact.types.js"
 
-interface User {
-    user_id: KEYDB
-    fullname: string
-    phone?: string | null
-    email: string
-    password: string
-    permission?: "admin" | "standard"
-    ip: string
-    email_confirmed?: boolean
-    create_at?: string
-}
-
-type UserKeys = keyof User
-type UserPartial = Partial<User>
-type UserRequired = Required<User>
-type UserInsert = Pick<User, "fullname" | "email" | "password" | "ip" | "phone" | "permission">
-type UserUpdate = UserPartial & { user_id: KEYDB }
+type UserKeys = keyof UserSchema.Base
+type UserPartial = Partial<UserSchema.Base>
+type UserRequired = Required<UserSchema.Base>
 
 class UsersModel extends ModelUtils {
 
     static async select<T extends UserKeys = UserKeys>(
         props: UserPartial = {},
-        modify?: ModifySQL<Pick<UserRequired, T>>
+        modify?: APP.ModifySQL<Pick<UserRequired, T>>
     ) {
         try {
             const query = sql<Pick<UserRequired, T>>("users")
@@ -37,7 +24,10 @@ class UsersModel extends ModelUtils {
         }
     }
 
-    static async update({ user_id, ...props }: UserUpdate, modify?: ModifySQL) {
+    static async update<T extends UserSchema.Update>(
+        { user_id, ...props }: Exact<T, UserSchema.Update>,
+        modify?: APP.ModifySQL
+    ) {
         try {
             const query = sql("users")
                 .update(props)
@@ -49,13 +39,16 @@ class UsersModel extends ModelUtils {
         }
     }
 
-    static updateUnconfirmedEmail(props: UserUpdate) {
+    static updateUnconfirmedEmail<T extends UserSchema.Update>(props: Exact<T, UserSchema.Update>) {
         return this.update(props, (builder) => {
             builder.where("email_confirmed", false)
         })
     }
 
-    static async insertByLimitIP(user: UserInsert, ip_limit = 0) {
+    static async insertByLimitIP<T extends UserSchema.Insert>(
+        user: Exact<T,UserSchema.Insert>,
+        ip_limit = 0
+    ) {
         const { email, fullname, ip, password, phone = null, permission = "standard" } = user
         try {
             return await sql.raw<Array<ResultSetHeader>>(`
@@ -79,10 +72,10 @@ class UsersModel extends ModelUtils {
         }
     }
 
-    static async delete(userIDs: Array<KEYDB>) {
+    static async delete(userID: UserSchema.Delete) {
         try {
             return await sql("users")
-                .whereIn("user_id", userIDs)
+                .where("user_id", userID)
                 .delete()
         } catch (error) {
             throw this.generateError(error)
@@ -90,8 +83,5 @@ class UsersModel extends ModelUtils {
     }
 }
 
-export type {
-    User,
-    UserInsert
-}
+
 export default UsersModel

@@ -1,11 +1,8 @@
-import { Response } from "express"
-import _env from "../constant/_env.constant.js"
 
 interface ErrorHandlerProps {
     message: string
     status: number
     data?: any
-    code?: any
 }
 
 class ErrorHandler extends Error {
@@ -13,25 +10,23 @@ class ErrorHandler extends Error {
     name: string
     status: number
     data: any
-    code: string
 
-    constructor({ message, status, data, code }: ErrorHandlerProps) {
+    constructor({ message, status, data }: ErrorHandlerProps) {
         super()
         this.message = message
         this.name = "ErrorHandler",
             this.status = status || 500
         this.data = data
-        this.code = code || ""
     }
     static isInstanceOf(instance: any): instance is ErrorHandler {
         return instance instanceof ErrorHandler
     }
 
-    response(res: Response) {
+    response<T extends ResponseBodyTemplate<any>>(res: T) {
         res.status(this.status)
             .json({
                 message: this.message,
-                data: this.data
+                data: this.data,
             })
     }
 }

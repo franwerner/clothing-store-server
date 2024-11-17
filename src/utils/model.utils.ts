@@ -1,4 +1,4 @@
-import ErrorHandlerDataBase, { CustomSQLQueryErrorMessages } from "./ErrorHandlerDataBase.utilts.js"
+import DatabaseErrorHandler, { CustomSQLQueryErrorMessages } from "./databaseErrorHandler.utilts.js"
 
 abstract class ModelUtils {
 
@@ -7,8 +7,8 @@ abstract class ModelUtils {
     }
 
     static generateError(error: unknown, messages: CustomSQLQueryErrorMessages = {}) {
-        if (ErrorHandlerDataBase.isSqlError(error)) {
-            return new ErrorHandlerDataBase(error, messages)
+        if (DatabaseErrorHandler.isSqlError(error)) {
+            return new DatabaseErrorHandler(error, messages)
         }
         return error
     }

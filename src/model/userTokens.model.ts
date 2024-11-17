@@ -4,8 +4,8 @@ import ModelUtils from "../utils/model.utils.js"
 
 type RequestType = "register_confirm" | "email_update" | "password_update"
 interface UserToken {
-    user_token_id: KEYDB
-    user_fk: KEYDB
+    user_token_id: APP.DatabaseKey
+    user_fk: APP.DatabaseKey
     request: RequestType
     token: string
     ip: string
@@ -24,7 +24,7 @@ class UserTokensModel extends ModelUtils {
 
     static async select<T extends UserTokenKeys = UserTokenKeys>
         (props: UserTokenPartial = {},
-            modify?: ModifySQL<Pick<UserTokenRequired, T>>
+            modify?: APP.ModifySQL<Pick<UserTokenRequired, T>>
         ) {
         try {
             const query = sql<Pick<UserTokenRequired, T>>("user_tokens as ut")
@@ -38,7 +38,7 @@ class UserTokensModel extends ModelUtils {
 
     static selectActiveToken<T extends UserTokenKeys = UserTokenKeys>(
         props?: UserTokenPartial,
-        modify?: ModifySQL<Pick<UserTokenRequired, T>>
+        modify?: APP.ModifySQL<Pick<UserTokenRequired, T>>
     ) {
         return this.select<T>(props, (builder) => {
             builder
@@ -73,7 +73,7 @@ class UserTokensModel extends ModelUtils {
     }
 
 
-    static async updateToken({ token, ...userToken }: UserTokenUpdate, modify?: ModifySQL) {
+    static async updateToken({ token, ...userToken }: UserTokenUpdate, modify?: APP.ModifySQL) {
         try {
             const query = sql("user_tokens")
                 .update(userToken)

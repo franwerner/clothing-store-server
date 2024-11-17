@@ -1,22 +1,16 @@
 import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
+import "../schema/category.schema.js"
+import { CategorySchema } from "../schema/category.schema.js"
+import Exact from "../types/Exact.types.js"
 
-interface Category {
-    category_id: KEYDB
-    category: string
-    brand_fk: KEYDB
-    status?: boolean
-}
-
-type CategoryKeys = keyof Category
-type CategoryPartial = Partial<Category>
-type CategoryRequired = Required<Category>
-type CategoryInsert = Omit<Category, "category_id">
-type CategoryUpdate = CategoryPartial & { category_id: KEYDB }
+type CategoryKeys = keyof CategorySchema.Base
+type CategoryPartial = Partial<CategorySchema.Base>
+type CategoryRequired = Required<CategorySchema.Base>
 
 class CategoriesModel extends ModelUtils {
 
-    static async select<T extends CategoryKeys = CategoryKeys>(props: CategoryPartial = {}, modify?: ModifySQL<Pick<CategoryRequired, T>>) {
+    static async select<T extends CategoryKeys = CategoryKeys>(props: CategoryPartial = {}, modify?: APP.ModifySQL<Pick<CategoryRequired, T>>) {
         try {
             const query = sql<Pick<CategoryRequired, T>>("categories as c")
                 .where(this.removePropertiesUndefined(props))
@@ -27,7 +21,7 @@ class CategoriesModel extends ModelUtils {
         }
     }
 
-    static async insert(props: CategoryInsert | Array<CategoryInsert>) {
+    static async insert<T extends CategorySchema.Insert>(props: Exact<T, CategorySchema.Insert>) {
         try {
             return await sql("categories")
                 .insert(props)
@@ -36,7 +30,7 @@ class CategoriesModel extends ModelUtils {
         }
     }
 
-    static async update({ category_id, ...category }: CategoryUpdate) {
+    static async update<T extends CategorySchema.Update>({ category_id, ...category }: Exact<T, CategorySchema.Update>) {
         try {
             return await sql("categories")
                 .update(category)
@@ -46,19 +40,18 @@ class CategoriesModel extends ModelUtils {
         }
     }
 
-    static async delete(categoryIDs: Array<KEYDB>) {
+    static async delete(categoryID: CategorySchema.Delete) {
         try {
             return await sql("categories")
-                .whereIn("category_id", categoryIDs)
+                .where("category_id", categoryID)
                 .delete()
         } catch (error) {
-            throw this.generateError(error)
+            throw this.generateError(error, {
+                ER_ROW_IS_REFERENCED_2: "No se puede eliminar la categoria porque existen productos asociados a la lista de compras de usuarios."
+            })
         }
     }
 }
 
 
-export {
-    type Category
-}
 export default CategoriesModel

@@ -1,19 +1,14 @@
 import sql from "../config/knex.config.js"
+import { ProductColorImageSchema } from "../schema/productColorImage.schema.js"
+import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
-interface ProductColorImage {
-    product_color_image_id: KEYDB
-    product_color_fk: KEYDB
-    url: string
-}
 
-type ProductColorImageKeys = keyof ProductColorImage
-type ProductColorImagePartial = Partial<ProductColorImage>
-type ProductColorImageUpdate = ProductColorImagePartial & { product_color_image_id: KEYDB }
-type ProductColorImageInsert = Omit<ProductColorImage, "product_color_image_id">
+type ProductColorImageKeys = keyof ProductColorImageSchema.Base
+type ProductColorImagePartial = Partial<ProductColorImageSchema.Base>
 class ProductColorImagesModel extends ModelUtils {
 
-    static async select<T extends ProductColorImageKeys = ProductColorImageKeys>(props: ProductColorImagePartial = {}, modify?: ModifySQL<Pick<ProductColorImagePartial, T>>) {
+    static async select<T extends ProductColorImageKeys = ProductColorImageKeys>(props: ProductColorImagePartial = {}, modify?: APP.ModifySQL<Pick<ProductColorImagePartial, T>>) {
         try {
             const query = sql<Pick<ProductColorImagePartial, T>>("product_color_images ")
                 .where(this.removePropertiesUndefined(props))
@@ -23,7 +18,8 @@ class ProductColorImagesModel extends ModelUtils {
             throw this.generateError(error)
         }
     }
-    static async insert(colorImage: ProductColorImageInsert | Array<ProductColorImageInsert>) {
+    static async insert<T extends ProductColorImageSchema.Insert>
+        (colorImage: Exact<T, ProductColorImageSchema.Insert>) {
         try {
             return await sql("product_color_images")
                 .insert(colorImage)
@@ -32,7 +28,8 @@ class ProductColorImagesModel extends ModelUtils {
         }
     }
 
-    static async update({ product_color_image_id, ...colorImage }: ProductColorImageUpdate) {
+    static async update<T extends ProductColorImageSchema.Update>
+        ({ product_color_image_id, ...colorImage }: Exact<T, ProductColorImageSchema.Update>) {
         try {
             return await sql("product_color_images")
                 .update(colorImage)
@@ -42,10 +39,10 @@ class ProductColorImagesModel extends ModelUtils {
         }
     }
 
-    static async delete(product_color_image_id: Array<KEYDB>) {
+    static async delete(product_color_image_id: ProductColorImageSchema.Delete) {
         try {
             return await sql("product_color_images")
-                .whereIn("product_color_image_id", product_color_image_id)
+                .where("product_color_image_id", product_color_image_id)
                 .delete()
         } catch (error) {
             throw this.generateError(error)
@@ -56,7 +53,4 @@ class ProductColorImagesModel extends ModelUtils {
 
 }
 
-export {
-    type ProductColorImage
-}
 export default ProductColorImagesModel
