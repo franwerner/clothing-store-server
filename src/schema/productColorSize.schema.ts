@@ -1,11 +1,12 @@
 import { z } from "zod"
-import databaseKeySchema, { DatabaseKeySchema } from "./databaseKeySchema.schema.js"
+import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
+import databaseBooleanSchema from "./databaseBoolean.schema.js"
 
 const base = z.object({
     product_color_size_id: databaseKeySchema,
     product_color_fk: databaseKeySchema,
     size_fk: databaseKeySchema,
-    stock: z.boolean().optional()
+    stock: databaseBooleanSchema.optional().default(true)
 })
 
 const update = base.partial().extend({

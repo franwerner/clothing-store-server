@@ -2,7 +2,6 @@ import { NextFunction, Request } from "express";
 import { ProductColorSchema } from "../schema/productColor.schema.js";
 import ProductColorsService from "../service/productColors.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js";
 
 
 class ProductColorsController {
@@ -21,9 +20,6 @@ class ProductColorsController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            }
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
@@ -46,9 +42,6 @@ class ProductColorsController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -68,9 +61,6 @@ class ProductColorsController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            }
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()

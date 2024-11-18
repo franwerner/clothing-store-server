@@ -33,8 +33,6 @@ class SizeController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res);
-            } else if (ZodErrorHandler.isInstanceOf(error)) {
-                new ZodErrorHandler(error).response(res);
             } else {
                 next();
             }
@@ -56,9 +54,7 @@ class SizeController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res);
-            } else if (ZodErrorHandler.isInstanceOf(error)) {
-                new ZodErrorHandler(error).response(res)
-            } else {
+            }  else {
                 next()
             }
         }
@@ -76,8 +72,6 @@ class SizeController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            } else if (ZodErrorHandler.isInstanceOf(error)) {
-                new ZodErrorHandler(error).response(res);
             } else {
                 next()
             }

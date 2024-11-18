@@ -1,8 +1,7 @@
 import { NextFunction, Request } from "express"
 import { ProductColorImageSchema } from "../schema/productColorImage.schema.js"
-import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ProductColorImagesService from "../service/productColorImages.service.js"
-import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 
 class ProductColorImagesController {
@@ -21,9 +20,6 @@ class ProductColorImagesController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            }
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()
@@ -47,9 +43,6 @@ class ProductColorImagesController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -68,9 +61,6 @@ class ProductColorImagesController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            }
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()

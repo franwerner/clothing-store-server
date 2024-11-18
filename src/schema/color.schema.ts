@@ -1,14 +1,20 @@
 import { z } from "zod"
-import databaseKeySchema, { DatabaseKeySchema } from "./databaseKeySchema.schema.js"
+import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
+
+
+const hexadecimalPattern = {
+    regexp: /#([A-Fa-f0-9]{6})/g,
+    message: "No es un hexadecimal valido."
+}
 
 const base = z.object({
     color_id: databaseKeySchema,
     color: z.string(),
-    hexadecimal: z.string().regex(/#([A-Fa-f0-9]{6})/g, "No es un hexadecimal valido.")
+    hexadecimal: z.string().regex(hexadecimalPattern.regexp, hexadecimalPattern.message)
 })
 
 const update = base.partial().extend({
-    color_id : base.shape.color_id
+    color_id: base.shape.color_id
 })
 const insert = base.omit({ color_id: true })
 

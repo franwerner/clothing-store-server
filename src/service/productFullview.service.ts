@@ -1,7 +1,9 @@
 import ProductColorImagesModel from "../model/productColorImages.model.js"
-import ProductColorsModel, { ProductColor } from "../model/productColors.model.js"
+import ProductColorsModel from "../model/productColors.model.js"
 import ProductsModel from "../model/products.model.js"
 import ProductColorSizesModel from "../model/productSizes.model.js"
+import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
+import { ProductColorSchema } from "../schema/productColor.schema.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 const handleEmptyResult = (isError: boolean, message: string) => {
@@ -10,32 +12,32 @@ const handleEmptyResult = (isError: boolean, message: string) => {
 
 class ProductFullViewService {
 
-    static async getProduct(product_id: string) {
+    static async getProduct(product_id: DatabaseKeySchema) {
         const [product] = await ProductsModel.selectExistsColors({ product_id, status: true })
         handleEmptyResult(!product, "No se encontro ningun producto")
         return product
     }
 
 
-    static async getProductColors(product_fk: APP.DatabaseKey) {
+    static async getProductColors(product_fk: DatabaseKeySchema) {
         const productColorModel = await ProductColorsModel.selectExistsSizes({ product_fk })
         handleEmptyResult(productColorModel.length === 0, "No se encontro ningun color asociado al producto")
         return productColorModel
     }
 
-    static async getProductColorSize(product_color_fk: APP.DatabaseKey){
+    static async getProductColorSize(product_color_fk: DatabaseKeySchema){
         const color_sizes = await ProductColorSizesModel.selectWithTableSize({ product_color_fk })
         handleEmptyResult(color_sizes.length === 0, "No se encontro ningun tamaño asociado al color")
         return color_sizes
     }
 
-    static async getProductColorImage(product_color_fk: APP.DatabaseKey) {
+    static async getProductColorImage(product_color_fk: DatabaseKeySchema) {
         const color_images = await ProductColorImagesModel.select({ product_color_fk })
         //No causar error, ya que no importa si no hay imagenes, no es crucial.
         return color_images
     }
 
-    static async groupByColor(colors: Array<ProductColor>) {
+    static async groupByColor(colors: Array<ProductColorSchema.Base>) {
         return await Promise.all(
             colors.map(async (i) => {
                 const product_color_id = i.product_color_id
@@ -49,7 +51,7 @@ class ProductFullViewService {
             }))
     }
 
-    static async main(product_id: string) {
+    static async main(product_id: DatabaseKeySchema) {
         const product = await this.getProduct(product_id)
         const colors = await this.getProductColors(product.product_id)
         const groupByColor = await this.groupByColor(colors)

@@ -1,8 +1,7 @@
-import { NextFunction, Request, Response } from "express";
-import brandSchema, { BrandSchema } from "../schema/brand.schema.js";
+import { NextFunction, Request } from "express";
+import { BrandSchema } from "../schema/brand.schema.js";
 import BrandsService from "../service/brands.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js";
 
 class BrandsController {
 
@@ -40,9 +39,6 @@ class BrandsController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if (ZodErrorHandler.isInstanceOf(error)) {
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -65,9 +61,6 @@ class BrandsController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if (ZodErrorHandler.isInstanceOf(error)) {
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -87,9 +80,6 @@ class BrandsController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            }
-            else if (ZodErrorHandler.isInstanceOf(error)) {
-                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()

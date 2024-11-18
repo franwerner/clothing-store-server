@@ -1,24 +1,13 @@
 import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config.js"
+import { UserTokenSchema } from "../schema/token.schema.js"
+import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
-type RequestType = "register_confirm" | "email_update" | "password_update"
-interface UserToken {
-    user_token_id: APP.DatabaseKey
-    user_fk: APP.DatabaseKey
-    request: RequestType
-    token: string
-    ip: string
-    expired_at: string
-    used?: boolean
-    created_at?: string
-}
+type UserTokenKeys = keyof UserTokenSchema.Base
+type UserTokenPartial = Partial<UserTokenSchema.Base>
+type UserTokenRequired = Required<UserTokenSchema.Base>
 
-type UserTokenKeys = keyof UserToken
-type UserTokenPartial = Partial<UserToken>
-type UserTokenRequired = Required<UserToken>
-type UserTokenInsert = Omit<UserToken, "user_token_id">
-type UserTokenUpdate = Omit<UserTokenPartial, "user_token_id"> & { token: string }
 
 class UserTokensModel extends ModelUtils {
 
@@ -50,7 +39,10 @@ class UserTokensModel extends ModelUtils {
 
     }
 
-    static async insertWithExpiration(props: UserTokenInsert, tokenLimit: number) {
+    static async insertWithTokenLimit<T extends UserTokenSchema.Insert>(
+        props: Exact<T, UserTokenSchema.Insert>,
+        tokenLimit: number
+    ) {
 
         try {
             const { request, ip, token, user_fk, expired_at } = props
@@ -73,7 +65,10 @@ class UserTokensModel extends ModelUtils {
     }
 
 
-    static async updateToken({ token, ...userToken }: UserTokenUpdate, modify?: APP.ModifySQL) {
+    static async updateToken<T extends UserTokenSchema.Update>(
+        { token, ...userToken }: Exact<T, UserTokenSchema.Update>,
+        modify?: APP.ModifySQL
+    ) {
         try {
             const query = sql("user_tokens")
                 .update(userToken)
@@ -85,7 +80,7 @@ class UserTokensModel extends ModelUtils {
         }
     }
 
-    static updateNotUsedToken(props: UserTokenUpdate) {
+    static updateNotUsedToken<T extends UserTokenSchema.Update>(props: Exact<T, UserTokenSchema.Update>,) {
         return this.updateToken(props, (builder) => {
             builder.where("used", false)
         })
@@ -104,8 +99,4 @@ class UserTokensModel extends ModelUtils {
 
 }
 
-export type {
-    RequestType,
-    UserToken
-}
 export default UserTokensModel

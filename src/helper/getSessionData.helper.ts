@@ -1,7 +1,7 @@
 import { SessionData } from "express-session";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 
-const getSessionData = (keys:keyof Omit<SessionData,"cookie">,session:SessionGlobal) => {
+const getSessionData = (keys:keyof Omit<SessionData,"cookie">,session:APP.SessionGlobal) => {
     const data = session[keys]
     if(!data) throw new ErrorHandler({
         status : 500,

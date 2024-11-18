@@ -17,7 +17,7 @@ class ProductsViewController {
 
     static async getProductsPreview
     (req: Request<Params, any, any, Query>, 
-        res: Response, 
+        res: APP.ResponseTemplate, 
         next: NextFunction
     ) {
         try {
@@ -49,7 +49,7 @@ class ProductsViewController {
 
     static async getProductFullView(
         req: Request,
-        res: Response,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {

@@ -41,10 +41,6 @@ class DatabaseErrorHandler extends ErrorHandler {
         this.name = "DatabaseErrorHandler"
     }
 
-    static isInstanceOf(instance: unknown): instance is DatabaseErrorHandler {
-        return instance instanceof DatabaseErrorHandler
-    }
-
     static isSqlError(error: any): error is QueryError {
         return error?.sql
     }

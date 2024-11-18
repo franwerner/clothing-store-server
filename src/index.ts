@@ -16,6 +16,8 @@ import productsViewRouter from "./router/productsView.router.js"
 import sizesRouter from "./router/sizes.router.js"
 import usersRouter from "./router/users.router.js"
 import UserTokenService from "./service/userToken.service.js"
+import userRegisterRouter from "./router/userRegister.router.js"
+import userAccountRouter from "./router/userAccounter.router.js"
 
 const port = 3000
 const app = express()
@@ -26,15 +28,18 @@ app.use(sessionConfig)
 
 app.use(corsConfig)
 
-app.use("/", (req: Request, res, next) => {
-    req.session.user = {
-        permission: "admin",
-        fullname : "fsdada",
-        user_id: 1,
-        email: "ifrank4444@gmail.com"
-    }
-    next()
-})
+// app.use("/", (req: Request, res, next) => {
+//     req.session.user = {
+//         permission: "admin",
+//         fullname : "fsdada",
+//         user_id: 1,
+//         email: "ifrank4444@gmail.com",
+//         ip : "123",
+//         phone : null,
+//         email_confirmed : true
+//     }
+//     next()
+// })
 
 app.use("/categories", categoriesRouter)
 app.use("/products", productsRouter)
@@ -47,6 +52,8 @@ app.use("/brands", brandsRouter)
 app.use("/sizes", sizesRouter)
 app.use("/colors", colorsRouter)
 app.use("/users", usersRouter)
+app.use("/users/register",userRegisterRouter)
+app.use("/users/account/",userAccountRouter)
 app.use(errorGlobal)
 
 UserTokenService.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 })

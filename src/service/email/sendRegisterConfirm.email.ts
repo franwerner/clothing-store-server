@@ -1,11 +1,8 @@
 import transport from "../../config/nodemailer.config.js"
+import { EmailService } from "./index.js";
 
-interface SendVerificationEmail{
- email : string,
- token : string
-}
 
-const sendVerification = async ({email,token}:SendVerificationEmail) => {
+const sendRegisterConfirm = async ({email,token}:EmailService) => {
     return await transport.sendMail({
         from: "Olga Hat's <olgahats@noreply.com>", 
         to: email,
@@ -19,4 +16,4 @@ const sendVerification = async ({email,token}:SendVerificationEmail) => {
 }
 
 
-export default sendVerification
+export default sendRegisterConfirm

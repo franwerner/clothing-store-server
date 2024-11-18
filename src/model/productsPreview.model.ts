@@ -4,6 +4,9 @@ import ModelUtils from "../utils/model.utils.js";
 
 const productsPreviewModel = async (querys: ProductPreviewFilters) => {
 
+    /**
+     * Solo encuentra productos si tiene color y tamaño.
+     */
     try {
         const { color, price, search, size, brand_id, category_id } = querys
 

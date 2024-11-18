@@ -2,7 +2,6 @@ import express from "express"
 import ProductsController from "../controller/products.controller.js"
 import isAdmin from "../middleware/isAdmin.middleware.js"
 
-
 const productsRouter = express.Router()
 
 productsRouter.get("/category/:category_id", ProductsController.getProductsPerCategory)

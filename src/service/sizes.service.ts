@@ -1,3 +1,4 @@
+import zodParse from "../helper/zodParse.helper.js";
 import SizesModel from "../model/sizes.model.js";
 import sizeSchema, { SizeSchema } from "../schema/size.schema.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
@@ -11,25 +12,25 @@ class SizeService extends ServiceUtils {
             throw new ErrorHandler({
                 message: "No se encontraron tamaños",
                 status: 404
-            });
+            })
         }
 
-        return sizes;
+        return sizes
     }
 
     static async update(sizes: Array<SizeSchema.Update>) {
-        const data = sizeSchema.update.array().parse(sizes);
-        return await this.writeOperationsHandler(data, (e) => SizesModel.update(e));
+        const data = zodParse(sizeSchema.update.array())(sizes)
+        return await this.writeOperationsHandler(data, (e) => SizesModel.update(e))
     }
 
     static async insert(sizes: Array<SizeSchema.Insert>) {
-        const data = sizeSchema.insert.array().parse(sizes);
-        return await this.writeOperationsHandler(data, (e) => SizesModel.insert(e));
+        const data = zodParse(sizeSchema.insert.array())(sizes)
+        return await this.writeOperationsHandler(data, (e) => SizesModel.insert(e))
     }
 
     static async delete(sizes: Array<SizeSchema.Delete>) {
-        const data = sizeSchema.delete.array().parse(sizes);
-        return await this.writeOperationsHandler(data, (e) => SizesModel.delete(e));
+        const data = zodParse(sizeSchema.delete.array())(sizes)
+        return await this.writeOperationsHandler(data, (e) => SizesModel.delete(e))
     }
 }
 

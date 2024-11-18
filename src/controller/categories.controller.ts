@@ -4,7 +4,6 @@ import brandSchema, { BrandSchema } from "../schema/brand.schema.js";
 import categorySchema, { CategorySchema } from "../schema/category.schema.js";
 import CategoriesService from "../service/categories.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js";
 
 class CategoriesController {
 
@@ -49,9 +48,6 @@ class CategoriesController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -75,9 +71,6 @@ class CategoriesController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -100,9 +93,6 @@ class CategoriesController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            }
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()

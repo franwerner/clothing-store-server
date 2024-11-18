@@ -46,10 +46,10 @@ class UsersModel extends ModelUtils {
     }
 
     static async insertByLimitIP<T extends UserSchema.Insert>(
-        user: Exact<T,UserSchema.Insert>,
+        user: Exact<T, UserSchema.Insert>,
         ip_limit = 0
     ) {
-        const { email, fullname, ip, password, phone = null, permission = "standard" } = user
+        const { email, fullname, ip, password, phone, permission } = user
         try {
             return await sql.raw<Array<ResultSetHeader>>(`
             INSERT INTO users (fullname,phone,email,password,ip,permission)

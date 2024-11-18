@@ -1,5 +1,6 @@
 import { z } from "zod"
-import databaseKeySchema, { DatabaseKeySchema } from "./databaseKeySchema.schema.js"
+import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
+import databaseBooleanSchema from "./databaseBoolean.schema.js"
 
 
 const base = z.object({
@@ -8,7 +9,7 @@ const base = z.object({
     product: z.string(),
     discount: z.number().optional(),
     price: z.number(),
-    status: z.boolean().optional()
+    status: databaseBooleanSchema.optional().default(false)
   })
   
   const insert = base.omit({

@@ -1,7 +1,7 @@
 import session from "express-session";
-import FormatUser from "./src/types/formatUser.types";
 import { Knex } from "knex";
 import { Response } from "express";
+import { UserSchema } from "./src/schema/user.schema";
 declare global {
     namespace APP {
         type SessionGlobal = session.Session & Partial<session.SessionData>
@@ -11,7 +11,7 @@ declare global {
             message?: any,
             payload: T
         }>
-        type ResponseTemplate<T> = Response<{
+        type ResponseTemplate<T = any> = Response<{
             data?: T
             message?: string
         }>
@@ -21,7 +21,7 @@ declare global {
 
 declare module 'express-session' {
     interface SessionData {
-        user: FormatUser
+        user: UserSchema.FormatUser
     }
 }
 

@@ -1,11 +1,17 @@
 import crypto from "crypto";
-import UserTokensModel, { RequestType } from "../model/userTokens.model.js";
+import UserTokensModel from "../model/userTokens.model.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 import getAdjustedUTCDate from "../utils/getAdjustedUTCDate.utils.js";
+import userTokenSchema, { UserTokenSchema } from "../schema/token.schema.js";
+import zodParse from "../helper/zodParse.helper.js";
 
 interface TokenDate {
     timeUnit: "minute" | "hour" | "day",
     timeValue: number,
+}
+
+interface CreateToken extends TokenDate {
+    maxTokens: number
 }
 
 class UserTokenService {
@@ -22,17 +28,20 @@ class UserTokenService {
         return date.toISOString().replace('T', ' ').substring(0, 19) //Quitamos para que se adapte el CURRENT_TIMESTAMP DE MYSQL
     }
 
-    static async createToken(props: { ip: string, request: RequestType, user_fk: APP.DatabaseKey }, { maxTokens, ...tokenDate }: TokenDate & { maxTokens: number }) {
+    static async createToken(props:
+        Omit<UserTokenSchema.Insert, "expired_at" | "token">,
+        { maxTokens, ...tokenDate }: CreateToken
+    ) {
 
         const token = crypto.randomUUID()
 
-        const [ResultSetHeader] = await UserTokensModel.insertWithExpiration({
+        const data = zodParse(userTokenSchema.insert)({
             ...props,
             token,
             expired_at: this.createTokenDate(tokenDate)
-        },
-            maxTokens
-        )
+        })
+
+        const [ResultSetHeader] = await UserTokensModel.insertWithTokenLimit(data, maxTokens)
 
         if (ResultSetHeader.affectedRows == 0) {
             throw new ErrorHandler({
@@ -90,13 +99,13 @@ class UserTokenService {
             setTimeout(() => {
                 this.cleanExpiredTokens({ cleaning_hour, cleaning_minute })
             }, milliseconds)
-        } catch (error) {      
+        } catch (error) {
             console.error("Error crítico: Fallo al intentar eliminar los tokens expirados. Se requiere atención inmediata.")
         }
     }
 
 }
 
-
+export {type  CreateToken}
 
 export default UserTokenService

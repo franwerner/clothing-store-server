@@ -1,5 +1,5 @@
 import { z } from "zod"
-import databaseKeySchema, { DatabaseKeySchema } from "./databaseKeySchema.schema.js"
+import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
 
 const base = z.object({
     size_id: databaseKeySchema,

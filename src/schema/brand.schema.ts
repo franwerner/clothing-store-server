@@ -1,13 +1,13 @@
 import z from "zod"
-import databaseKeySchema, { DatabaseKeySchema } from "./databaseKeySchema.schema.js"
+import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
+import databaseBooleanSchema from "./databaseBoolean.schema.js"
 
 
 const base = z.object({
     brand_id: databaseKeySchema,
     brand: z.string(),
-    status: z.boolean().optional()
+    status: databaseBooleanSchema.optional().default(false)
 })
-
 
 const insert = base.omit({
     brand_id: true

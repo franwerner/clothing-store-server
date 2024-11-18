@@ -1,8 +1,7 @@
 import { NextFunction, Request } from "express"
 import { ProductColorSizeSchema } from "../schema/productColorSize.schema.js"
-import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ProductColorSizesService from "../service/productColorSizes.service.js"
-import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 class ProductColorSizesController {
     static async setProductColorSizes(
@@ -19,9 +18,6 @@ class ProductColorSizesController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             } 
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -42,9 +38,6 @@ class ProductColorSizesController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             } 
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -65,9 +58,6 @@ class ProductColorSizesController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             } 
-            else if(ZodErrorHandler.isInstanceOf(error)){
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }

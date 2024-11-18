@@ -1,12 +1,16 @@
-import sendVerification from "./sendVerification.email.js"
+import sendPasswordUpate from "./sendPasswordUpdate.email.js"
+import sendRegisterConfirm from "./sendRegisterConfirm.email.js"
 
+interface EmailService{
+    email : string,
+    token : string
+   }
 
 
 const emailService = {
-    sendVerification
+    sendRegisterConfirm,
+    sendPasswordUpate
 }
 
-
-
-
+export {type EmailService}
 export default emailService

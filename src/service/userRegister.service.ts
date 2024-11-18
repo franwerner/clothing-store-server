@@ -2,26 +2,12 @@ import bcrypt from "bcrypt"
 import UsersModel from "../model/users.model.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import userSchema, { UserSchema } from "../schema/user.schema.js"
+import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
+import zodParse from "../helper/zodParse.helper.js"
+import maxAccountPerIp from "../constant/maxAccoutPerIP.constant.js"
 class UserRegisterService {
-    static isValidPassword(password: string) {
-        const passwordRequirements: Array<{ regexp: RegExp, description: string }> = [
-            { regexp: /^(?=.*[A-Z])/, description: "Debe contener al menos una letra mayúscula" },
-            { regexp: /(?=.*[\W_])/, description: "Debe contener al menos un carácter especial (o guion bajo)" },
-            { regexp: /(?=.*\d)/, description: "Debe contener al menos un número" },
-            { regexp: /.{8,16}$/, description: "Debe tener entre 8 y 16 caracteres de longitud" }
-        ]
-        const requirementsNotMet = passwordRequirements.filter(({ regexp }) => !regexp.test(password))
 
-        if (requirementsNotMet.length > 0) {
-            throw new ErrorHandler({
-                message: "La contraseña no es segura.",
-                status: 422,
-                data: requirementsNotMet.map(({ description }) => description)
-            })
-        }
-    }
-
-    static async completeRegister(user_id: UserSchema.Delete) {
+    static async completeRegister(user_id: DatabaseKeySchema) {
         const updateAffects = await UsersModel.updateUnconfirmedEmail({ user_id, email_confirmed: true })
 
         if (!updateAffects) {
@@ -34,56 +20,17 @@ class UserRegisterService {
 
     static async createAccount(user: UserSchema.Insert) {
 
-        const data = userSchema.insert.parse(user)
-
-        const maxAccoutPerIP = 10
-
-        if (data.permission === "admin") {
-            /**
-     * Los datos del usuario ingresado siempre serán "standard", ya que los agregamos manualmente.
-     * Esta validación asegura que no se creen cuentas con permisos de ADMIN por error.
-     * Es una medida preventiva para evitar problemas derivados de una asignación incorrecta de permisos.
-     */
-            throw new ErrorHandler({
-                message: "No puede crear una cuenta con permisos de ADMIN.",
-                status: 400
-            })
-        }
-
-        const [rawHeaders] = await UsersModel.insertByLimitIP(data, maxAccoutPerIP)
+        const [rawHeaders] = await UsersModel.insertByLimitIP(user, maxAccountPerIp)
 
         const { insertId, affectedRows } = rawHeaders
 
         if (affectedRows == 0) throw new ErrorHandler({
-            message: `Superaste el limite de ${maxAccoutPerIP} por IP`,
+            message: `Superaste el limite de ${maxAccountPerIp} por IP`,
             status: 429
         })
-
         return {
             ...user,
-            user_id: insertId
-        }
-    }
-
-    static isValidEmail(email: string) {
-        const regExp = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        const isEmail = regExp.test(email)
-        if (!isEmail) {
-            throw new ErrorHandler({
-                message: "No es un email valido.",
-                status: 422
-            })
-        }
-    }
-
-    static isValidFullname(fullname: string) {
-        const regExp = /^[A-Za-z]+( [A-Za-z]+){1,}$/
-        const isFullname = regExp.test(fullname)
-        if (!isFullname) {
-            throw new ErrorHandler({
-                message: "Los datos del nombre y apellido no son correctos.",
-                status: 422
-            })
+            user_id: insertId,
         }
     }
 
@@ -95,20 +42,12 @@ class UserRegisterService {
 
     static async main(user: UserSchema.Insert) {
 
-        const { password, email, fullname } = user
+        const data = zodParse(userSchema.insert)(user)
 
-        this.isValidPassword(password)
-        this.isValidEmail(email)
-        this.isValidFullname(fullname)
+        const hash = await this.createPassword(data.password)
 
-        const hash = await this.createPassword(password)
-
-        const obj: UserSchema.Insert = {
-            ...user,
-            password: hash,
-            permission: "standard"
-        }
-        return await this.createAccount(obj)
+        const acc = await this.createAccount({ ...data, password: hash })
+        return zodParse(userSchema.formatUser)(acc)
 
 
     }

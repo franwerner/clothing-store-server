@@ -1,28 +1,29 @@
-import { Response } from "express";
 import { z, ZodError } from "zod";
+import ErrorHandler from "./errorHandler.utilts.js";
+function transformErrorToClient(zod_error:ZodError) {
+    return zod_error.issues.map(({ message, path }) => {
+        return {
+            property: path.find(i => typeof i === "string"),
+            message,
+        }
+    })
+}
 
-class ZodErrorHandler extends ZodError {
+class ZodErrorHandler extends ErrorHandler {
+    zod_error: z.ZodError
     constructor(error: z.ZodError) {
-        super(error.errors)
+        super({
+            status: 400,
+            data : transformErrorToClient(error)
+        })
+        this.zod_error = error
     }
 
-    static isInstanceOf(error: unknown): error is ZodError {
+    static isZodError(error: unknown): error is ZodError {
         return error instanceof ZodError
     }
 
-    transformErrorToClient() {
-        return this.issues.map(({ message, path, code }) => {
-            return {
-                property: path[1],
-                code,
-                message,
-            }
-        })
-    }
-
-    response(res: Response) {
-        res.status(400).json(this.transformErrorToClient())
-    }
+    
 }
 
 export default ZodErrorHandler

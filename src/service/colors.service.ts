@@ -1,12 +1,10 @@
+import zodParse from "../helper/zodParse.helper.js"
 import ColorsModel from "../model/colors.model.js"
 import colorSchema, { ColorSchema } from "../schema/color.schema.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ServiceUtils from "../utils/service.utils.js"
 
 class ColorsService extends ServiceUtils {
-    static getHexadecimalPattern() {
-        return /#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})/g
-    }
     static async get(){
         const res = await ColorsModel.select()
 
@@ -19,15 +17,15 @@ class ColorsService extends ServiceUtils {
      
     }
     static async delete(colors: ColorSchema.Delete[]) {
-        const data  = colorSchema.delete.array().parse(colors)
+        const data = zodParse(colorSchema.delete.array())(colors)
         return await this.writeOperationsHandler(data, (color) => ColorsModel.delete(color))
     }
     static async insert(colors: ColorSchema.Insert[]) {
-        const data  = colorSchema.insert.array().parse(colors)
+        const data = zodParse(colorSchema.insert.array())(colors)
         return await this.writeOperationsHandler(data, (color) => ColorsModel.insert(color))
     }
     static async update(colors: ColorSchema.Update[]) {
-        const data  = colorSchema.update.array().parse(colors)
+        const data = zodParse(colorSchema.update.array())(colors)
         return await this.writeOperationsHandler(data, (color) => ColorsModel.update(color))
     }
 }

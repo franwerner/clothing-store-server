@@ -1,8 +1,8 @@
 import bcrypt from "bcrypt"
 import UsersModel from "../model/users.model.js"
-import FormatUser from "../types/formatUser.types.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
-import { UserSchema } from "../schema/user.schema.js"
+import userSchema from "../schema/user.schema.js"
+import zodParse from "../helper/zodParse.helper.js"
 class UserAuthService {
 
     static async findUserByEmail(email: string) {
@@ -15,17 +15,10 @@ class UserAuthService {
         if (!compare) throw new ErrorHandler({ message: "La contraseña ingresada es incorrecta.", status: 422 })
     }
 
-    static formatUser(user: UserSchema.Base) {
-        const omitPropertyPassword = Object.entries(user)
-            .filter(([key]) => key !== "password")
-        return Object.fromEntries(omitPropertyPassword) as FormatUser
-    }
-
     static async main({ email, password }: { email: string, password: string }) {
         const user = await this.findUserByEmail(email)
         await this.verifyPassword(password, user.password)
-        const format = this.formatUser(user)
-        return format
+        return zodParse(userSchema.formatUser)(user)
     }
 
 }

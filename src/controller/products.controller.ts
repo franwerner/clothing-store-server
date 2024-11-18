@@ -2,7 +2,6 @@ import { NextFunction, Request } from "express"
 import { ProductSchema } from "../schema/product.schema.js"
 import ProductsService from "../service/products.service.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
-import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js"
 
 class ProductsController {
 
@@ -40,9 +39,6 @@ class ProductsController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if (ZodErrorHandler.isInstanceOf(error)) {
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -65,9 +61,6 @@ class ProductsController {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }
-            else if (ZodErrorHandler.isInstanceOf(error)) {
-                new ZodErrorHandler(error).response(res)
-            }
             else {
                 next()
             }
@@ -87,9 +80,6 @@ class ProductsController {
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            }
-            else if (ZodErrorHandler.isInstanceOf(error)) {
-                new ZodErrorHandler(error).response(res)
             }
             else {
                 next()

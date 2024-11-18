@@ -1,3 +1,4 @@
+import zodParse from "../helper/zodParse.helper.js"
 import BrandsModel from "../model/brands.model.js"
 import brandSchema, { BrandSchema } from "../schema/brand.schema.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
@@ -15,15 +16,15 @@ class BrandsService extends ServiceUtils {
         return brands
     }
     static async update(brands: Array<BrandSchema.Update>) {
-        const data = brandSchema.update.array().parse(brands)
+        const data = zodParse(brandSchema.update.array())(brands)
         return await this.writeOperationsHandler(data, (e) => BrandsModel.update(e))
     }
     static async insert(brands: Array<BrandSchema.Insert>) {
-        const data = brandSchema.insert.array().parse(brands)
+        const data = zodParse(brandSchema.insert.array())(brands)
         return await this.writeOperationsHandler(data, (e) => BrandsModel.insert(e))
     }
     static async delete(brands: Array<BrandSchema.Delete>) {
-        const data = brandSchema.delete.array().parse(brands)
+        const data = zodParse(brandSchema.delete.array())(brands)
         return await this.writeOperationsHandler(data, (e) => BrandsModel.delete(e))
     }
 }

@@ -1,3 +1,4 @@
+import zodParse from "../helper/zodParse.helper.js"
 import ProductsModel from "../model/products.model.js"
 import productSchema, { ProductSchema } from "../schema/product.schema.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
@@ -17,17 +18,17 @@ class ProductsService extends ServiceUtils {
     }
 
     static async update(products: Array<ProductSchema.Update>) {
-        const data = productSchema.update.array().parse(products)
+        const data = zodParse(productSchema.update.array())(products)
         return await this.writeOperationsHandler(data, (e) => ProductsModel.update(e))
     }
 
     static async insert(products: Array<ProductSchema.Insert>) {
-        const data = productSchema.insert.array().parse(products)
+        const data = zodParse(productSchema.insert.array())(products)
         return await this.writeOperationsHandler(data, (e) => ProductsModel.insert(e))
     }
 
     static async delete(products: Array<ProductSchema.Delete>) {
-        const data = productSchema.delete.array().parse(products)
+        const data = zodParse(productSchema.delete.array())(products)
         return await this.writeOperationsHandler(data, (e) => ProductsModel.delete(e))
     }
 }
