@@ -11,7 +11,7 @@ class ColorsModel extends ModelUtils {
     static async select<T extends ColorKeys = ColorKeys>(props: ColorPartial = {}, modify?: APP.ModifySQL<Pick<ColorRequerid, T>>) {
         try {
             const query = sql<Pick<ColorRequerid, T>>("colors")
-                .where(this.removePropertiesUndefined(props))
+                .where(props)
             modify && query.modify(modify)
             return await query
         } catch (error) {

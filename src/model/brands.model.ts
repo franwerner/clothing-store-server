@@ -12,7 +12,7 @@ class BrandsModel extends ModelUtils {
     static async select<T extends BrandKeys = BrandKeys>(props: BrandPartial = {}) {
         try {
             const query = sql<Pick<BrandRequired, T>>("brands as b")
-                .where(this.removePropertiesUndefined(props))
+                .where(props)
             return await query
         } catch (error) {
             throw this.generateError(error)

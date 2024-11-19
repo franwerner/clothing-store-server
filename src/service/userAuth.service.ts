@@ -5,7 +5,7 @@ import userSchema from "../schema/user.schema.js"
 import zodParse from "../helper/zodParse.helper.js"
 class UserAuthService {
 
-    static async findUserByEmail(email: string) {
+    static async findUserByEmail(email: string = "") {
         const [user] = await UsersModel.select({ email })
         if (!user) throw new ErrorHandler({ message: "El email no esta asociado a ningun usuario.", status: 422 })
         return user
@@ -15,7 +15,7 @@ class UserAuthService {
         if (!compare) throw new ErrorHandler({ message: "La contraseña ingresada es incorrecta.", status: 422 })
     }
 
-    static async main({ email, password }: { email: string, password: string }) {
+    static async authenticar({ email, password }: { email: string, password: string }) {
         const user = await this.findUserByEmail(email)
         await this.verifyPassword(password, user.password)
         return zodParse(userSchema.formatUser)(user)

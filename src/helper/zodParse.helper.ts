@@ -2,7 +2,13 @@ import { ZodSchema } from "zod"
 import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js"
 
 /**
- * Ejecutamos de forma segura el parse y personalizamos el error con uno custom para sea mas facil manejarlo en el contexto manejo de error de la APP
+ * Realiza el parseo seguro de datos usando un esquema Zod.
+ * En caso de que ocurra un error de validación, se lanza un error personalizado 
+ * para facilitar su manejo en el contexto de la aplicación.
+ * 
+ * @example 
+ * const parseData = zodParse(brandSchema.update)
+ * parseData(values)
  */
 
 const zodParse = <T extends ZodSchema>(z: T) => {

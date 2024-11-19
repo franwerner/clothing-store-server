@@ -18,9 +18,22 @@ class UserRegisterService {
         }
     }
 
-    static async createAccount(user: UserSchema.Insert) {
+    static async createPassword(password: string) {
+        const salt = await bcrypt.genSalt(10)
+        const hash = await bcrypt.hash(password, salt)
+        return hash
+    }
 
-        const [rawHeaders] = await UsersModel.insertByLimitIP(user, maxAccountPerIp)
+    static async registerAccount(user: UserSchema.Insert) {
+
+        const data = zodParse(userSchema.insert)(user)
+
+        const hash = await this.createPassword(data.password)
+
+        const [rawHeaders] = await UsersModel.insertByLimitIP({
+            ...data,
+            password: hash
+        }, maxAccountPerIp)
 
         const { insertId, affectedRows } = rawHeaders
 
@@ -28,29 +41,13 @@ class UserRegisterService {
             message: `Superaste el limite de ${maxAccountPerIp} por IP`,
             status: 429
         })
-        return {
-            ...user,
+        return zodParse(userSchema.formatUser)({
+            ...data,
             user_id: insertId,
-        }
+        })
     }
 
-    static async createPassword(password: string) {
-        const salt = await bcrypt.genSalt(10)
-        const hash = await bcrypt.hash(password, salt)
-        return hash
-    }
 
-    static async main(user: UserSchema.Insert) {
-
-        const data = zodParse(userSchema.insert)(user)
-
-        const hash = await this.createPassword(data.password)
-
-        const acc = await this.createAccount({ ...data, password: hash })
-        return zodParse(userSchema.formatUser)(acc)
-
-
-    }
 }
 
 export default UserRegisterService

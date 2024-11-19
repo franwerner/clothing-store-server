@@ -18,7 +18,7 @@ class UsersController {
         try {
             const { email, password } = req.body
 
-            const user = await UserAuthService.main({ email, password })
+            const user = await UserAuthService.authenticar({ email, password })
 
             req.session.user = user
 

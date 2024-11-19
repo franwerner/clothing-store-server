@@ -1,16 +1,16 @@
-import sendPasswordUpate from "./sendPasswordUpdate.email.js"
-import sendRegisterConfirm from "./sendRegisterConfirm.email.js"
+import sendPasswordReset from "./sendPasswordReset.email.js"
+import sendEmailConfirm from "./sendEmailConfirm.email.js"
 
-interface EmailService{
-    email : string,
-    token : string
-   }
+interface EmailService {
+    to: string,
+    token: string
+}
 
 
 const emailService = {
-    sendRegisterConfirm,
-    sendPasswordUpate
+    sendEmailConfirm,
+    sendPasswordReset,
 }
 
-export {type EmailService}
+export { type EmailService }
 export default emailService

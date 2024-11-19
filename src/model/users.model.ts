@@ -16,7 +16,7 @@ class UsersModel extends ModelUtils {
     ) {
         try {
             const query = sql<Pick<UserRequired, T>>("users")
-                .where(this.removePropertiesUndefined(props))
+                .where(props)
             modify && query.modify(modify)
             return await query
         } catch (error) {

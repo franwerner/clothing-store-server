@@ -17,7 +17,7 @@ import sizesRouter from "./router/sizes.router.js"
 import usersRouter from "./router/users.router.js"
 import UserTokenService from "./service/userToken.service.js"
 import userRegisterRouter from "./router/userRegister.router.js"
-import userAccountRouter from "./router/userAccounter.router.js"
+import userAccountRouter from "./router/userAccount.router.js"
 
 const port = 3000
 const app = express()
@@ -53,9 +53,10 @@ app.use("/sizes", sizesRouter)
 app.use("/colors", colorsRouter)
 app.use("/users", usersRouter)
 app.use("/users/register",userRegisterRouter)
-app.use("/users/account/",userAccountRouter)
+app.use("/users/account",userAccountRouter)
+
 app.use(errorGlobal)
 
-UserTokenService.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 })
+// UserTokenService.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 })
 
 app.listen(port, () => console.log("SERVER START"))

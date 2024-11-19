@@ -11,7 +11,7 @@ class ProductColorImagesModel extends ModelUtils {
     static async select<T extends ProductColorImageKeys = ProductColorImageKeys>(props: ProductColorImagePartial = {}, modify?: APP.ModifySQL<Pick<ProductColorImagePartial, T>>) {
         try {
             const query = sql<Pick<ProductColorImagePartial, T>>("product_color_images ")
-                .where(this.removePropertiesUndefined(props))
+                .where(props)
             modify && query.modify(modify)
             return await query
         } catch (error) {

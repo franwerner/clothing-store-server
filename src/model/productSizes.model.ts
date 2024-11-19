@@ -16,7 +16,7 @@ class ProductColorSizesModel extends ModelUtils {
     ) {
         try {
             const query = sql<Pick<ProductColorSizeRequired, T>>("product_color_sizes as pcs")
-                .where(this.removePropertiesUndefined(props))
+                .where(props)
             modify && query.modify(modify)
             return await query
         } catch (error) {

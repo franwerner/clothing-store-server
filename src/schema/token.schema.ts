@@ -2,7 +2,7 @@ import { z } from "zod"
 import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
 import databaseBooleanSchema from "./databaseBoolean.schema.js"
 
-const requestTokenSchema = z.enum(["register_confirm", "email_update", "password_update"])
+const requestTokenSchema = z.enum(["email_confirm", "password_reset_by_email"])
 
 const base = z.object({
     user_token_id: databaseKeySchema,
@@ -23,6 +23,7 @@ const insert = base.omit({
 
 const update = base.pick({ token: true, used: true })
 
+
 declare namespace UserTokenSchema {
     type Base = z.infer<typeof base>
     type Insert = z.infer<typeof insert>
@@ -36,6 +37,7 @@ const userTokenSchema = {
     insert,
     update,
     delete: databaseKeySchema,
+    requestTokenSchema
 }
 
 export {

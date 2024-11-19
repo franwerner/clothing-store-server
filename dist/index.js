@@ -44,12 +44,12 @@ var errorGlobal_middleware_default = errorGlobal;
 // src/middleware/isAdmin.middleware.ts
 var isAdmin = (req, res, next) => {
   const user = req.session.user;
-  if (!user || user.permission == "standard") {
+  if (user && user.permission == "admin") {
+    next();
+  } else {
     res.status(403).json({
       message: "No tienes permisos suficientes para continuar."
     });
-  } else {
-    next();
   }
 };
 var isAdmin_middleware_default = isAdmin;
@@ -184,9 +184,6 @@ var databaseErrorHandler_utilts_default = DatabaseErrorHandler;
 
 // src/utils/model.utils.ts
 var ModelUtils = class {
-  static removePropertiesUndefined(properties) {
-    return Object.fromEntries(Object.entries(properties).filter(([_, value]) => value));
-  }
   static generateError(error, messages = {}) {
     if (databaseErrorHandler_utilts_default.isSqlError(error)) {
       return new databaseErrorHandler_utilts_default(error, messages);
@@ -200,7 +197,7 @@ var model_utils_default = ModelUtils;
 var BrandsModel = class extends model_utils_default {
   static async select(props = {}) {
     try {
-      const query = knex_config_default("brands as b").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("brands as b").where(props);
       return await query;
     } catch (error) {
       throw this.generateError(error);
@@ -414,7 +411,7 @@ var category_schema_default = categorySchema;
 var CategoriesModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
-      const query = knex_config_default("categories as c").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("categories as c").where(props);
       modify && query.modify(modify);
       return await query;
     } catch (error) {
@@ -552,7 +549,7 @@ import express3 from "express";
 var ColorsModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
-      const query = knex_config_default("colors").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("colors").where(props);
       modify && query.modify(modify);
       return await query;
     } catch (error) {
@@ -714,7 +711,7 @@ import express4 from "express";
 var ProductColorImagesModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
-      const query = knex_config_default("product_color_images ").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("product_color_images ").where(props);
       modify && query.modify(modify);
       return await query;
     } catch (error) {
@@ -842,7 +839,7 @@ import express5 from "express";
 var ProductColorsModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
-      const query = knex_config_default("product_colors as pc").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("product_colors as pc").where(props);
       modify && query.modify(modify);
       return await query;
     } catch (error) {
@@ -986,7 +983,7 @@ import express6 from "express";
 var ProductColorSizesModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
-      const query = knex_config_default("product_color_sizes as pcs").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("product_color_sizes as pcs").where(props);
       modify && query.modify(modify);
       return await query;
     } catch (error) {
@@ -1121,7 +1118,7 @@ import express7 from "express";
 var ProductsModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
-      const query = knex_config_default("products as p").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("products as p").where(props);
       modify && query.modify(modify);
       return await query;
     } catch (error) {
@@ -1551,7 +1548,7 @@ import express10 from "express";
 var SizesModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
-      const query = knex_config_default("sizes").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("sizes").where(props);
       modify && query.modify(modify);
       return await query;
     } catch (error) {
@@ -1706,7 +1703,7 @@ import bcrypt from "bcrypt";
 var UsersModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
-      const query = knex_config_default("users").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("users").where(props);
       modify && query.modify(modify);
       return await query;
     } catch (error) {
@@ -1815,6 +1812,11 @@ var update9 = base9.partial().extend({
   permission: true,
   create_at: true
 });
+var updatePassword = base9.pick({ password: true, user_id: true });
+var updateInfo = update9.omit({
+  email: true,
+  email_confirmed: true
+});
 var formatUser = base9.omit({
   create_at: true,
   password: true
@@ -1824,13 +1826,15 @@ var userSchema = {
   insert: insert9,
   update: update9,
   delete: databaseKey_schema_default,
-  formatUser
+  formatUser,
+  updatePassword,
+  updateInfo
 };
 var user_schema_default = userSchema;
 
 // src/service/userAuth.service.ts
 var UserAuthService = class {
-  static async findUserByEmail(email) {
+  static async findUserByEmail(email = "") {
     const [user] = await users_model_default.select({ email });
     if (!user) throw new errorHandler_utilts_default({ message: "El email no esta asociado a ningun usuario.", status: 422 });
     return user;
@@ -1839,7 +1843,7 @@ var UserAuthService = class {
     const compare = await bcrypt.compare(password, hash);
     if (!compare) throw new errorHandler_utilts_default({ message: "La contrase\xF1a ingresada es incorrecta.", status: 422 });
   }
-  static async main({ email, password }) {
+  static async authenticar({ email, password }) {
     const user = await this.findUserByEmail(email);
     await this.verifyPassword(password, user.password);
     return zodParse_helper_default(user_schema_default.formatUser)(user);
@@ -1852,7 +1856,7 @@ var UsersController = class {
   static async login(req, res, next) {
     try {
       const { email, password } = req.body;
-      const user = await userAuth_service_default.main({ email, password });
+      const user = await userAuth_service_default.authenticar({ email, password });
       req.session.user = user;
       res.json({
         data: user
@@ -1882,12 +1886,12 @@ var users_controller_default = UsersController;
 // src/middleware/isUser.middleware.ts
 var isUser = (req, res, next) => {
   const user = req.session.user;
-  if (!user) {
-    res.status(401).json({
-      message: "La sesi\xF3n ha expirado o no existe, por favor inicia sesi\xF3n nuevamente."
-    });
-  } else {
+  if (user) {
     next();
+  } else {
+    res.status(401).json({
+      message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente."
+    });
   }
 };
 var isUser_middleware_default = isUser;
@@ -1898,6 +1902,113 @@ usersRouter.post("/login", users_controller_default.login);
 usersRouter.get("/logout", isUser_middleware_default, users_controller_default.logout);
 var users_router_default = usersRouter;
 
+// src/router/userRegister.router.ts
+import express12 from "express";
+
+// src/helper/getSessionData.helper.ts
+var getSessionData = (keys, session2) => {
+  const data = session2[keys];
+  if (!data) throw new errorHandler_utilts_default({
+    status: 500,
+    message: "Problemas internos para encontrar la session."
+  });
+  return data;
+};
+var getSessionData_helper_default = getSessionData;
+
+// src/config/nodemailer.config.ts
+import nodemailer from "nodemailer";
+var transport = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: env_constant_default.EMAIL,
+    pass: env_constant_default.EMAIL_PASSWORD
+  }
+});
+var nodemailer_config_default = transport;
+
+// src/service/email/sendPasswordReset.email.ts
+var sendPasswordReset = async ({ to, token }) => {
+  const url = `http://localhost:3000/users/account/reset/password/${token}`;
+  return await nodemailer_config_default.sendMail({
+    from: "Olga Hat's <olgahats@noreply.com>",
+    to,
+    subject: "Cambio de contrase\xF1a",
+    html: `
+        <p>Recibimos una solicitud para cambiar tu contrase\xF1a. Si fuiste t\xFA, por favor haz clic en el siguiente enlace para proceder con el cambio:</p>
+        <a href="${url}">Cambiar mi contrase\xF1a</a>
+        <p><strong>Este enlace expira en 3 horas.</strong></p>
+        `
+  });
+};
+var sendPasswordReset_email_default = sendPasswordReset;
+
+// src/service/email/sendEmailConfirm.email.ts
+var sendEmailConfirm = async ({ to, token }) => {
+  const url = `http://localhost:3000/users/register/confirmation/${token}`;
+  return await nodemailer_config_default.sendMail({
+    from: "Olga Hat's <olgahats@noreply.com>",
+    to,
+    subject: "Verificaci\xF3n de correo electr\xF3nico",
+    html: `
+            <p>Por favor, haz clic en el siguiente enlace para confirmar el correo electronico.</p>
+            <a href="${url}">Confirmar correo electronico.</a>
+            <p><strong>Este enlace expira en 24 horas.</strong></p>
+        `
+  });
+};
+var sendEmailConfirm_email_default = sendEmailConfirm;
+
+// src/service/email/index.ts
+var emailService = {
+  sendEmailConfirm: sendEmailConfirm_email_default,
+  sendPasswordReset: sendPasswordReset_email_default
+};
+var email_default = emailService;
+
+// src/service/userRegister.service.ts
+import bcrypt2 from "bcrypt";
+
+// src/constant/maxAccoutPerIP.constant.ts
+var maxAccountPerIp = 10;
+var maxAccoutPerIP_constant_default = maxAccountPerIp;
+
+// src/service/userRegister.service.ts
+var UserRegisterService = class {
+  static async completeRegister(user_id) {
+    const updateAffects = await users_model_default.updateUnconfirmedEmail({ user_id, email_confirmed: true });
+    if (!updateAffects) {
+      throw new errorHandler_utilts_default({
+        message: "El email ya ha sido confirmado previamente.",
+        status: 409
+      });
+    }
+  }
+  static async createPassword(password) {
+    const salt = await bcrypt2.genSalt(10);
+    const hash = await bcrypt2.hash(password, salt);
+    return hash;
+  }
+  static async registerAccount(user) {
+    const data = zodParse_helper_default(user_schema_default.insert)(user);
+    const hash = await this.createPassword(data.password);
+    const [rawHeaders] = await users_model_default.insertByLimitIP({
+      ...data,
+      password: hash
+    }, maxAccoutPerIP_constant_default);
+    const { insertId, affectedRows } = rawHeaders;
+    if (affectedRows == 0) throw new errorHandler_utilts_default({
+      message: `Superaste el limite de ${maxAccoutPerIP_constant_default} por IP`,
+      status: 429
+    });
+    return zodParse_helper_default(user_schema_default.formatUser)({
+      ...data,
+      user_id: insertId
+    });
+  }
+};
+var userRegister_service_default = UserRegisterService;
+
 // src/service/userToken.service.ts
 import crypto2 from "crypto";
 
@@ -1905,7 +2016,7 @@ import crypto2 from "crypto";
 var UserTokensModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
-      const query = knex_config_default("user_tokens as ut").where(this.removePropertiesUndefined(props));
+      const query = knex_config_default("user_tokens as ut").where(props);
       modify && query.modify(modify);
       return await query;
     } catch (error) {
@@ -1938,7 +2049,7 @@ var UserTokensModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
-  static async updateToken({ token, ...userToken }, modify) {
+  static async update({ token, ...userToken }, modify) {
     try {
       const query = knex_config_default("user_tokens").update(userToken).where("token", token);
       modify && query.modify(modify);
@@ -1946,11 +2057,6 @@ var UserTokensModel = class extends model_utils_default {
     } catch (error) {
       throw this.generateError(error);
     }
-  }
-  static updateNotUsedToken(props) {
-    return this.updateToken(props, (builder) => {
-      builder.where("used", false);
-    });
   }
   static async deleteAllExpiredTokens() {
     try {
@@ -1972,7 +2078,7 @@ var getAdjustedUTCDate_utils_default = getAdjustedUTCDate;
 
 // src/schema/token.schema.ts
 import { z as z13 } from "zod";
-var requestTokenSchema = z13.enum(["register_confirm", "email_update", "password_update"]);
+var requestTokenSchema = z13.enum(["email_confirm", "password_reset_by_email"]);
 var base10 = z13.object({
   user_token_id: databaseKey_schema_default,
   user_fk: databaseKey_schema_default,
@@ -1993,7 +2099,8 @@ var userTokenSchema = {
   base: base10,
   insert: insert10,
   update: update10,
-  delete: databaseKey_schema_default
+  delete: databaseKey_schema_default,
+  requestTokenSchema
 };
 var token_schema_default = userTokenSchema;
 
@@ -2021,21 +2128,29 @@ var UserTokenService = class {
     if (ResultSetHeader.affectedRows == 0) {
       throw new errorHandler_utilts_default({
         status: 429,
-        message: "Se ha excedido el l\xEDmite de solicitudes de generaci\xF3n de tokens para este usuario."
+        message: `Se ha excedido el l\xEDmite de ${maxTokens} solicitudes de generaci\xF3n de tokens para este usuario.`
       });
     }
-    return token;
+    return data.token;
   }
-  static async useToken(token) {
-    const [user] = await userTokens_model_default.selectActiveToken({ token }, (builder) => builder.select("user_fk"));
+  static async findActiveTokenByToken({ token, request }) {
+    const requestValidated = zodParse_helper_default(token_schema_default.requestTokenSchema)(request);
+    const [user] = await userTokens_model_default.selectActiveToken({ token, request: requestValidated }, (builder) => builder.select("user_fk"));
     if (!user) {
       throw new errorHandler_utilts_default({
         status: 404,
-        message: `El token que est\xE1s intentando utilizar ha expirado`
+        message: `El token que est\xE1s intentando utilizar ha expirado.`
       });
     }
-    await userTokens_model_default.updateNotUsedToken({ token, used: true });
-    return user.user_fk;
+    return user;
+  }
+  static async markTokenAsUsed(token) {
+    return await userTokens_model_default.update({ used: true, token });
+  }
+  static async useToken(data) {
+    const userToken = await this.findActiveTokenByToken(data);
+    await this.markTokenAsUsed(data.token);
+    return userToken.user_fk;
   }
   static async cleanExpiredTokens({ cleaning_hour, cleaning_minute }) {
     if (cleaning_hour > 23 || cleaning_hour < 0 || cleaning_minute > 60 || cleaning_minute < 0) {
@@ -2066,132 +2181,60 @@ var UserTokenService = class {
 };
 var userToken_service_default = UserTokenService;
 
-// src/router/userRegister.router.ts
-import express12 from "express";
-
-// src/helper/getSessionData.helper.ts
-var getSessionData = (keys, session2) => {
-  const data = session2[keys];
-  if (!data) throw new errorHandler_utilts_default({
-    status: 500,
-    message: "Problemas internos para encontrar la session."
-  });
-  return data;
-};
-var getSessionData_helper_default = getSessionData;
-
-// src/config/nodemailer.config.ts
-import nodemailer from "nodemailer";
-var transport = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: env_constant_default.EMAIL,
-    pass: env_constant_default.EMAIL_PASSWORD
-  }
-});
-var nodemailer_config_default = transport;
-
-// src/service/email/sendPasswordUpdate.email.ts
-var sendPasswordUpate = async ({ email, token }) => {
-  const url = `http://localhost:3000/users/password/update/${token}`;
-  return await nodemailer_config_default.sendMail({
-    from: "Olga Hat's <olgahats@noreply.com>",
-    to: email,
-    subject: "Cambio de contrase\xF1a",
-    html: `
-        <p>Recibimos una solicitud para cambiar tu contrase\xF1a. Si fuiste t\xFA, por favor haz clic en el siguiente enlace para proceder con el cambio:</p>
-        <a href=${url}>Cambiar mi contrase\xF1a</a>
-        <p><strong>Este enlace expira en 24 horas.</strong></p>
-        `
-  });
-};
-var sendPasswordUpdate_email_default = sendPasswordUpate;
-
-// src/service/email/sendRegisterConfirm.email.ts
-var sendRegisterConfirm = async ({ email, token }) => {
-  return await nodemailer_config_default.sendMail({
-    from: "Olga Hat's <olgahats@noreply.com>",
-    to: email,
-    subject: "Verificaci\xF3n de correo electr\xF3nico",
-    html: `
-            <p>Gracias por registrarte. Por favor, haz clic en el siguiente enlace para confirmar tu registro:</p>
-            <a href="http://localhost:3000/users/register/confirmation/${token}">Confirmar mi registro</a>
-            <p><strong>Este enlace expira en 24 horas.</strong></p>
-        `
-  });
-};
-var sendRegisterConfirm_email_default = sendRegisterConfirm;
-
-// src/service/email/index.ts
-var emailService = {
-  sendRegisterConfirm: sendRegisterConfirm_email_default,
-  sendPasswordUpate: sendPasswordUpdate_email_default
-};
-var email_default = emailService;
-
-// src/service/userRegister.service.ts
-import bcrypt2 from "bcrypt";
-
-// src/constant/maxAccoutPerIP.constant.ts
-var maxAccountPerIp = 10;
-var maxAccoutPerIP_constant_default = maxAccountPerIp;
-
-// src/service/userRegister.service.ts
-var UserRegisterService = class {
-  static async completeRegister(user_id) {
-    const updateAffects = await users_model_default.updateUnconfirmedEmail({ user_id, email_confirmed: true });
-    if (!updateAffects) {
-      throw new errorHandler_utilts_default({
-        message: "El email ya ha sido confirmado previamente.",
-        status: 409
-      });
-    }
-  }
-  static async createAccount(user) {
-    const [rawHeaders] = await users_model_default.insertByLimitIP(user, maxAccoutPerIP_constant_default);
-    const { insertId, affectedRows } = rawHeaders;
-    if (affectedRows == 0) throw new errorHandler_utilts_default({
-      message: `Superaste el limite de ${maxAccoutPerIP_constant_default} por IP`,
-      status: 429
-    });
-    return {
-      ...user,
-      user_id: insertId
-    };
-  }
-  static async createPassword(password) {
-    const salt = await bcrypt2.genSalt(10);
-    const hash = await bcrypt2.hash(password, salt);
-    return hash;
-  }
-  static async main(user) {
-    const data = zodParse_helper_default(user_schema_default.insert)(user);
-    const hash = await this.createPassword(data.password);
-    const acc = await this.createAccount({ ...data, password: hash });
-    return zodParse_helper_default(user_schema_default.formatUser)(acc);
-  }
-};
-var userRegister_service_default = UserRegisterService;
-
 // src/constant/tokenSettings.constant.ts
 var tokenSettings = {
-  register_confirm: { maxTokens: 10, timeUnit: "day", timeValue: 1 },
-  email_update: { maxTokens: 10, timeUnit: "day", timeValue: 1 },
-  password_update: { maxTokens: 10, timeUnit: "hour", timeValue: 3 }
+  email_confirm: { maxTokens: 10, timeUnit: "day", timeValue: 1 },
+  //1 DIA
+  // email_update: { maxTokens: 10, timeUnit: "hour", timeValue: 3 }, // 1 HORAS
+  password_reset_by_email: { maxTokens: 10, timeUnit: "hour", timeValue: 3 }
+  // 3 HORAS
 };
 var tokenSettings_constant_default = tokenSettings;
 
 // src/controller/userRegister.controller.ts
+var handlerRegisterToken = async ({ ip, email, user_fk }) => {
+  const token = await userToken_service_default.createToken({
+    ip: ip || "",
+    request: "email_confirm",
+    user_fk
+  }, tokenSettings_constant_default.email_confirm);
+  await email_default.sendEmailConfirm({ to: email, token });
+};
 var UserRegisterController = class {
-  static async registerReSendToken(req, res, next) {
+  static async register(req, res, next) {
+    try {
+      const account = await userRegister_service_default.registerAccount({
+        ...req.body,
+        ip: req.ip
+      });
+      req.session.user = account;
+      await handlerRegisterToken({
+        email: account.email,
+        user_fk: account.user_id,
+        ip: req.body
+      });
+      res.json({
+        message: "Cuenta creada con \xE9xito. Te hemos enviado un correo para confirmar tu correo electronico.",
+        data: {
+          created_id: account.user_id
+        }
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async sendRegisterToken(req, res, next) {
     try {
       const { user_id, email } = getSessionData_helper_default("user", req.session);
-      const token = await userToken_service_default.createToken({
-        ip: req.ip || "",
-        request: "register_confirm",
+      await handlerRegisterToken({
+        ip: req.body,
+        email,
         user_fk: user_id
-      }, tokenSettings_constant_default.register_confirm);
-      await email_default.sendRegisterConfirm({ email, token });
+      });
       res.json({
         message: "Re-envio exitoso, revisa tu bandeja de entrada."
       });
@@ -2203,10 +2246,10 @@ var UserRegisterController = class {
       }
     }
   }
-  static async registerConfirm(req, res, next) {
+  static async confirmRegistration(req, res, next) {
     try {
       const { token } = req.params;
-      const userID = await userToken_service_default.useToken(token);
+      const userID = await userToken_service_default.useToken({ request: "email_confirm", token });
       await userRegister_service_default.completeRegister(userID);
       if (req.session.user) {
         req.session.user.email_confirmed = true;
@@ -2222,30 +2265,81 @@ var UserRegisterController = class {
       }
     }
   }
-  static async register(req, res, next) {
-    try {
-      const account = await userRegister_service_default.main({
-        ...req.body,
-        ip: req.ip
+};
+var userRegister_controller_default = UserRegisterController;
+
+// src/middleware/isNotConfirmedEmail.middleware.ts
+var response = (res) => {
+  res.status(401).json({
+    message: "El email ya est\xE1 confirmado, no puedes continuar con esta operacion."
+  });
+};
+var isNotConfirmedEmail = async (req, res, next) => {
+  const user = req.session.user;
+  if (!user) return isUser_middleware_default(req, res, next);
+  if (user.email_confirmed) return response(res);
+  const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
+  const { email_confirmed } = u;
+  if (!email_confirmed) {
+    next();
+  } else {
+    user.email_confirmed = true;
+    response(res);
+  }
+};
+var isNotConfirmedEmail_middleware_default = isNotConfirmedEmail;
+
+// src/router/userRegister.router.ts
+var userRegisterRouter = express12.Router();
+userRegisterRouter.post("/", userRegister_controller_default.register);
+userRegisterRouter.get("/confirmation/:token", userRegister_controller_default.confirmRegistration);
+userRegisterRouter.get("/send/token", isUser_middleware_default, isNotConfirmedEmail_middleware_default, userRegister_controller_default.sendRegisterToken);
+var userRegister_router_default = userRegisterRouter;
+
+// src/router/userAccount.router.ts
+import express13 from "express";
+
+// src/service/userAccount.service.ts
+var UserAccountService = class {
+  static async updateInfo(update11) {
+    const { password, phone, fullname, user_id } = zodParse_helper_default(user_schema_default.update)(update11);
+    const selectedInfo = {
+      password: password && await userRegister_service_default.createPassword(password),
+      phone,
+      fullname,
+      user_id
+    };
+    const res = await users_model_default.update(selectedInfo);
+    if (res === 0) {
+      throw new errorHandler_utilts_default({
+        status: 400,
+        message: "Hubo un inconveniente al actualizar la informacion. Por favor, int\xE9ntalo nuevamente m\xE1s tarde."
       });
+    }
+    return res;
+  }
+};
+var userAccount_service_default = UserAccountService;
+
+// src/controller/userAccount.controller.ts
+var UserAccountController = class {
+  static async sendPasswordReset(req, res, next) {
+    try {
+      const { user_id, email } = await userAuth_service_default.findUserByEmail(req.body.email);
       const token = await userToken_service_default.createToken(
         {
-          ip: account.ip,
-          request: "register_confirm",
-          user_fk: account.user_id
+          ip: req.ip ?? "",
+          request: "password_reset_by_email",
+          user_fk: user_id
         },
-        tokenSettings_constant_default.register_confirm
+        tokenSettings_constant_default.password_reset_by_email
       );
-      await email_default.sendRegisterConfirm({
-        email: account.email,
+      await email_default.sendPasswordReset({
+        to: email,
         token
       });
-      req.session.user = account;
       res.json({
-        message: "Cuenta creada creado con \xE9xito, por favor confirma el email registrado.",
-        data: {
-          created_id: account.user_id
-        }
+        message: "Solicitud para reestablecer la contrase\xF1a enviada, revisa tu bandeja de entrada."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -2255,46 +2349,36 @@ var UserRegisterController = class {
       }
     }
   }
-};
-var userRegister_controller_default = UserRegisterController;
-
-// src/middleware/isConfirmedEmail.middleware.ts
-var response = (res) => {
-  res.status(400).json({
-    message: "El email ya est\xE1 confirmado. No es necesario reenviar el token."
-  });
-};
-var isConfirmedEmail = async (req, res, next) => {
-  const user = req.session.user;
-  if (user && user.email_confirmed) {
-    response(res);
-  } else if (user) {
-    const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
-    const { email_confirmed } = u;
-    if (email_confirmed) {
-      user.email_confirmed = true;
-      response(res);
-    } else {
-      next();
+  static async passwordReset(req, res, next) {
+    try {
+      const token = req.params.token;
+      const user = await userToken_service_default.findActiveTokenByToken({ request: "password_reset_by_email", token });
+      await userAccount_service_default.updateInfo({
+        user_id: user.user_fk,
+        password: req.body.password
+      });
+      await userToken_service_default.markTokenAsUsed(token);
+      res.json({
+        message: "Contrase\xF1a restablecida correctamente."
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
     }
   }
-};
-var isConfirmedEmail_middleware_default = isConfirmedEmail;
-
-// src/router/userRegister.router.ts
-var userRegisterRouter = express12.Router();
-userRegisterRouter.post("/", userRegister_controller_default.register);
-userRegisterRouter.get("/confirmation/:token", userRegister_controller_default.registerConfirm);
-userRegisterRouter.get("/reSendToken", isUser_middleware_default, isConfirmedEmail_middleware_default, userRegister_controller_default.registerReSendToken);
-var userRegister_router_default = userRegisterRouter;
-
-// src/router/userAccounter.router.ts
-import express13 from "express";
-
-// src/controller/userAccount.controller.ts
-var UserAccountController = class {
-  static passwordUpdate(_, res, next) {
+  static async updateInfo(req, res, next) {
     try {
+      const user = getSessionData_helper_default("user", req.session);
+      await userAccount_service_default.updateInfo({
+        ...req.body,
+        user_id: user.user_id
+      });
+      res.json({
+        message: "Informaci\xF3n actualizada correctamente."
+      });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
         error.response(res);
@@ -2306,10 +2390,32 @@ var UserAccountController = class {
 };
 var userAccount_controller_default = UserAccountController;
 
-// src/router/userAccounter.router.ts
+// src/middleware/isConfirmedEmail.middleware.ts
+var isConfirmedEmail = async (req, res, next) => {
+  const user = req.session.user;
+  if (!user) return isUser_middleware_default(req, res, next);
+  if (user.email_confirmed) {
+    return next();
+  }
+  const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
+  const { email_confirmed } = u;
+  if (email_confirmed) {
+    user.email_confirmed = true;
+    next();
+  } else {
+    res.status(401).json({
+      message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n."
+    });
+  }
+};
+var isConfirmedEmail_middleware_default = isConfirmedEmail;
+
+// src/router/userAccount.router.ts
 var userAccountRouter = express13.Router();
-userAccountRouter.get("/password/update", userAccount_controller_default.passwordUpdate);
-var userAccounter_router_default = userAccountRouter;
+userAccountRouter.post("/reset/password", userAccount_controller_default.sendPasswordReset);
+userAccountRouter.post("/reset/password/:token", userAccount_controller_default.passwordReset);
+userAccountRouter.post("/update/info", isUser_middleware_default, isConfirmedEmail_middleware_default, userAccount_controller_default.updateInfo);
+var userAccount_router_default = userAccountRouter;
 
 // src/index.ts
 var port = 3e3;
@@ -2329,7 +2435,6 @@ app.use("/sizes", sizes_router_default);
 app.use("/colors", colors_router_default);
 app.use("/users", users_router_default);
 app.use("/users/register", userRegister_router_default);
-app.use("/users/account/", userAccounter_router_default);
+app.use("/users/account", userAccount_router_default);
 app.use(errorGlobal_middleware_default);
-userToken_service_default.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 });
 app.listen(port, () => console.log("SERVER START"));

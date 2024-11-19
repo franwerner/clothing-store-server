@@ -4,6 +4,7 @@ import ErrorHandler from "../utils/errorHandler.utilts.js";
 import getAdjustedUTCDate from "../utils/getAdjustedUTCDate.utils.js";
 import userTokenSchema, { UserTokenSchema } from "../schema/token.schema.js";
 import zodParse from "../helper/zodParse.helper.js";
+import { DatabaseKeySchema } from "../schema/databaseKey.schema.js";
 
 interface TokenDate {
     timeUnit: "minute" | "hour" | "day",
@@ -14,9 +15,11 @@ interface CreateToken extends TokenDate {
     maxTokens: number
 }
 
+interface Token { token: string, request: UserTokenSchema.RequestToken }
+
 class UserTokenService {
 
-    static createTokenDate({ timeUnit, timeValue }: TokenDate) {
+    private static createTokenDate({ timeUnit, timeValue }: TokenDate) {
         const date = getAdjustedUTCDate(-3)
         if (timeUnit == "day") {
             date.setUTCDate(date.getUTCDate() + timeValue)
@@ -32,40 +35,47 @@ class UserTokenService {
         Omit<UserTokenSchema.Insert, "expired_at" | "token">,
         { maxTokens, ...tokenDate }: CreateToken
     ) {
-
         const token = crypto.randomUUID()
-
         const data = zodParse(userTokenSchema.insert)({
             ...props,
             token,
             expired_at: this.createTokenDate(tokenDate)
         })
-
         const [ResultSetHeader] = await UserTokensModel.insertWithTokenLimit(data, maxTokens)
-
         if (ResultSetHeader.affectedRows == 0) {
             throw new ErrorHandler({
                 status: 429,
-                message: "Se ha excedido el límite de solicitudes de generación de tokens para este usuario."
+                message: `Se ha excedido el límite de ${maxTokens} solicitudes de generación de tokens para este usuario.`
             })
         }
-
-        return token
+        return data.token
     }
 
-    static async useToken(token: string) {
-        const [user] = await UserTokensModel.selectActiveToken<"user_fk">({ token }, (builder) => builder.select("user_fk"))
+    static async findActiveTokenByToken({ token, request }: Token) {
 
+        const requestValidated = zodParse(userTokenSchema.requestTokenSchema)(request)
+
+        const [user] = await UserTokensModel.selectActiveToken<"user_fk">({ token, request: requestValidated }, (builder) => builder.select("user_fk"))
         if (!user) {
             throw new ErrorHandler({
                 status: 404,
-                message: `El token que estás intentando utilizar ha expirado`
+                message: `El token que estás intentando utilizar ha expirado.`
             })
         }
+        return user
+    }
 
-        await UserTokensModel.updateNotUsedToken({ token, used: true })
 
-        return user.user_fk
+    static async markTokenAsUsed(token: string) {
+        return await UserTokensModel.update({ used: true, token })
+    }
+
+    static async useToken(data: Token) {
+
+        const userToken = await this.findActiveTokenByToken(data)
+        await this.markTokenAsUsed(data.token)
+
+        return userToken.user_fk
     }
 
     static async cleanExpiredTokens({ cleaning_hour, cleaning_minute }: { cleaning_hour: number, cleaning_minute: number }) {
@@ -106,6 +116,6 @@ class UserTokenService {
 
 }
 
-export {type  CreateToken}
+export { type CreateToken }
 
 export default UserTokenService

@@ -16,7 +16,7 @@ class SizesModel extends ModelUtils {
     ) {
         try {
             const query = sql<Pick<SizeRequired, T>>("sizes")
-                .where(this.removePropertiesUndefined(props))
+                .where(props)
             modify && query.modify(modify)
             return await query
         } catch (error) {

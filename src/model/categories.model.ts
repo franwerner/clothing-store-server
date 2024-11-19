@@ -13,7 +13,7 @@ class CategoriesModel extends ModelUtils {
     static async select<T extends CategoryKeys = CategoryKeys>(props: CategoryPartial = {}, modify?: APP.ModifySQL<Pick<CategoryRequired, T>>) {
         try {
             const query = sql<Pick<CategoryRequired, T>>("categories as c")
-                .where(this.removePropertiesUndefined(props))
+                .where(props)
             modify && query.modify(modify)
             return await query
         } catch (error) {

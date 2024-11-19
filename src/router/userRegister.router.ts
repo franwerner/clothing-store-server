@@ -1,12 +1,12 @@
 import express from "express"
 import UserRegisterController from "../controller/userRegister.controller.js"
-import isConfirmedEmail from "../middleware/isConfirmedEmail.middleware.js"
 import isUser from "../middleware/isUser.middleware.js"
+import isNotConfirmedEmail from "../middleware/isNotConfirmedEmail.middleware.js"
 
 const userRegisterRouter = express.Router()
 
 userRegisterRouter.post("/", UserRegisterController.register)
-userRegisterRouter.get("/confirmation/:token", UserRegisterController.registerConfirm)
-userRegisterRouter.get("/reSendToken", isUser, isConfirmedEmail, UserRegisterController.registerReSendToken)
+userRegisterRouter.get("/confirmation/:token", UserRegisterController.confirmRegistration)
+userRegisterRouter.get("/send/token", isUser, isNotConfirmedEmail, UserRegisterController.sendRegisterToken )
 
 export default userRegisterRouter

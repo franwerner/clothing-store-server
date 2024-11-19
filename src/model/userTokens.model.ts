@@ -3,6 +3,7 @@ import sql from "../config/knex.config.js"
 import { UserTokenSchema } from "../schema/token.schema.js"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
+import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
 
 type UserTokenKeys = keyof UserTokenSchema.Base
 type UserTokenPartial = Partial<UserTokenSchema.Base>
@@ -17,7 +18,7 @@ class UserTokensModel extends ModelUtils {
         ) {
         try {
             const query = sql<Pick<UserTokenRequired, T>>("user_tokens as ut")
-                .where(this.removePropertiesUndefined(props))
+                .where(props)
             modify && query.modify(modify)
             return await query
         } catch (error) {
@@ -35,8 +36,6 @@ class UserTokensModel extends ModelUtils {
                 .where("used", false)
             modify && builder.modify(modify)
         })
-
-
     }
 
     static async insertWithTokenLimit<T extends UserTokenSchema.Insert>(
@@ -65,7 +64,7 @@ class UserTokensModel extends ModelUtils {
     }
 
 
-    static async updateToken<T extends UserTokenSchema.Update>(
+    static async update<T extends UserTokenSchema.Update>(
         { token, ...userToken }: Exact<T, UserTokenSchema.Update>,
         modify?: APP.ModifySQL
     ) {
@@ -80,11 +79,6 @@ class UserTokensModel extends ModelUtils {
         }
     }
 
-    static updateNotUsedToken<T extends UserTokenSchema.Update>(props: Exact<T, UserTokenSchema.Update>,) {
-        return this.updateToken(props, (builder) => {
-            builder.where("used", false)
-        })
-    }
 
     static async deleteAllExpiredTokens() {
         try {

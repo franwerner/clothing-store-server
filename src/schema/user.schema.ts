@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { TypeOf, z } from "zod"
 import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema"
 import databaseBooleanSchema from "./databaseBoolean.schema"
 import IPsRegExp from "../constant/IPsRegExp.constant"
@@ -49,6 +49,13 @@ const update = base.partial().extend({
     create_at: true
 })
 
+const updatePassword = base.pick({ password: true, user_id: true })
+
+const updateInfo = update.omit({
+    email : true,
+    email_confirmed : true
+})
+
 const formatUser = base.omit({
     create_at: true,
     password: true
@@ -60,6 +67,8 @@ declare namespace UserSchema {
     type Update = z.infer<typeof update>
     type Delete = DatabaseKeySchema
     type FormatUser = z.infer<typeof formatUser>
+    type UpdatePassword = z.infer<typeof updatePassword>
+    type UpdateInfo = z.infer<typeof updateInfo>
 }
 
 const userSchema = {
@@ -67,7 +76,9 @@ const userSchema = {
     insert,
     update,
     delete: databaseKeySchema,
-    formatUser
+    formatUser,
+    updatePassword,
+    updateInfo
 }
 
 export {

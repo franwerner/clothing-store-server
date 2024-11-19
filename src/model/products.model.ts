@@ -17,7 +17,7 @@ class ProductsModel extends ModelUtils {
     ) {
         try {
             const query = sql<Pick<ProductRequerid, T>>("products as p")
-                .where(this.removePropertiesUndefined(props))
+                .where(props)
             modify && query.modify(modify)
             return await query
         } catch (error) {
