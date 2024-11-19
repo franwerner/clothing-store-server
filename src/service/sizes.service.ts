@@ -7,14 +7,12 @@ import ServiceUtils from "../utils/service.utils.js";
 class SizeService extends ServiceUtils {
     static async get() {
         const sizes = await SizesModel.select();
-
         if (sizes.length === 0) {
             throw new ErrorHandler({
                 message: "No se encontraron tamaños",
                 status: 404
             })
         }
-
         return sizes
     }
 

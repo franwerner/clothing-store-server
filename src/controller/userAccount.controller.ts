@@ -16,7 +16,6 @@ class UserAccountController {
         next: NextFunction
     ) {
         try {
-
             const { user_id, email } = await UserAuthService.findUserByEmail(req.body.email)
             const token = await UserTokenService.createToken({
                 ip: req.ip ?? "",
@@ -25,12 +24,10 @@ class UserAccountController {
             },
                 tokenSettings.password_reset_by_email
             )
-
             await emailService.sendPasswordReset({
                 to: email,
                 token
             })
-
             res.json({
                 message: "Solicitud para reestablecer la contraseña enviada, revisa tu bandeja de entrada."
             })
@@ -52,18 +49,14 @@ class UserAccountController {
         try {
             const token = req.params.token
             const user = await UserTokenService.findActiveTokenByToken({ request: "password_reset_by_email", token })
-
             await UserAccountService.updateInfo({
                 user_id: user.user_fk,
                 password: req.body.password
             })
-            
             await UserTokenService.markTokenAsUsed(token)
-
             res.json({
                 message: "Contraseña restablecida correctamente."
             })
-
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
@@ -79,14 +72,11 @@ class UserAccountController {
         next: NextFunction
     ) {
         try {
-
             const user = getSessionData("user", req.session)
-
             await UserAccountService.updateInfo({
                 ...req.body,
                 user_id: user.user_id
             })
-
             res.json({
                 message: "Información actualizada correctamente."
             })

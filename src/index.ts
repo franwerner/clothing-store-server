@@ -1,6 +1,7 @@
-import express, { Request } from "express"
+import express from "express"
 import corsConfig from "./config/cors.config.js"
 import "./config/dotenv.config.js"
+import limiter from "./config/rate-limit.config.js"
 import sessionConfig from "./config/session.config.js"
 import errorGlobal from "./middleware/errorGlobal.middleware.js"
 import isAdmin from "./middleware/isAdmin.middleware.js"
@@ -14,19 +15,17 @@ import productsRouter from "./router/products.router.js"
 import productRecomendationsRouter from "./router/productsRecomendations.router.js"
 import productsViewRouter from "./router/productsView.router.js"
 import sizesRouter from "./router/sizes.router.js"
+import userAccountRouter from "./router/userAccount.router.js"
+import userRegisterRouter from "./router/userRegister.router.js"
 import usersRouter from "./router/users.router.js"
 import UserTokenService from "./service/userToken.service.js"
-import userRegisterRouter from "./router/userRegister.router.js"
-import userAccountRouter from "./router/userAccount.router.js"
 
 const port = 3000
 const app = express()
-
 app.use(express.json())
-
 app.use(sessionConfig)
-
 app.use(corsConfig)
+app.use(limiter)
 
 // app.use("/", (req: Request, res, next) => {
 //     req.session.user = {
@@ -57,6 +56,6 @@ app.use("/users/account",userAccountRouter)
 
 app.use(errorGlobal)
 
-// UserTokenService.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 })
+UserTokenService.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 })
 
 app.listen(port, () => console.log("SERVER START"))

@@ -26,20 +26,16 @@ class UserRegisterController {
         next: NextFunction
     ) {
         try {
-
             const account = await UserRegisterService.registerAccount({
                 ...req.body,
                 ip: req.ip
             })
-
             req.session.user = account
-
             await handlerRegisterToken({
                 email: account.email,
                 user_fk: account.user_id,
                 ip: req.body,
             })
-
             res.json({
                 message: "Cuenta creada con éxito. Te hemos enviado un correo para confirmar tu correo electronico.",
                 data: {
@@ -63,17 +59,14 @@ class UserRegisterController {
     ) {
         try {
             const { user_id, email } = getSessionData("user", req.session)
-
             await handlerRegisterToken({
                 ip: req.body,
                 email,
                 user_fk: user_id
             })
-
             res.json({
                 message: "Re-envio exitoso, revisa tu bandeja de entrada."
             })
-
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
@@ -90,17 +83,12 @@ class UserRegisterController {
         next: NextFunction
     ) {
         try {
-
             const { token } = req.params
-
             const userID = await UserTokenService.useToken({ request: "email_confirm", token })
-
             await UserRegisterService.completeRegister(userID)
-
             if (req.session.user) {
                 req.session.user.email_confirmed = true
             }
-
             res.json({
                 message: "Registro confirmado con exito!"
             })

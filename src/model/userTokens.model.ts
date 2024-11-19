@@ -3,7 +3,6 @@ import sql from "../config/knex.config.js"
 import { UserTokenSchema } from "../schema/token.schema.js"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
-import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
 
 type UserTokenKeys = keyof UserTokenSchema.Base
 type UserTokenPartial = Partial<UserTokenSchema.Base>

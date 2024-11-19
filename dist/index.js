@@ -18,6 +18,730 @@ var cors_config_default = corsConfig;
 import dotenv from "dotenv";
 var dotenvConfig = dotenv.config({ path: ".env.local" });
 
+// ../../node_modules/express-rate-limit/dist/index.mjs
+import { isIP } from "net";
+var getResetSeconds = (resetTime, windowMs) => {
+  let resetSeconds = void 0;
+  if (resetTime) {
+    const deltaSeconds = Math.ceil((resetTime.getTime() - Date.now()) / 1e3);
+    resetSeconds = Math.max(0, deltaSeconds);
+  } else if (windowMs) {
+    resetSeconds = Math.ceil(windowMs / 1e3);
+  }
+  return resetSeconds;
+};
+var setLegacyHeaders = (response2, info) => {
+  if (response2.headersSent)
+    return;
+  response2.setHeader("X-RateLimit-Limit", info.limit.toString());
+  response2.setHeader("X-RateLimit-Remaining", info.remaining.toString());
+  if (info.resetTime instanceof Date) {
+    response2.setHeader("Date", (/* @__PURE__ */ new Date()).toUTCString());
+    response2.setHeader(
+      "X-RateLimit-Reset",
+      Math.ceil(info.resetTime.getTime() / 1e3).toString()
+    );
+  }
+};
+var setDraft6Headers = (response2, info, windowMs) => {
+  if (response2.headersSent)
+    return;
+  const windowSeconds = Math.ceil(windowMs / 1e3);
+  const resetSeconds = getResetSeconds(info.resetTime);
+  response2.setHeader("RateLimit-Policy", `${info.limit};w=${windowSeconds}`);
+  response2.setHeader("RateLimit-Limit", info.limit.toString());
+  response2.setHeader("RateLimit-Remaining", info.remaining.toString());
+  if (resetSeconds)
+    response2.setHeader("RateLimit-Reset", resetSeconds.toString());
+};
+var setDraft7Headers = (response2, info, windowMs) => {
+  if (response2.headersSent)
+    return;
+  const windowSeconds = Math.ceil(windowMs / 1e3);
+  const resetSeconds = getResetSeconds(info.resetTime, windowMs);
+  response2.setHeader("RateLimit-Policy", `${info.limit};w=${windowSeconds}`);
+  response2.setHeader(
+    "RateLimit",
+    `limit=${info.limit}, remaining=${info.remaining}, reset=${resetSeconds}`
+  );
+};
+var setRetryAfterHeader = (response2, info, windowMs) => {
+  if (response2.headersSent)
+    return;
+  const resetSeconds = getResetSeconds(info.resetTime, windowMs);
+  response2.setHeader("Retry-After", resetSeconds.toString());
+};
+var ValidationError = class extends Error {
+  /**
+   * The code must be a string, in snake case and all capital, that starts with
+   * the substring `ERR_ERL_`.
+   *
+   * The message must be a string, starting with an uppercase character,
+   * describing the issue in detail.
+   */
+  constructor(code, message) {
+    const url = `https://express-rate-limit.github.io/${code}/`;
+    super(`${message} See ${url} for more information.`);
+    this.name = this.constructor.name;
+    this.code = code;
+    this.help = url;
+  }
+};
+var ChangeWarning = class extends ValidationError {
+};
+var usedStores = /* @__PURE__ */ new Set();
+var singleCountKeys = /* @__PURE__ */ new WeakMap();
+var validations = {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  enabled: {
+    default: true
+  },
+  // Should be EnabledValidations type, but that's a circular reference
+  disable() {
+    for (const k of Object.keys(this.enabled))
+      this.enabled[k] = false;
+  },
+  /**
+   * Checks whether the IP address is valid, and that it does not have a port
+   * number in it.
+   *
+   * See https://github.com/express-rate-limit/express-rate-limit/wiki/Error-Codes#err_erl_invalid_ip_address.
+   *
+   * @param ip {string | undefined} - The IP address provided by Express as request.ip.
+   *
+   * @returns {void}
+   */
+  ip(ip) {
+    if (ip === void 0) {
+      throw new ValidationError(
+        "ERR_ERL_UNDEFINED_IP_ADDRESS",
+        `An undefined 'request.ip' was detected. This might indicate a misconfiguration or the connection being destroyed prematurely.`
+      );
+    }
+    if (!isIP(ip)) {
+      throw new ValidationError(
+        "ERR_ERL_INVALID_IP_ADDRESS",
+        `An invalid 'request.ip' (${ip}) was detected. Consider passing a custom 'keyGenerator' function to the rate limiter.`
+      );
+    }
+  },
+  /**
+   * Makes sure the trust proxy setting is not set to `true`.
+   *
+   * See https://github.com/express-rate-limit/express-rate-limit/wiki/Error-Codes#err_erl_permissive_trust_proxy.
+   *
+   * @param request {Request} - The Express request object.
+   *
+   * @returns {void}
+   */
+  trustProxy(request) {
+    if (request.app.get("trust proxy") === true) {
+      throw new ValidationError(
+        "ERR_ERL_PERMISSIVE_TRUST_PROXY",
+        `The Express 'trust proxy' setting is true, which allows anyone to trivially bypass IP-based rate limiting.`
+      );
+    }
+  },
+  /**
+   * Makes sure the trust proxy setting is set in case the `X-Forwarded-For`
+   * header is present.
+   *
+   * See https://github.com/express-rate-limit/express-rate-limit/wiki/Error-Codes#err_erl_unset_trust_proxy.
+   *
+   * @param request {Request} - The Express request object.
+   *
+   * @returns {void}
+   */
+  xForwardedForHeader(request) {
+    if (request.headers["x-forwarded-for"] && request.app.get("trust proxy") === false) {
+      throw new ValidationError(
+        "ERR_ERL_UNEXPECTED_X_FORWARDED_FOR",
+        `The 'X-Forwarded-For' header is set but the Express 'trust proxy' setting is false (default). This could indicate a misconfiguration which would prevent express-rate-limit from accurately identifying users.`
+      );
+    }
+  },
+  /**
+   * Ensures totalHits value from store is a positive integer.
+   *
+   * @param hits {any} - The `totalHits` returned by the store.
+   */
+  positiveHits(hits) {
+    if (typeof hits !== "number" || hits < 1 || hits !== Math.round(hits)) {
+      throw new ValidationError(
+        "ERR_ERL_INVALID_HITS",
+        `The totalHits value returned from the store must be a positive integer, got ${hits}`
+      );
+    }
+  },
+  /**
+   * Ensures a single store instance is not used with multiple express-rate-limit instances
+   */
+  unsharedStore(store) {
+    if (usedStores.has(store)) {
+      const maybeUniquePrefix = store?.localKeys ? "" : " (with a unique prefix)";
+      throw new ValidationError(
+        "ERR_ERL_STORE_REUSE",
+        `A Store instance must not be shared across multiple rate limiters. Create a new instance of ${store.constructor.name}${maybeUniquePrefix} for each limiter instead.`
+      );
+    }
+    usedStores.add(store);
+  },
+  /**
+   * Ensures a given key is incremented only once per request.
+   *
+   * @param request {Request} - The Express request object.
+   * @param store {Store} - The store class.
+   * @param key {string} - The key used to store the client's hit count.
+   *
+   * @returns {void}
+   */
+  singleCount(request, store, key) {
+    let storeKeys = singleCountKeys.get(request);
+    if (!storeKeys) {
+      storeKeys = /* @__PURE__ */ new Map();
+      singleCountKeys.set(request, storeKeys);
+    }
+    const storeKey = store.localKeys ? store : store.constructor.name;
+    let keys = storeKeys.get(storeKey);
+    if (!keys) {
+      keys = [];
+      storeKeys.set(storeKey, keys);
+    }
+    const prefixedKey = `${store.prefix ?? ""}${key}`;
+    if (keys.includes(prefixedKey)) {
+      throw new ValidationError(
+        "ERR_ERL_DOUBLE_COUNT",
+        `The hit count for ${key} was incremented more than once for a single request.`
+      );
+    }
+    keys.push(prefixedKey);
+  },
+  /**
+   * Warns the user that the behaviour for `max: 0` / `limit: 0` is
+   * changing in the next major release.
+   *
+   * @param limit {number} - The maximum number of hits per client.
+   *
+   * @returns {void}
+   */
+  limit(limit) {
+    if (limit === 0) {
+      throw new ChangeWarning(
+        "WRN_ERL_MAX_ZERO",
+        `Setting limit or max to 0 disables rate limiting in express-rate-limit v6 and older, but will cause all requests to be blocked in v7`
+      );
+    }
+  },
+  /**
+   * Warns the user that the `draft_polli_ratelimit_headers` option is deprecated
+   * and will be removed in the next major release.
+   *
+   * @param draft_polli_ratelimit_headers {any | undefined} - The now-deprecated setting that was used to enable standard headers.
+   *
+   * @returns {void}
+   */
+  draftPolliHeaders(draft_polli_ratelimit_headers) {
+    if (draft_polli_ratelimit_headers) {
+      throw new ChangeWarning(
+        "WRN_ERL_DEPRECATED_DRAFT_POLLI_HEADERS",
+        `The draft_polli_ratelimit_headers configuration option is deprecated and has been removed in express-rate-limit v7, please set standardHeaders: 'draft-6' instead.`
+      );
+    }
+  },
+  /**
+   * Warns the user that the `onLimitReached` option is deprecated and
+   * will be removed in the next major release.
+   *
+   * @param onLimitReached {any | undefined} - The maximum number of hits per client.
+   *
+   * @returns {void}
+   */
+  onLimitReached(onLimitReached) {
+    if (onLimitReached) {
+      throw new ChangeWarning(
+        "WRN_ERL_DEPRECATED_ON_LIMIT_REACHED",
+        `The onLimitReached configuration option is deprecated and has been removed in express-rate-limit v7.`
+      );
+    }
+  },
+  /**
+   * Warns the user when the selected headers option requires a reset time but
+   * the store does not provide one.
+   *
+   * @param resetTime {Date | undefined} - The timestamp when the client's hit count will be reset.
+   *
+   * @returns {void}
+   */
+  headersResetTime(resetTime) {
+    if (!resetTime) {
+      throw new ValidationError(
+        "ERR_ERL_HEADERS_NO_RESET",
+        `standardHeaders:  'draft-7' requires a 'resetTime', but the store did not provide one. The 'windowMs' value will be used instead, which may cause clients to wait longer than necessary.`
+      );
+    }
+  },
+  /**
+   * Checks the options.validate setting to ensure that only recognized
+   * validations are enabled or disabled.
+   *
+   * If any unrecognized values are found, an error is logged that
+   * includes the list of supported vaidations.
+   */
+  validationsConfig() {
+    const supportedValidations = Object.keys(this).filter(
+      (k) => !["enabled", "disable"].includes(k)
+    );
+    supportedValidations.push("default");
+    for (const key of Object.keys(this.enabled)) {
+      if (!supportedValidations.includes(key)) {
+        throw new ValidationError(
+          "ERR_ERL_UNKNOWN_VALIDATION",
+          `options.validate.${key} is not recognized. Supported validate options are: ${supportedValidations.join(
+            ", "
+          )}.`
+        );
+      }
+    }
+  },
+  /**
+   * Checks to see if the instance was created inside of a request handler,
+   * which would prevent it from working correctly, with the default memory
+   * store (or any other store with localKeys.)
+   */
+  creationStack(store) {
+    const { stack } = new Error(
+      "express-rate-limit validation check (set options.validate.creationStack=false to disable)"
+    );
+    if (stack?.includes("Layer.handle [as handle_request]")) {
+      if (!store.localKeys) {
+        throw new ValidationError(
+          "ERR_ERL_CREATED_IN_REQUEST_HANDLER",
+          "express-rate-limit instance should *usually* be created at app initialization, not when responding to a request."
+        );
+      }
+      throw new ValidationError(
+        "ERR_ERL_CREATED_IN_REQUEST_HANDLER",
+        `express-rate-limit instance should be created at app initialization, not when responding to a request.`
+      );
+    }
+  }
+};
+var getValidations = (_enabled) => {
+  let enabled;
+  if (typeof _enabled === "boolean") {
+    enabled = {
+      default: _enabled
+    };
+  } else {
+    enabled = {
+      default: true,
+      ..._enabled
+    };
+  }
+  const wrappedValidations = {
+    enabled
+  };
+  for (const [name, validation] of Object.entries(validations)) {
+    if (typeof validation === "function")
+      wrappedValidations[name] = (...args) => {
+        if (!(enabled[name] ?? enabled.default)) {
+          return;
+        }
+        try {
+          ;
+          validation.apply(
+            wrappedValidations,
+            args
+          );
+        } catch (error) {
+          if (error instanceof ChangeWarning)
+            console.warn(error);
+          else
+            console.error(error);
+        }
+      };
+  }
+  return wrappedValidations;
+};
+var MemoryStore = class {
+  constructor() {
+    this.previous = /* @__PURE__ */ new Map();
+    this.current = /* @__PURE__ */ new Map();
+    this.localKeys = true;
+  }
+  /**
+   * Method that initializes the store.
+   *
+   * @param options {Options} - The options used to setup the middleware.
+   */
+  init(options) {
+    this.windowMs = options.windowMs;
+    if (this.interval)
+      clearInterval(this.interval);
+    this.interval = setInterval(() => {
+      this.clearExpired();
+    }, this.windowMs);
+    if (this.interval.unref)
+      this.interval.unref();
+  }
+  /**
+   * Method to fetch a client's hit count and reset time.
+   *
+   * @param key {string} - The identifier for a client.
+   *
+   * @returns {ClientRateLimitInfo | undefined} - The number of hits and reset time for that client.
+   *
+   * @public
+   */
+  async get(key) {
+    return this.current.get(key) ?? this.previous.get(key);
+  }
+  /**
+   * Method to increment a client's hit counter.
+   *
+   * @param key {string} - The identifier for a client.
+   *
+   * @returns {ClientRateLimitInfo} - The number of hits and reset time for that client.
+   *
+   * @public
+   */
+  async increment(key) {
+    const client = this.getClient(key);
+    const now = Date.now();
+    if (client.resetTime.getTime() <= now) {
+      this.resetClient(client, now);
+    }
+    client.totalHits++;
+    return client;
+  }
+  /**
+   * Method to decrement a client's hit counter.
+   *
+   * @param key {string} - The identifier for a client.
+   *
+   * @public
+   */
+  async decrement(key) {
+    const client = this.getClient(key);
+    if (client.totalHits > 0)
+      client.totalHits--;
+  }
+  /**
+   * Method to reset a client's hit counter.
+   *
+   * @param key {string} - The identifier for a client.
+   *
+   * @public
+   */
+  async resetKey(key) {
+    this.current.delete(key);
+    this.previous.delete(key);
+  }
+  /**
+   * Method to reset everyone's hit counter.
+   *
+   * @public
+   */
+  async resetAll() {
+    this.current.clear();
+    this.previous.clear();
+  }
+  /**
+   * Method to stop the timer (if currently running) and prevent any memory
+   * leaks.
+   *
+   * @public
+   */
+  shutdown() {
+    clearInterval(this.interval);
+    void this.resetAll();
+  }
+  /**
+   * Recycles a client by setting its hit count to zero, and reset time to
+   * `windowMs` milliseconds from now.
+   *
+   * NOT to be confused with `#resetKey()`, which removes a client from both the
+   * `current` and `previous` maps.
+   *
+   * @param client {Client} - The client to recycle.
+   * @param now {number} - The current time, to which the `windowMs` is added to get the `resetTime` for the client.
+   *
+   * @return {Client} - The modified client that was passed in, to allow for chaining.
+   */
+  resetClient(client, now = Date.now()) {
+    client.totalHits = 0;
+    client.resetTime.setTime(now + this.windowMs);
+    return client;
+  }
+  /**
+   * Retrieves or creates a client, given a key. Also ensures that the client being
+   * returned is in the `current` map.
+   *
+   * @param key {string} - The key under which the client is (or is to be) stored.
+   *
+   * @returns {Client} - The requested client.
+   */
+  getClient(key) {
+    if (this.current.has(key))
+      return this.current.get(key);
+    let client;
+    if (this.previous.has(key)) {
+      client = this.previous.get(key);
+      this.previous.delete(key);
+    } else {
+      client = { totalHits: 0, resetTime: /* @__PURE__ */ new Date() };
+      this.resetClient(client);
+    }
+    this.current.set(key, client);
+    return client;
+  }
+  /**
+   * Move current clients to previous, create a new map for current.
+   *
+   * This function is called every `windowMs`.
+   */
+  clearExpired() {
+    this.previous = this.current;
+    this.current = /* @__PURE__ */ new Map();
+  }
+};
+var isLegacyStore = (store) => (
+  // Check that `incr` exists but `increment` does not - store authors might want
+  // to keep both around for backwards compatibility.
+  typeof store.incr === "function" && typeof store.increment !== "function"
+);
+var promisifyStore = (passedStore) => {
+  if (!isLegacyStore(passedStore)) {
+    return passedStore;
+  }
+  const legacyStore = passedStore;
+  class PromisifiedStore {
+    async increment(key) {
+      return new Promise((resolve, reject) => {
+        legacyStore.incr(
+          key,
+          (error, totalHits, resetTime) => {
+            if (error)
+              reject(error);
+            resolve({ totalHits, resetTime });
+          }
+        );
+      });
+    }
+    async decrement(key) {
+      return legacyStore.decrement(key);
+    }
+    async resetKey(key) {
+      return legacyStore.resetKey(key);
+    }
+    /* istanbul ignore next */
+    async resetAll() {
+      if (typeof legacyStore.resetAll === "function")
+        return legacyStore.resetAll();
+    }
+  }
+  return new PromisifiedStore();
+};
+var getOptionsFromConfig = (config) => {
+  const { validations: validations2, ...directlyPassableEntries } = config;
+  return {
+    ...directlyPassableEntries,
+    validate: validations2.enabled
+  };
+};
+var omitUndefinedOptions = (passedOptions) => {
+  const omittedOptions = {};
+  for (const k of Object.keys(passedOptions)) {
+    const key = k;
+    if (passedOptions[key] !== void 0) {
+      omittedOptions[key] = passedOptions[key];
+    }
+  }
+  return omittedOptions;
+};
+var parseOptions = (passedOptions) => {
+  const notUndefinedOptions = omitUndefinedOptions(passedOptions);
+  const validations2 = getValidations(notUndefinedOptions?.validate ?? true);
+  validations2.validationsConfig();
+  validations2.draftPolliHeaders(
+    // @ts-expect-error see the note above.
+    notUndefinedOptions.draft_polli_ratelimit_headers
+  );
+  validations2.onLimitReached(notUndefinedOptions.onLimitReached);
+  let standardHeaders = notUndefinedOptions.standardHeaders ?? false;
+  if (standardHeaders === true)
+    standardHeaders = "draft-6";
+  const config = {
+    windowMs: 60 * 1e3,
+    limit: passedOptions.max ?? 5,
+    // `max` is deprecated, but support it anyways.
+    message: "Too many requests, please try again later.",
+    statusCode: 429,
+    legacyHeaders: passedOptions.headers ?? true,
+    requestPropertyName: "rateLimit",
+    skipFailedRequests: false,
+    skipSuccessfulRequests: false,
+    requestWasSuccessful: (_request, response2) => response2.statusCode < 400,
+    skip: (_request, _response) => false,
+    keyGenerator(request, _response) {
+      validations2.ip(request.ip);
+      validations2.trustProxy(request);
+      validations2.xForwardedForHeader(request);
+      return request.ip;
+    },
+    async handler(request, response2, _next, _optionsUsed) {
+      response2.status(config.statusCode);
+      const message = typeof config.message === "function" ? await config.message(
+        request,
+        response2
+      ) : config.message;
+      if (!response2.writableEnded) {
+        response2.send(message);
+      }
+    },
+    passOnStoreError: false,
+    // Allow the default options to be overriden by the options passed to the middleware.
+    ...notUndefinedOptions,
+    // `standardHeaders` is resolved into a draft version above, use that.
+    standardHeaders,
+    // Note that this field is declared after the user's options are spread in,
+    // so that this field doesn't get overriden with an un-promisified store!
+    store: promisifyStore(notUndefinedOptions.store ?? new MemoryStore()),
+    // Print an error to the console if a few known misconfigurations are detected.
+    validations: validations2
+  };
+  if (typeof config.store.increment !== "function" || typeof config.store.decrement !== "function" || typeof config.store.resetKey !== "function" || config.store.resetAll !== void 0 && typeof config.store.resetAll !== "function" || config.store.init !== void 0 && typeof config.store.init !== "function") {
+    throw new TypeError(
+      "An invalid store was passed. Please ensure that the store is a class that implements the `Store` interface."
+    );
+  }
+  return config;
+};
+var handleAsyncErrors = (fn) => async (request, response2, next) => {
+  try {
+    await Promise.resolve(fn(request, response2, next)).catch(next);
+  } catch (error) {
+    next(error);
+  }
+};
+var rateLimit = (passedOptions) => {
+  const config = parseOptions(passedOptions ?? {});
+  const options = getOptionsFromConfig(config);
+  config.validations.creationStack(config.store);
+  config.validations.unsharedStore(config.store);
+  if (typeof config.store.init === "function")
+    config.store.init(options);
+  const middleware = handleAsyncErrors(
+    async (request, response2, next) => {
+      const skip = await config.skip(request, response2);
+      if (skip) {
+        next();
+        return;
+      }
+      const augmentedRequest = request;
+      const key = await config.keyGenerator(request, response2);
+      let totalHits = 0;
+      let resetTime;
+      try {
+        const incrementResult = await config.store.increment(key);
+        totalHits = incrementResult.totalHits;
+        resetTime = incrementResult.resetTime;
+      } catch (error) {
+        if (config.passOnStoreError) {
+          console.error(
+            "express-rate-limit: error from store, allowing request without rate-limiting.",
+            error
+          );
+          next();
+          return;
+        }
+        throw error;
+      }
+      config.validations.positiveHits(totalHits);
+      config.validations.singleCount(request, config.store, key);
+      const retrieveLimit = typeof config.limit === "function" ? config.limit(request, response2) : config.limit;
+      const limit = await retrieveLimit;
+      config.validations.limit(limit);
+      const info = {
+        limit,
+        used: totalHits,
+        remaining: Math.max(limit - totalHits, 0),
+        resetTime
+      };
+      Object.defineProperty(info, "current", {
+        configurable: false,
+        enumerable: false,
+        value: totalHits
+      });
+      augmentedRequest[config.requestPropertyName] = info;
+      if (config.legacyHeaders && !response2.headersSent) {
+        setLegacyHeaders(response2, info);
+      }
+      if (config.standardHeaders && !response2.headersSent) {
+        if (config.standardHeaders === "draft-6") {
+          setDraft6Headers(response2, info, config.windowMs);
+        } else if (config.standardHeaders === "draft-7") {
+          config.validations.headersResetTime(info.resetTime);
+          setDraft7Headers(response2, info, config.windowMs);
+        }
+      }
+      if (config.skipFailedRequests || config.skipSuccessfulRequests) {
+        let decremented = false;
+        const decrementKey = async () => {
+          if (!decremented) {
+            await config.store.decrement(key);
+            decremented = true;
+          }
+        };
+        if (config.skipFailedRequests) {
+          response2.on("finish", async () => {
+            if (!await config.requestWasSuccessful(request, response2))
+              await decrementKey();
+          });
+          response2.on("close", async () => {
+            if (!response2.writableEnded)
+              await decrementKey();
+          });
+          response2.on("error", async () => {
+            await decrementKey();
+          });
+        }
+        if (config.skipSuccessfulRequests) {
+          response2.on("finish", async () => {
+            if (await config.requestWasSuccessful(request, response2))
+              await decrementKey();
+          });
+        }
+      }
+      config.validations.disable();
+      if (totalHits > limit) {
+        if (config.legacyHeaders || config.standardHeaders) {
+          setRetryAfterHeader(response2, info, config.windowMs);
+        }
+        config.handler(request, response2, next, options);
+        return;
+      }
+      next();
+    }
+  );
+  const getThrowFn = () => {
+    throw new Error("The current store does not support the get/getKey method");
+  };
+  middleware.resetKey = config.store.resetKey.bind(config.store);
+  middleware.getKey = typeof config.store.get === "function" ? config.store.get.bind(config.store) : getThrowFn;
+  return middleware;
+};
+var lib_default = rateLimit;
+
+// src/config/rate-limit.config.ts
+var limiter = lib_default({
+  windowMs: 10 * 60 * 1e3,
+  //10 minutos 
+  limit: 150,
+  message: "Demasiadas solicitudes, por favor intenta de nuevo en 10 minutos."
+});
+var rate_limit_config_default = limiter;
+
 // src/config/session.config.ts
 import session from "express-session";
 var sessionConfig = session({
@@ -1693,11 +2417,68 @@ sizesRouter.patch("/", isAdmin_middleware_default, sizes_controller_default.modi
 sizesRouter.delete("/", isAdmin_middleware_default, sizes_controller_default.removeSizes);
 var sizes_router_default = sizesRouter;
 
-// src/router/users.router.ts
+// src/router/userAccount.router.ts
 import express11 from "express";
 
-// src/service/userAuth.service.ts
-import bcrypt from "bcrypt";
+// src/constant/tokenSettings.constant.ts
+var tokenSettings = {
+  email_confirm: { maxTokens: 10, timeUnit: "day", timeValue: 1 },
+  //1 DIA
+  // email_update: { maxTokens: 10, timeUnit: "hour", timeValue: 3 }, // 1 HORAS
+  password_reset_by_email: { maxTokens: 10, timeUnit: "hour", timeValue: 3 }
+  // 3 HORAS
+};
+var tokenSettings_constant_default = tokenSettings;
+
+// src/config/nodemailer.config.ts
+import nodemailer from "nodemailer";
+var transport = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: env_constant_default.EMAIL,
+    pass: env_constant_default.EMAIL_PASSWORD
+  }
+});
+var nodemailer_config_default = transport;
+
+// src/service/email/sendPasswordReset.email.ts
+var sendPasswordReset = async ({ to, token }) => {
+  const url = `http://localhost:3000/users/account/reset/password/${token}`;
+  return await nodemailer_config_default.sendMail({
+    from: "Olga Hat's <olgahats@noreply.com>",
+    to,
+    subject: "Cambio de contrase\xF1a",
+    html: `
+        <p>Recibimos una solicitud para cambiar tu contrase\xF1a. Si fuiste t\xFA, por favor haz clic en el siguiente enlace para proceder con el cambio:</p>
+        <a href="${url}">Cambiar mi contrase\xF1a</a>
+        <p><strong>Este enlace expira en 3 horas.</strong></p>
+        `
+  });
+};
+var sendPasswordReset_email_default = sendPasswordReset;
+
+// src/service/email/sendEmailConfirm.email.ts
+var sendEmailConfirm = async ({ to, token }) => {
+  const url = `http://localhost:3000/users/register/confirmation/${token}`;
+  return await nodemailer_config_default.sendMail({
+    from: "Olga Hat's <olgahats@noreply.com>",
+    to,
+    subject: "Verificaci\xF3n de correo electr\xF3nico",
+    html: `
+            <p>Por favor, haz clic en el siguiente enlace para confirmar el correo electronico.</p>
+            <a href="${url}">Confirmar correo electronico.</a>
+            <p><strong>Este enlace expira en 24 horas.</strong></p>
+        `
+  });
+};
+var sendEmailConfirm_email_default = sendEmailConfirm;
+
+// src/service/email/index.ts
+var emailService = {
+  sendEmailConfirm: sendEmailConfirm_email_default,
+  sendPasswordReset: sendPasswordReset_email_default
+};
+var email_default = emailService;
 
 // src/model/users.model.ts
 var UsersModel = class extends model_utils_default {
@@ -1832,142 +2613,8 @@ var userSchema = {
 };
 var user_schema_default = userSchema;
 
-// src/service/userAuth.service.ts
-var UserAuthService = class {
-  static async findUserByEmail(email = "") {
-    const [user] = await users_model_default.select({ email });
-    if (!user) throw new errorHandler_utilts_default({ message: "El email no esta asociado a ningun usuario.", status: 422 });
-    return user;
-  }
-  static async verifyPassword(password, hash) {
-    const compare = await bcrypt.compare(password, hash);
-    if (!compare) throw new errorHandler_utilts_default({ message: "La contrase\xF1a ingresada es incorrecta.", status: 422 });
-  }
-  static async authenticar({ email, password }) {
-    const user = await this.findUserByEmail(email);
-    await this.verifyPassword(password, user.password);
-    return zodParse_helper_default(user_schema_default.formatUser)(user);
-  }
-};
-var userAuth_service_default = UserAuthService;
-
-// src/controller/users.controller.ts
-var UsersController = class {
-  static async login(req, res, next) {
-    try {
-      const { email, password } = req.body;
-      const user = await userAuth_service_default.authenticar({ email, password });
-      req.session.user = user;
-      res.json({
-        data: user
-      });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
-      } else {
-        next();
-      }
-    }
-  }
-  static async logout(req, res, next) {
-    req.session.destroy((err) => {
-      if (err) {
-        next();
-      } else {
-        res.json({
-          message: "Deslogeo exitoso."
-        });
-      }
-    });
-  }
-};
-var users_controller_default = UsersController;
-
-// src/middleware/isUser.middleware.ts
-var isUser = (req, res, next) => {
-  const user = req.session.user;
-  if (user) {
-    next();
-  } else {
-    res.status(401).json({
-      message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente."
-    });
-  }
-};
-var isUser_middleware_default = isUser;
-
-// src/router/users.router.ts
-var usersRouter = express11.Router();
-usersRouter.post("/login", users_controller_default.login);
-usersRouter.get("/logout", isUser_middleware_default, users_controller_default.logout);
-var users_router_default = usersRouter;
-
-// src/router/userRegister.router.ts
-import express12 from "express";
-
-// src/helper/getSessionData.helper.ts
-var getSessionData = (keys, session2) => {
-  const data = session2[keys];
-  if (!data) throw new errorHandler_utilts_default({
-    status: 500,
-    message: "Problemas internos para encontrar la session."
-  });
-  return data;
-};
-var getSessionData_helper_default = getSessionData;
-
-// src/config/nodemailer.config.ts
-import nodemailer from "nodemailer";
-var transport = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: env_constant_default.EMAIL,
-    pass: env_constant_default.EMAIL_PASSWORD
-  }
-});
-var nodemailer_config_default = transport;
-
-// src/service/email/sendPasswordReset.email.ts
-var sendPasswordReset = async ({ to, token }) => {
-  const url = `http://localhost:3000/users/account/reset/password/${token}`;
-  return await nodemailer_config_default.sendMail({
-    from: "Olga Hat's <olgahats@noreply.com>",
-    to,
-    subject: "Cambio de contrase\xF1a",
-    html: `
-        <p>Recibimos una solicitud para cambiar tu contrase\xF1a. Si fuiste t\xFA, por favor haz clic en el siguiente enlace para proceder con el cambio:</p>
-        <a href="${url}">Cambiar mi contrase\xF1a</a>
-        <p><strong>Este enlace expira en 3 horas.</strong></p>
-        `
-  });
-};
-var sendPasswordReset_email_default = sendPasswordReset;
-
-// src/service/email/sendEmailConfirm.email.ts
-var sendEmailConfirm = async ({ to, token }) => {
-  const url = `http://localhost:3000/users/register/confirmation/${token}`;
-  return await nodemailer_config_default.sendMail({
-    from: "Olga Hat's <olgahats@noreply.com>",
-    to,
-    subject: "Verificaci\xF3n de correo electr\xF3nico",
-    html: `
-            <p>Por favor, haz clic en el siguiente enlace para confirmar el correo electronico.</p>
-            <a href="${url}">Confirmar correo electronico.</a>
-            <p><strong>Este enlace expira en 24 horas.</strong></p>
-        `
-  });
-};
-var sendEmailConfirm_email_default = sendEmailConfirm;
-
-// src/service/email/index.ts
-var emailService = {
-  sendEmailConfirm: sendEmailConfirm_email_default,
-  sendPasswordReset: sendPasswordReset_email_default
-};
-var email_default = emailService;
-
 // src/service/userRegister.service.ts
-import bcrypt2 from "bcrypt";
+import bcrypt from "bcrypt";
 
 // src/constant/maxAccoutPerIP.constant.ts
 var maxAccountPerIp = 10;
@@ -1985,8 +2632,8 @@ var UserRegisterService = class {
     }
   }
   static async createPassword(password) {
-    const salt = await bcrypt2.genSalt(10);
-    const hash = await bcrypt2.hash(password, salt);
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
     return hash;
   }
   static async registerAccount(user) {
@@ -2008,6 +2655,48 @@ var UserRegisterService = class {
   }
 };
 var userRegister_service_default = UserRegisterService;
+
+// src/service/userAccount.service.ts
+var UserAccountService = class {
+  static async updateInfo(update11) {
+    const { password, phone, fullname, user_id } = zodParse_helper_default(user_schema_default.update)(update11);
+    const selectedInfo = {
+      password: password && await userRegister_service_default.createPassword(password),
+      phone,
+      fullname,
+      user_id
+    };
+    const res = await users_model_default.update(selectedInfo);
+    if (res === 0) {
+      throw new errorHandler_utilts_default({
+        status: 400,
+        message: "Hubo un inconveniente al actualizar la informacion. Por favor, int\xE9ntalo nuevamente m\xE1s tarde."
+      });
+    }
+    return res;
+  }
+};
+var userAccount_service_default = UserAccountService;
+
+// src/service/userAuth.service.ts
+import bcrypt2 from "bcrypt";
+var UserAuthService = class {
+  static async findUserByEmail(email = "") {
+    const [user] = await users_model_default.select({ email });
+    if (!user) throw new errorHandler_utilts_default({ message: "El email no esta asociado a ningun usuario.", status: 422 });
+    return user;
+  }
+  static async verifyPassword(password, hash) {
+    const compare = await bcrypt2.compare(password, hash);
+    if (!compare) throw new errorHandler_utilts_default({ message: "La contrase\xF1a ingresada es incorrecta.", status: 422 });
+  }
+  static async authenticar({ email, password }) {
+    const user = await this.findUserByEmail(email);
+    await this.verifyPassword(password, user.password);
+    return zodParse_helper_default(user_schema_default.formatUser)(user);
+  }
+};
+var userAuth_service_default = UserAuthService;
 
 // src/service/userToken.service.ts
 import crypto2 from "crypto";
@@ -2181,15 +2870,128 @@ var UserTokenService = class {
 };
 var userToken_service_default = UserTokenService;
 
-// src/constant/tokenSettings.constant.ts
-var tokenSettings = {
-  email_confirm: { maxTokens: 10, timeUnit: "day", timeValue: 1 },
-  //1 DIA
-  // email_update: { maxTokens: 10, timeUnit: "hour", timeValue: 3 }, // 1 HORAS
-  password_reset_by_email: { maxTokens: 10, timeUnit: "hour", timeValue: 3 }
-  // 3 HORAS
+// src/helper/getSessionData.helper.ts
+var getSessionData = (keys, session2) => {
+  const data = session2[keys];
+  if (!data) throw new errorHandler_utilts_default({
+    status: 500,
+    message: "Problemas internos para encontrar la session."
+  });
+  return data;
 };
-var tokenSettings_constant_default = tokenSettings;
+var getSessionData_helper_default = getSessionData;
+
+// src/controller/userAccount.controller.ts
+var UserAccountController = class {
+  static async sendPasswordReset(req, res, next) {
+    try {
+      const { user_id, email } = await userAuth_service_default.findUserByEmail(req.body.email);
+      const token = await userToken_service_default.createToken(
+        {
+          ip: req.ip ?? "",
+          request: "password_reset_by_email",
+          user_fk: user_id
+        },
+        tokenSettings_constant_default.password_reset_by_email
+      );
+      await email_default.sendPasswordReset({
+        to: email,
+        token
+      });
+      res.json({
+        message: "Solicitud para reestablecer la contrase\xF1a enviada, revisa tu bandeja de entrada."
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async passwordReset(req, res, next) {
+    try {
+      const token = req.params.token;
+      const user = await userToken_service_default.findActiveTokenByToken({ request: "password_reset_by_email", token });
+      await userAccount_service_default.updateInfo({
+        user_id: user.user_fk,
+        password: req.body.password
+      });
+      await userToken_service_default.markTokenAsUsed(token);
+      res.json({
+        message: "Contrase\xF1a restablecida correctamente."
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async updateInfo(req, res, next) {
+    try {
+      const user = getSessionData_helper_default("user", req.session);
+      await userAccount_service_default.updateInfo({
+        ...req.body,
+        user_id: user.user_id
+      });
+      res.json({
+        message: "Informaci\xF3n actualizada correctamente."
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+};
+var userAccount_controller_default = UserAccountController;
+
+// src/middleware/isUser.middleware.ts
+var isUser = (req, res, next) => {
+  const user = req.session.user;
+  if (user) {
+    next();
+  } else {
+    res.status(401).json({
+      message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente."
+    });
+  }
+};
+var isUser_middleware_default = isUser;
+
+// src/middleware/isConfirmedEmail.middleware.ts
+var isConfirmedEmail = async (req, res, next) => {
+  const user = req.session.user;
+  if (!user) return isUser_middleware_default(req, res, next);
+  if (user.email_confirmed) {
+    return next();
+  }
+  const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
+  const { email_confirmed } = u;
+  if (email_confirmed) {
+    user.email_confirmed = true;
+    next();
+  } else {
+    res.status(401).json({
+      message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n."
+    });
+  }
+};
+var isConfirmedEmail_middleware_default = isConfirmedEmail;
+
+// src/router/userAccount.router.ts
+var userAccountRouter = express11.Router();
+userAccountRouter.post("/reset/password", userAccount_controller_default.sendPasswordReset);
+userAccountRouter.post("/reset/password/:token", userAccount_controller_default.passwordReset);
+userAccountRouter.post("/update/info", isUser_middleware_default, isConfirmedEmail_middleware_default, userAccount_controller_default.updateInfo);
+var userAccount_router_default = userAccountRouter;
+
+// src/router/userRegister.router.ts
+import express12 from "express";
 
 // src/controller/userRegister.controller.ts
 var handlerRegisterToken = async ({ ip, email, user_fk }) => {
@@ -2296,50 +3098,18 @@ userRegisterRouter.get("/confirmation/:token", userRegister_controller_default.c
 userRegisterRouter.get("/send/token", isUser_middleware_default, isNotConfirmedEmail_middleware_default, userRegister_controller_default.sendRegisterToken);
 var userRegister_router_default = userRegisterRouter;
 
-// src/router/userAccount.router.ts
+// src/router/users.router.ts
 import express13 from "express";
 
-// src/service/userAccount.service.ts
-var UserAccountService = class {
-  static async updateInfo(update11) {
-    const { password, phone, fullname, user_id } = zodParse_helper_default(user_schema_default.update)(update11);
-    const selectedInfo = {
-      password: password && await userRegister_service_default.createPassword(password),
-      phone,
-      fullname,
-      user_id
-    };
-    const res = await users_model_default.update(selectedInfo);
-    if (res === 0) {
-      throw new errorHandler_utilts_default({
-        status: 400,
-        message: "Hubo un inconveniente al actualizar la informacion. Por favor, int\xE9ntalo nuevamente m\xE1s tarde."
-      });
-    }
-    return res;
-  }
-};
-var userAccount_service_default = UserAccountService;
-
-// src/controller/userAccount.controller.ts
-var UserAccountController = class {
-  static async sendPasswordReset(req, res, next) {
+// src/controller/users.controller.ts
+var UsersController = class {
+  static async login(req, res, next) {
     try {
-      const { user_id, email } = await userAuth_service_default.findUserByEmail(req.body.email);
-      const token = await userToken_service_default.createToken(
-        {
-          ip: req.ip ?? "",
-          request: "password_reset_by_email",
-          user_fk: user_id
-        },
-        tokenSettings_constant_default.password_reset_by_email
-      );
-      await email_default.sendPasswordReset({
-        to: email,
-        token
-      });
+      const { email, password } = req.body;
+      const user = await userAuth_service_default.authenticar({ email, password });
+      req.session.user = user;
       res.json({
-        message: "Solicitud para reestablecer la contrase\xF1a enviada, revisa tu bandeja de entrada."
+        data: user
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -2349,73 +3119,25 @@ var UserAccountController = class {
       }
     }
   }
-  static async passwordReset(req, res, next) {
-    try {
-      const token = req.params.token;
-      const user = await userToken_service_default.findActiveTokenByToken({ request: "password_reset_by_email", token });
-      await userAccount_service_default.updateInfo({
-        user_id: user.user_fk,
-        password: req.body.password
-      });
-      await userToken_service_default.markTokenAsUsed(token);
-      res.json({
-        message: "Contrase\xF1a restablecida correctamente."
-      });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
-      } else {
+  static async logout(req, res, next) {
+    req.session.destroy((err) => {
+      if (err) {
         next();
-      }
-    }
-  }
-  static async updateInfo(req, res, next) {
-    try {
-      const user = getSessionData_helper_default("user", req.session);
-      await userAccount_service_default.updateInfo({
-        ...req.body,
-        user_id: user.user_id
-      });
-      res.json({
-        message: "Informaci\xF3n actualizada correctamente."
-      });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
       } else {
-        next();
+        res.json({
+          message: "Deslogeo exitoso."
+        });
       }
-    }
-  }
-};
-var userAccount_controller_default = UserAccountController;
-
-// src/middleware/isConfirmedEmail.middleware.ts
-var isConfirmedEmail = async (req, res, next) => {
-  const user = req.session.user;
-  if (!user) return isUser_middleware_default(req, res, next);
-  if (user.email_confirmed) {
-    return next();
-  }
-  const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
-  const { email_confirmed } = u;
-  if (email_confirmed) {
-    user.email_confirmed = true;
-    next();
-  } else {
-    res.status(401).json({
-      message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n."
     });
   }
 };
-var isConfirmedEmail_middleware_default = isConfirmedEmail;
+var users_controller_default = UsersController;
 
-// src/router/userAccount.router.ts
-var userAccountRouter = express13.Router();
-userAccountRouter.post("/reset/password", userAccount_controller_default.sendPasswordReset);
-userAccountRouter.post("/reset/password/:token", userAccount_controller_default.passwordReset);
-userAccountRouter.post("/update/info", isUser_middleware_default, isConfirmedEmail_middleware_default, userAccount_controller_default.updateInfo);
-var userAccount_router_default = userAccountRouter;
+// src/router/users.router.ts
+var usersRouter = express13.Router();
+usersRouter.post("/login", users_controller_default.login);
+usersRouter.get("/logout", isUser_middleware_default, users_controller_default.logout);
+var users_router_default = usersRouter;
 
 // src/index.ts
 var port = 3e3;
@@ -2423,6 +3145,7 @@ var app = express14();
 app.use(express14.json());
 app.use(session_config_default);
 app.use(cors_config_default);
+app.use(rate_limit_config_default);
 app.use("/categories", categories_router_default);
 app.use("/products", products_router_default);
 app.use("/products/recomendations", productsRecomendations_router_default);
@@ -2437,4 +3160,5 @@ app.use("/users", users_router_default);
 app.use("/users/register", userRegister_router_default);
 app.use("/users/account", userAccount_router_default);
 app.use(errorGlobal_middleware_default);
+userToken_service_default.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 });
 app.listen(port, () => console.log("SERVER START"));
