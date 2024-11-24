@@ -1,5 +1,5 @@
 // src/index.ts
-import express14 from "express";
+import express15 from "express";
 
 // src/config/cors.config.ts
 import cors from "cors";
@@ -18,725 +18,18 @@ var cors_config_default = corsConfig;
 import dotenv from "dotenv";
 var dotenvConfig = dotenv.config({ path: ".env.local" });
 
-// ../../node_modules/express-rate-limit/dist/index.mjs
-import { isIP } from "net";
-var getResetSeconds = (resetTime, windowMs) => {
-  let resetSeconds = void 0;
-  if (resetTime) {
-    const deltaSeconds = Math.ceil((resetTime.getTime() - Date.now()) / 1e3);
-    resetSeconds = Math.max(0, deltaSeconds);
-  } else if (windowMs) {
-    resetSeconds = Math.ceil(windowMs / 1e3);
-  }
-  return resetSeconds;
-};
-var setLegacyHeaders = (response2, info) => {
-  if (response2.headersSent)
-    return;
-  response2.setHeader("X-RateLimit-Limit", info.limit.toString());
-  response2.setHeader("X-RateLimit-Remaining", info.remaining.toString());
-  if (info.resetTime instanceof Date) {
-    response2.setHeader("Date", (/* @__PURE__ */ new Date()).toUTCString());
-    response2.setHeader(
-      "X-RateLimit-Reset",
-      Math.ceil(info.resetTime.getTime() / 1e3).toString()
-    );
-  }
-};
-var setDraft6Headers = (response2, info, windowMs) => {
-  if (response2.headersSent)
-    return;
-  const windowSeconds = Math.ceil(windowMs / 1e3);
-  const resetSeconds = getResetSeconds(info.resetTime);
-  response2.setHeader("RateLimit-Policy", `${info.limit};w=${windowSeconds}`);
-  response2.setHeader("RateLimit-Limit", info.limit.toString());
-  response2.setHeader("RateLimit-Remaining", info.remaining.toString());
-  if (resetSeconds)
-    response2.setHeader("RateLimit-Reset", resetSeconds.toString());
-};
-var setDraft7Headers = (response2, info, windowMs) => {
-  if (response2.headersSent)
-    return;
-  const windowSeconds = Math.ceil(windowMs / 1e3);
-  const resetSeconds = getResetSeconds(info.resetTime, windowMs);
-  response2.setHeader("RateLimit-Policy", `${info.limit};w=${windowSeconds}`);
-  response2.setHeader(
-    "RateLimit",
-    `limit=${info.limit}, remaining=${info.remaining}, reset=${resetSeconds}`
-  );
-};
-var setRetryAfterHeader = (response2, info, windowMs) => {
-  if (response2.headersSent)
-    return;
-  const resetSeconds = getResetSeconds(info.resetTime, windowMs);
-  response2.setHeader("Retry-After", resetSeconds.toString());
-};
-var ValidationError = class extends Error {
-  /**
-   * The code must be a string, in snake case and all capital, that starts with
-   * the substring `ERR_ERL_`.
-   *
-   * The message must be a string, starting with an uppercase character,
-   * describing the issue in detail.
-   */
-  constructor(code, message) {
-    const url = `https://express-rate-limit.github.io/${code}/`;
-    super(`${message} See ${url} for more information.`);
-    this.name = this.constructor.name;
-    this.code = code;
-    this.help = url;
-  }
-};
-var ChangeWarning = class extends ValidationError {
-};
-var usedStores = /* @__PURE__ */ new Set();
-var singleCountKeys = /* @__PURE__ */ new WeakMap();
-var validations = {
-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-  enabled: {
-    default: true
-  },
-  // Should be EnabledValidations type, but that's a circular reference
-  disable() {
-    for (const k of Object.keys(this.enabled))
-      this.enabled[k] = false;
-  },
-  /**
-   * Checks whether the IP address is valid, and that it does not have a port
-   * number in it.
-   *
-   * See https://github.com/express-rate-limit/express-rate-limit/wiki/Error-Codes#err_erl_invalid_ip_address.
-   *
-   * @param ip {string | undefined} - The IP address provided by Express as request.ip.
-   *
-   * @returns {void}
-   */
-  ip(ip) {
-    if (ip === void 0) {
-      throw new ValidationError(
-        "ERR_ERL_UNDEFINED_IP_ADDRESS",
-        `An undefined 'request.ip' was detected. This might indicate a misconfiguration or the connection being destroyed prematurely.`
-      );
-    }
-    if (!isIP(ip)) {
-      throw new ValidationError(
-        "ERR_ERL_INVALID_IP_ADDRESS",
-        `An invalid 'request.ip' (${ip}) was detected. Consider passing a custom 'keyGenerator' function to the rate limiter.`
-      );
-    }
-  },
-  /**
-   * Makes sure the trust proxy setting is not set to `true`.
-   *
-   * See https://github.com/express-rate-limit/express-rate-limit/wiki/Error-Codes#err_erl_permissive_trust_proxy.
-   *
-   * @param request {Request} - The Express request object.
-   *
-   * @returns {void}
-   */
-  trustProxy(request) {
-    if (request.app.get("trust proxy") === true) {
-      throw new ValidationError(
-        "ERR_ERL_PERMISSIVE_TRUST_PROXY",
-        `The Express 'trust proxy' setting is true, which allows anyone to trivially bypass IP-based rate limiting.`
-      );
-    }
-  },
-  /**
-   * Makes sure the trust proxy setting is set in case the `X-Forwarded-For`
-   * header is present.
-   *
-   * See https://github.com/express-rate-limit/express-rate-limit/wiki/Error-Codes#err_erl_unset_trust_proxy.
-   *
-   * @param request {Request} - The Express request object.
-   *
-   * @returns {void}
-   */
-  xForwardedForHeader(request) {
-    if (request.headers["x-forwarded-for"] && request.app.get("trust proxy") === false) {
-      throw new ValidationError(
-        "ERR_ERL_UNEXPECTED_X_FORWARDED_FOR",
-        `The 'X-Forwarded-For' header is set but the Express 'trust proxy' setting is false (default). This could indicate a misconfiguration which would prevent express-rate-limit from accurately identifying users.`
-      );
-    }
-  },
-  /**
-   * Ensures totalHits value from store is a positive integer.
-   *
-   * @param hits {any} - The `totalHits` returned by the store.
-   */
-  positiveHits(hits) {
-    if (typeof hits !== "number" || hits < 1 || hits !== Math.round(hits)) {
-      throw new ValidationError(
-        "ERR_ERL_INVALID_HITS",
-        `The totalHits value returned from the store must be a positive integer, got ${hits}`
-      );
-    }
-  },
-  /**
-   * Ensures a single store instance is not used with multiple express-rate-limit instances
-   */
-  unsharedStore(store) {
-    if (usedStores.has(store)) {
-      const maybeUniquePrefix = store?.localKeys ? "" : " (with a unique prefix)";
-      throw new ValidationError(
-        "ERR_ERL_STORE_REUSE",
-        `A Store instance must not be shared across multiple rate limiters. Create a new instance of ${store.constructor.name}${maybeUniquePrefix} for each limiter instead.`
-      );
-    }
-    usedStores.add(store);
-  },
-  /**
-   * Ensures a given key is incremented only once per request.
-   *
-   * @param request {Request} - The Express request object.
-   * @param store {Store} - The store class.
-   * @param key {string} - The key used to store the client's hit count.
-   *
-   * @returns {void}
-   */
-  singleCount(request, store, key) {
-    let storeKeys = singleCountKeys.get(request);
-    if (!storeKeys) {
-      storeKeys = /* @__PURE__ */ new Map();
-      singleCountKeys.set(request, storeKeys);
-    }
-    const storeKey = store.localKeys ? store : store.constructor.name;
-    let keys = storeKeys.get(storeKey);
-    if (!keys) {
-      keys = [];
-      storeKeys.set(storeKey, keys);
-    }
-    const prefixedKey = `${store.prefix ?? ""}${key}`;
-    if (keys.includes(prefixedKey)) {
-      throw new ValidationError(
-        "ERR_ERL_DOUBLE_COUNT",
-        `The hit count for ${key} was incremented more than once for a single request.`
-      );
-    }
-    keys.push(prefixedKey);
-  },
-  /**
-   * Warns the user that the behaviour for `max: 0` / `limit: 0` is
-   * changing in the next major release.
-   *
-   * @param limit {number} - The maximum number of hits per client.
-   *
-   * @returns {void}
-   */
-  limit(limit) {
-    if (limit === 0) {
-      throw new ChangeWarning(
-        "WRN_ERL_MAX_ZERO",
-        `Setting limit or max to 0 disables rate limiting in express-rate-limit v6 and older, but will cause all requests to be blocked in v7`
-      );
-    }
-  },
-  /**
-   * Warns the user that the `draft_polli_ratelimit_headers` option is deprecated
-   * and will be removed in the next major release.
-   *
-   * @param draft_polli_ratelimit_headers {any | undefined} - The now-deprecated setting that was used to enable standard headers.
-   *
-   * @returns {void}
-   */
-  draftPolliHeaders(draft_polli_ratelimit_headers) {
-    if (draft_polli_ratelimit_headers) {
-      throw new ChangeWarning(
-        "WRN_ERL_DEPRECATED_DRAFT_POLLI_HEADERS",
-        `The draft_polli_ratelimit_headers configuration option is deprecated and has been removed in express-rate-limit v7, please set standardHeaders: 'draft-6' instead.`
-      );
-    }
-  },
-  /**
-   * Warns the user that the `onLimitReached` option is deprecated and
-   * will be removed in the next major release.
-   *
-   * @param onLimitReached {any | undefined} - The maximum number of hits per client.
-   *
-   * @returns {void}
-   */
-  onLimitReached(onLimitReached) {
-    if (onLimitReached) {
-      throw new ChangeWarning(
-        "WRN_ERL_DEPRECATED_ON_LIMIT_REACHED",
-        `The onLimitReached configuration option is deprecated and has been removed in express-rate-limit v7.`
-      );
-    }
-  },
-  /**
-   * Warns the user when the selected headers option requires a reset time but
-   * the store does not provide one.
-   *
-   * @param resetTime {Date | undefined} - The timestamp when the client's hit count will be reset.
-   *
-   * @returns {void}
-   */
-  headersResetTime(resetTime) {
-    if (!resetTime) {
-      throw new ValidationError(
-        "ERR_ERL_HEADERS_NO_RESET",
-        `standardHeaders:  'draft-7' requires a 'resetTime', but the store did not provide one. The 'windowMs' value will be used instead, which may cause clients to wait longer than necessary.`
-      );
-    }
-  },
-  /**
-   * Checks the options.validate setting to ensure that only recognized
-   * validations are enabled or disabled.
-   *
-   * If any unrecognized values are found, an error is logged that
-   * includes the list of supported vaidations.
-   */
-  validationsConfig() {
-    const supportedValidations = Object.keys(this).filter(
-      (k) => !["enabled", "disable"].includes(k)
-    );
-    supportedValidations.push("default");
-    for (const key of Object.keys(this.enabled)) {
-      if (!supportedValidations.includes(key)) {
-        throw new ValidationError(
-          "ERR_ERL_UNKNOWN_VALIDATION",
-          `options.validate.${key} is not recognized. Supported validate options are: ${supportedValidations.join(
-            ", "
-          )}.`
-        );
-      }
-    }
-  },
-  /**
-   * Checks to see if the instance was created inside of a request handler,
-   * which would prevent it from working correctly, with the default memory
-   * store (or any other store with localKeys.)
-   */
-  creationStack(store) {
-    const { stack } = new Error(
-      "express-rate-limit validation check (set options.validate.creationStack=false to disable)"
-    );
-    if (stack?.includes("Layer.handle [as handle_request]")) {
-      if (!store.localKeys) {
-        throw new ValidationError(
-          "ERR_ERL_CREATED_IN_REQUEST_HANDLER",
-          "express-rate-limit instance should *usually* be created at app initialization, not when responding to a request."
-        );
-      }
-      throw new ValidationError(
-        "ERR_ERL_CREATED_IN_REQUEST_HANDLER",
-        `express-rate-limit instance should be created at app initialization, not when responding to a request.`
-      );
-    }
-  }
-};
-var getValidations = (_enabled) => {
-  let enabled;
-  if (typeof _enabled === "boolean") {
-    enabled = {
-      default: _enabled
-    };
-  } else {
-    enabled = {
-      default: true,
-      ..._enabled
-    };
-  }
-  const wrappedValidations = {
-    enabled
-  };
-  for (const [name, validation] of Object.entries(validations)) {
-    if (typeof validation === "function")
-      wrappedValidations[name] = (...args) => {
-        if (!(enabled[name] ?? enabled.default)) {
-          return;
-        }
-        try {
-          ;
-          validation.apply(
-            wrappedValidations,
-            args
-          );
-        } catch (error) {
-          if (error instanceof ChangeWarning)
-            console.warn(error);
-          else
-            console.error(error);
-        }
-      };
-  }
-  return wrappedValidations;
-};
-var MemoryStore = class {
-  constructor() {
-    this.previous = /* @__PURE__ */ new Map();
-    this.current = /* @__PURE__ */ new Map();
-    this.localKeys = true;
-  }
-  /**
-   * Method that initializes the store.
-   *
-   * @param options {Options} - The options used to setup the middleware.
-   */
-  init(options) {
-    this.windowMs = options.windowMs;
-    if (this.interval)
-      clearInterval(this.interval);
-    this.interval = setInterval(() => {
-      this.clearExpired();
-    }, this.windowMs);
-    if (this.interval.unref)
-      this.interval.unref();
-  }
-  /**
-   * Method to fetch a client's hit count and reset time.
-   *
-   * @param key {string} - The identifier for a client.
-   *
-   * @returns {ClientRateLimitInfo | undefined} - The number of hits and reset time for that client.
-   *
-   * @public
-   */
-  async get(key) {
-    return this.current.get(key) ?? this.previous.get(key);
-  }
-  /**
-   * Method to increment a client's hit counter.
-   *
-   * @param key {string} - The identifier for a client.
-   *
-   * @returns {ClientRateLimitInfo} - The number of hits and reset time for that client.
-   *
-   * @public
-   */
-  async increment(key) {
-    const client = this.getClient(key);
-    const now = Date.now();
-    if (client.resetTime.getTime() <= now) {
-      this.resetClient(client, now);
-    }
-    client.totalHits++;
-    return client;
-  }
-  /**
-   * Method to decrement a client's hit counter.
-   *
-   * @param key {string} - The identifier for a client.
-   *
-   * @public
-   */
-  async decrement(key) {
-    const client = this.getClient(key);
-    if (client.totalHits > 0)
-      client.totalHits--;
-  }
-  /**
-   * Method to reset a client's hit counter.
-   *
-   * @param key {string} - The identifier for a client.
-   *
-   * @public
-   */
-  async resetKey(key) {
-    this.current.delete(key);
-    this.previous.delete(key);
-  }
-  /**
-   * Method to reset everyone's hit counter.
-   *
-   * @public
-   */
-  async resetAll() {
-    this.current.clear();
-    this.previous.clear();
-  }
-  /**
-   * Method to stop the timer (if currently running) and prevent any memory
-   * leaks.
-   *
-   * @public
-   */
-  shutdown() {
-    clearInterval(this.interval);
-    void this.resetAll();
-  }
-  /**
-   * Recycles a client by setting its hit count to zero, and reset time to
-   * `windowMs` milliseconds from now.
-   *
-   * NOT to be confused with `#resetKey()`, which removes a client from both the
-   * `current` and `previous` maps.
-   *
-   * @param client {Client} - The client to recycle.
-   * @param now {number} - The current time, to which the `windowMs` is added to get the `resetTime` for the client.
-   *
-   * @return {Client} - The modified client that was passed in, to allow for chaining.
-   */
-  resetClient(client, now = Date.now()) {
-    client.totalHits = 0;
-    client.resetTime.setTime(now + this.windowMs);
-    return client;
-  }
-  /**
-   * Retrieves or creates a client, given a key. Also ensures that the client being
-   * returned is in the `current` map.
-   *
-   * @param key {string} - The key under which the client is (or is to be) stored.
-   *
-   * @returns {Client} - The requested client.
-   */
-  getClient(key) {
-    if (this.current.has(key))
-      return this.current.get(key);
-    let client;
-    if (this.previous.has(key)) {
-      client = this.previous.get(key);
-      this.previous.delete(key);
-    } else {
-      client = { totalHits: 0, resetTime: /* @__PURE__ */ new Date() };
-      this.resetClient(client);
-    }
-    this.current.set(key, client);
-    return client;
-  }
-  /**
-   * Move current clients to previous, create a new map for current.
-   *
-   * This function is called every `windowMs`.
-   */
-  clearExpired() {
-    this.previous = this.current;
-    this.current = /* @__PURE__ */ new Map();
-  }
-};
-var isLegacyStore = (store) => (
-  // Check that `incr` exists but `increment` does not - store authors might want
-  // to keep both around for backwards compatibility.
-  typeof store.incr === "function" && typeof store.increment !== "function"
-);
-var promisifyStore = (passedStore) => {
-  if (!isLegacyStore(passedStore)) {
-    return passedStore;
-  }
-  const legacyStore = passedStore;
-  class PromisifiedStore {
-    async increment(key) {
-      return new Promise((resolve, reject) => {
-        legacyStore.incr(
-          key,
-          (error, totalHits, resetTime) => {
-            if (error)
-              reject(error);
-            resolve({ totalHits, resetTime });
-          }
-        );
-      });
-    }
-    async decrement(key) {
-      return legacyStore.decrement(key);
-    }
-    async resetKey(key) {
-      return legacyStore.resetKey(key);
-    }
-    /* istanbul ignore next */
-    async resetAll() {
-      if (typeof legacyStore.resetAll === "function")
-        return legacyStore.resetAll();
-    }
-  }
-  return new PromisifiedStore();
-};
-var getOptionsFromConfig = (config) => {
-  const { validations: validations2, ...directlyPassableEntries } = config;
-  return {
-    ...directlyPassableEntries,
-    validate: validations2.enabled
-  };
-};
-var omitUndefinedOptions = (passedOptions) => {
-  const omittedOptions = {};
-  for (const k of Object.keys(passedOptions)) {
-    const key = k;
-    if (passedOptions[key] !== void 0) {
-      omittedOptions[key] = passedOptions[key];
-    }
-  }
-  return omittedOptions;
-};
-var parseOptions = (passedOptions) => {
-  const notUndefinedOptions = omitUndefinedOptions(passedOptions);
-  const validations2 = getValidations(notUndefinedOptions?.validate ?? true);
-  validations2.validationsConfig();
-  validations2.draftPolliHeaders(
-    // @ts-expect-error see the note above.
-    notUndefinedOptions.draft_polli_ratelimit_headers
-  );
-  validations2.onLimitReached(notUndefinedOptions.onLimitReached);
-  let standardHeaders = notUndefinedOptions.standardHeaders ?? false;
-  if (standardHeaders === true)
-    standardHeaders = "draft-6";
-  const config = {
-    windowMs: 60 * 1e3,
-    limit: passedOptions.max ?? 5,
-    // `max` is deprecated, but support it anyways.
-    message: "Too many requests, please try again later.",
-    statusCode: 429,
-    legacyHeaders: passedOptions.headers ?? true,
-    requestPropertyName: "rateLimit",
-    skipFailedRequests: false,
-    skipSuccessfulRequests: false,
-    requestWasSuccessful: (_request, response2) => response2.statusCode < 400,
-    skip: (_request, _response) => false,
-    keyGenerator(request, _response) {
-      validations2.ip(request.ip);
-      validations2.trustProxy(request);
-      validations2.xForwardedForHeader(request);
-      return request.ip;
-    },
-    async handler(request, response2, _next, _optionsUsed) {
-      response2.status(config.statusCode);
-      const message = typeof config.message === "function" ? await config.message(
-        request,
-        response2
-      ) : config.message;
-      if (!response2.writableEnded) {
-        response2.send(message);
-      }
-    },
-    passOnStoreError: false,
-    // Allow the default options to be overriden by the options passed to the middleware.
-    ...notUndefinedOptions,
-    // `standardHeaders` is resolved into a draft version above, use that.
-    standardHeaders,
-    // Note that this field is declared after the user's options are spread in,
-    // so that this field doesn't get overriden with an un-promisified store!
-    store: promisifyStore(notUndefinedOptions.store ?? new MemoryStore()),
-    // Print an error to the console if a few known misconfigurations are detected.
-    validations: validations2
-  };
-  if (typeof config.store.increment !== "function" || typeof config.store.decrement !== "function" || typeof config.store.resetKey !== "function" || config.store.resetAll !== void 0 && typeof config.store.resetAll !== "function" || config.store.init !== void 0 && typeof config.store.init !== "function") {
-    throw new TypeError(
-      "An invalid store was passed. Please ensure that the store is a class that implements the `Store` interface."
-    );
-  }
-  return config;
-};
-var handleAsyncErrors = (fn) => async (request, response2, next) => {
-  try {
-    await Promise.resolve(fn(request, response2, next)).catch(next);
-  } catch (error) {
-    next(error);
-  }
-};
-var rateLimit = (passedOptions) => {
-  const config = parseOptions(passedOptions ?? {});
-  const options = getOptionsFromConfig(config);
-  config.validations.creationStack(config.store);
-  config.validations.unsharedStore(config.store);
-  if (typeof config.store.init === "function")
-    config.store.init(options);
-  const middleware = handleAsyncErrors(
-    async (request, response2, next) => {
-      const skip = await config.skip(request, response2);
-      if (skip) {
-        next();
-        return;
-      }
-      const augmentedRequest = request;
-      const key = await config.keyGenerator(request, response2);
-      let totalHits = 0;
-      let resetTime;
-      try {
-        const incrementResult = await config.store.increment(key);
-        totalHits = incrementResult.totalHits;
-        resetTime = incrementResult.resetTime;
-      } catch (error) {
-        if (config.passOnStoreError) {
-          console.error(
-            "express-rate-limit: error from store, allowing request without rate-limiting.",
-            error
-          );
-          next();
-          return;
-        }
-        throw error;
-      }
-      config.validations.positiveHits(totalHits);
-      config.validations.singleCount(request, config.store, key);
-      const retrieveLimit = typeof config.limit === "function" ? config.limit(request, response2) : config.limit;
-      const limit = await retrieveLimit;
-      config.validations.limit(limit);
-      const info = {
-        limit,
-        used: totalHits,
-        remaining: Math.max(limit - totalHits, 0),
-        resetTime
-      };
-      Object.defineProperty(info, "current", {
-        configurable: false,
-        enumerable: false,
-        value: totalHits
-      });
-      augmentedRequest[config.requestPropertyName] = info;
-      if (config.legacyHeaders && !response2.headersSent) {
-        setLegacyHeaders(response2, info);
-      }
-      if (config.standardHeaders && !response2.headersSent) {
-        if (config.standardHeaders === "draft-6") {
-          setDraft6Headers(response2, info, config.windowMs);
-        } else if (config.standardHeaders === "draft-7") {
-          config.validations.headersResetTime(info.resetTime);
-          setDraft7Headers(response2, info, config.windowMs);
-        }
-      }
-      if (config.skipFailedRequests || config.skipSuccessfulRequests) {
-        let decremented = false;
-        const decrementKey = async () => {
-          if (!decremented) {
-            await config.store.decrement(key);
-            decremented = true;
-          }
-        };
-        if (config.skipFailedRequests) {
-          response2.on("finish", async () => {
-            if (!await config.requestWasSuccessful(request, response2))
-              await decrementKey();
-          });
-          response2.on("close", async () => {
-            if (!response2.writableEnded)
-              await decrementKey();
-          });
-          response2.on("error", async () => {
-            await decrementKey();
-          });
-        }
-        if (config.skipSuccessfulRequests) {
-          response2.on("finish", async () => {
-            if (await config.requestWasSuccessful(request, response2))
-              await decrementKey();
-          });
-        }
-      }
-      config.validations.disable();
-      if (totalHits > limit) {
-        if (config.legacyHeaders || config.standardHeaders) {
-          setRetryAfterHeader(response2, info, config.windowMs);
-        }
-        config.handler(request, response2, next, options);
-        return;
-      }
-      next();
-    }
-  );
-  const getThrowFn = () => {
-    throw new Error("The current store does not support the get/getKey method");
-  };
-  middleware.resetKey = config.store.resetKey.bind(config.store);
-  middleware.getKey = typeof config.store.get === "function" ? config.store.get.bind(config.store) : getThrowFn;
-  return middleware;
-};
-var lib_default = rateLimit;
+// src/config/mercadopago.config.ts
+import { MercadoPagoConfig } from "mercadopago";
+var mercadoPagoConfig = new MercadoPagoConfig({
+  accessToken: env_constant_default.MP_ACCESS_TOKEN
+});
+var mercadopago_config_default = mercadoPagoConfig;
 
 // src/config/rate-limit.config.ts
-var limiter = lib_default({
-  windowMs: 10 * 60 * 1e3,
-  //10 minutos 
+import { rateLimit } from "express-rate-limit";
+var limiter = rateLimit({
+  windowMs: 5 * 60 * 1e3,
+  //5 minutos 
   limit: 150,
   message: "Demasiadas solicitudes, por favor intenta de nuevo en 10 minutos."
 });
@@ -771,8 +64,8 @@ var isAdmin = (req, res, next) => {
   if (user && user.permission == "admin") {
     next();
   } else {
-    res.status(403).json({
-      message: "No tienes permisos suficientes para continuar."
+    res.status(401).json({
+      message: "No estas autorizado para continuar con esta operacion."
     });
   }
 };
@@ -834,10 +127,10 @@ var ZodErrorHandler = class extends errorHandler_utilts_default {
 var zodErrorHandler_utilts_default = ZodErrorHandler;
 
 // src/helper/zodParse.helper.ts
-var zodParse = (z14) => {
+var zodParse = (z16) => {
   return (data) => {
     try {
-      return z14.parse(data);
+      return z16.parse(data);
     } catch (error) {
       if (zodErrorHandler_utilts_default.isZodError(error)) {
         throw new zodErrorHandler_utilts_default(error);
@@ -890,7 +183,7 @@ var sqlErrorMapping = {
   "ER_SUBQUERY_NO_1_ROW": 400
 };
 var defaultMessage = "Ocurrio un error desconocido en la base de datos.";
-var DatabaseErrorHandler = class extends errorHandler_utilts_default {
+var DatabaseErrorHandler = class _DatabaseErrorHandler extends errorHandler_utilts_default {
   queryError;
   constructor(queryError, messages = {}) {
     super({
@@ -902,6 +195,9 @@ var DatabaseErrorHandler = class extends errorHandler_utilts_default {
   }
   static isSqlError(error) {
     return error?.sql;
+  }
+  static isInstanceOf(instance) {
+    return instance instanceof _DatabaseErrorHandler;
   }
 };
 var databaseErrorHandler_utilts_default = DatabaseErrorHandler;
@@ -958,23 +254,17 @@ var BrandsModel = class extends model_utils_default {
 var brands_model_default = BrandsModel;
 
 // src/schema/brand.schema.ts
-import z4 from "zod";
+import z3 from "zod";
 
 // src/schema/databaseKey.schema.ts
 import { z as z2 } from "zod";
 var databaseKeySchema = z2.union([z2.number(), z2.string().regex(/^\d+$/, "El tipo de la clave no es valido.")]);
 var databaseKey_schema_default = databaseKeySchema;
 
-// src/schema/databaseBoolean.schema.ts
-import { z as z3 } from "zod";
-var databaseBooleanSchema = z3.union([z3.literal(0), z3.literal(1), z3.boolean()]);
-var databaseBoolean_schema_default = databaseBooleanSchema;
-
 // src/schema/brand.schema.ts
-var base = z4.object({
+var base = z3.object({
   brand_id: databaseKey_schema_default,
-  brand: z4.string(),
-  status: databaseBoolean_schema_default.optional().default(false)
+  brand: z3.string()
 });
 var insert = base.omit({
   brand_id: true
@@ -1112,12 +402,11 @@ var brands_router_default = brandsRouter;
 import express2 from "express";
 
 // src/schema/category.schema.ts
-import { z as z5 } from "zod";
-var base2 = z5.object({
+import { z as z4 } from "zod";
+var base2 = z4.object({
   category_id: databaseKey_schema_default,
-  category: z5.string(),
-  brand_fk: databaseKey_schema_default,
-  status: databaseBoolean_schema_default.optional().default(false)
+  category: z4.string(),
+  brand_fk: databaseKey_schema_default
 });
 var update2 = base2.partial().extend({
   category_id: base2.shape.category_id
@@ -1311,15 +600,15 @@ var ColorsModel = class extends model_utils_default {
 var colors_model_default = ColorsModel;
 
 // src/schema/color.schema.ts
-import { z as z6 } from "zod";
+import { z as z5 } from "zod";
 var hexadecimalPattern = {
   regexp: /#([A-Fa-f0-9]{6})/g,
   message: "No es un hexadecimal valido."
 };
-var base3 = z6.object({
+var base3 = z5.object({
   color_id: databaseKey_schema_default,
-  color: z6.string(),
-  hexadecimal: z6.string().regex(hexadecimalPattern.regexp, hexadecimalPattern.message)
+  color: z5.string(),
+  hexadecimal: z5.string().regex(hexadecimalPattern.regexp, hexadecimalPattern.message)
 });
 var update3 = base3.partial().extend({
   color_id: base3.shape.color_id
@@ -1428,8 +717,410 @@ colorsRouter.patch("/", isAdmin_middleware_default, colors_controller_default.mo
 colorsRouter.post("/", isAdmin_middleware_default, colors_controller_default.addColors);
 var colors_router_default = colorsRouter;
 
-// src/router/ProductColorImages.router.ts
+// src/router/mercadoPago.router.ts
 import express4 from "express";
+
+// src/service/mercadoPago.service.ts
+import { Payment, Preference } from "mercadopago";
+
+// src/model/userPurchaseProducts.model.ts
+var UserPurchaseProductsModel = class extends model_utils_default {
+  static async select(props = {}, modify) {
+    try {
+      const query = knex_config_default("user_purchase_products as upp").where(props);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async insert(user_purchase) {
+    const { color_fk, product_fk, size_fk, user_purchase_fk } = user_purchase;
+    try {
+      const query = knex_config_default.raw(`
+                INSERT INTO user_purchase_products (product_fk,user_purchase_fk,color_fk,size_fk)
+                SELECT ?,?,?,? FROM
+                products p
+                INNER JOIN product_colors pc ON pc.product_fk = p.product_id 
+                INNER JOIN product_color_sizes pcs ON pcs.product_color_fk = pc.product_color_id  
+                WHERE p.product_id = ? AND 
+                p.status = true AND 
+                pc.color_fk = ? AND  
+                pcs.size_fk = ? AND
+                pcs.stock = true AND 
+                pcs.status = true
+                `, [
+        product_fk,
+        user_purchase_fk,
+        color_fk,
+        size_fk,
+        product_fk,
+        color_fk,
+        size_fk
+      ]);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async selectAndJoined(props = {}, modify) {
+    return this.select(props, (builder) => {
+      builder.innerJoin("products as p", "p.product_id", "upp.product_fk").innerJoin("colors as c", "c.color_id", "upp.color_fk").innerJoin("sizes as s", "s.size_id", "upp.size_fk");
+      modify && builder.modify(modify);
+    });
+  }
+};
+var userPurchaseProducts_model_default = UserPurchaseProductsModel;
+
+// src/model/userPurchases.model.ts
+var UserPurchasesModel = class extends model_utils_default {
+  static async select(props = {}, modify) {
+    try {
+      const query = knex_config_default("user_purchases as up").where(props);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async insert(user_purchase, modify) {
+    try {
+      const query = knex_config_default("user_purchases").insert(user_purchase);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async update({ user_purchase_id, ...user_purchase }, modify) {
+    try {
+      const query = knex_config_default("user_purchases").where({ user_purchase_id }).update(user_purchase);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async updateOperationIfNull(props) {
+    return this.update(props, (builder) => {
+      builder.where("operation_id", null);
+    });
+  }
+};
+var userPurchases_model_default = UserPurchasesModel;
+
+// src/schema/userPurchase.schema.ts
+import { z as z6 } from "zod";
+var base4 = z6.object({
+  user_purchase_id: databaseKey_schema_default,
+  operation_id: databaseKey_schema_default.nullable().default(null).optional(),
+  user_fk: databaseKey_schema_default,
+  status: z6.enum(["canceled", "pending", "completed"]).default("pending").optional(),
+  note: z6.string().nullable().default(null).optional()
+});
+var insert4 = base4.omit({ user_purchase_id: true });
+var update4 = z6.object({
+  operation_id: databaseKey_schema_default,
+  user_purchase_id: databaseKey_schema_default
+});
+var userPurchaseSchema = {
+  base: base4,
+  insert: insert4,
+  update: update4
+};
+var userPurchase_schema_default = userPurchaseSchema;
+
+// src/service/userPurchases.service.ts
+var userPurchasesService = class {
+  static async updateOperationID(props) {
+    const data = zodParse_helper_default(userPurchase_schema_default.update)(props);
+    const res = await userPurchases_model_default.updateOperationIfNull(data);
+    if (res === 0) throw new errorHandler_utilts_default({
+      message: "No se puede actualizar el ID de la operaci\xF3n porque ya tiene un valor asignado",
+      status: 400
+    });
+    return res;
+  }
+};
+var userPurchases_service_default = userPurchasesService;
+
+// src/service/mercadoPago.service.ts
+var preferences = new Preference(mercadopago_config_default);
+var payment = new Payment(mercadopago_config_default);
+var url = (i) => {
+  return new URL(i, env_constant_default.BACKEND_DOMAIN).href;
+};
+var MercadoPagoService = class {
+  static async paymentHandler({ action, data }) {
+    if (action !== "payment.created") return;
+    const res = await payment.get({ id: data.id });
+    try {
+      await userPurchases_service_default.updateOperationID({
+        operation_id: data.id,
+        user_purchase_id: res.external_reference
+      });
+    } catch (error) {
+      if (databaseErrorHandler_utilts_default.isInstanceOf(error) || !errorHandler_utilts_default.isInstanceOf(error)) {
+        throw error;
+      }
+    }
+  }
+  static async createPreferenceOrder({
+    items,
+    user_purchase_id
+  }) {
+    return await preferences.create({
+      body: {
+        items,
+        notification_url: url("mercadopago/notification"),
+        external_reference: user_purchase_id.toString()
+      }
+    });
+  }
+  static async transformProductsToCheckoutItems(user_purchase_fk) {
+    const data = await userPurchaseProducts_model_default.selectAndJoined(
+      { user_purchase_fk },
+      (build) => build.select(knex_config_default.raw(
+        `
+                user_purchase_product_id as id,
+                product as title,
+                quantity,
+                price as unit_price,
+                CONCAT('Color:',' ',color,' | ','Talle:',' ',size) as description,
+                'ARS' as currency_id
+                `
+      ))
+    );
+    return data;
+  }
+};
+var mercadoPago_service_default = MercadoPagoService;
+
+// src/controller/mercadoPago.controller.ts
+var MercadoPagoController = class {
+  static async notification(req, res, next) {
+    try {
+      await mercadoPago_service_default.paymentHandler(req.body);
+      res.status(201).json({ message: "success" });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+};
+var mercadoPago_controller_default = MercadoPagoController;
+
+// src/middleware/validateMercadoPagoWebhook.middleware.ts
+import crypto2 from "crypto";
+var validateMercadoPagoWebhook = (req, res, next) => {
+  const headers = req.headers;
+  const xSignature = headers["x-signature"] || "";
+  const xRequestId = headers["x-request-id"];
+  const dataID = req.query["data.id"];
+  const parts = xSignature.split(",");
+  const [ts, hash] = parts.map((part) => {
+    const [key, value] = part.split("=");
+    if (!value || !["ts", "v1"].includes(key)) return;
+    return value.trim();
+  });
+  const manifest = `id:${dataID};request-id:${xRequestId};ts:${ts};`;
+  const hmac = crypto2.createHmac("sha256", env_constant_default.MP_WEB_HOOK_TOKEN);
+  hmac.update(manifest);
+  const sha = hmac.digest("hex");
+  if (sha === hash) {
+    next();
+  } else {
+    res.status(401).json({
+      message: "No estas autorizado a realizar esta operacion"
+    });
+  }
+};
+var validateMercadoPagoWebhook_middleware_default = validateMercadoPagoWebhook;
+
+// src/router/mercadoPago.router.ts
+var mercadoPagoRouter = express4.Router();
+mercadoPagoRouter.post("/notification", validateMercadoPagoWebhook_middleware_default, mercadoPago_controller_default.notification);
+var mercadoPago_router_default = mercadoPagoRouter;
+
+// src/router/order.router.ts
+import { Router } from "express";
+
+// src/schema/userPurchaseProduct.schema.ts
+import { z as z7 } from "zod";
+var base5 = z7.object({
+  user_purchase_product_id: databaseKey_schema_default,
+  product_fk: databaseKey_schema_default,
+  user_purchase_fk: databaseKey_schema_default,
+  color_fk: databaseKey_schema_default,
+  size_fk: databaseKey_schema_default
+});
+var insert5 = base5.omit({ user_purchase_product_id: true });
+var userPurchaseProductSchema = {
+  base: base5,
+  insert: insert5
+};
+var userPurchaseProduct_schema_default = userPurchaseProductSchema;
+
+// src/service/orders.service.ts
+var OrdersService = class {
+  static async createOrder({ order_details, products }) {
+    let tsx = {};
+    try {
+      const orderData = zodParse_helper_default(userPurchase_schema_default.insert)(order_details);
+      tsx = await knex_config_default.transaction();
+      const [user_purchase_id] = await userPurchases_model_default.insert(orderData, (builder) => {
+        builder.transacting(tsx);
+      });
+      const productWithID = products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }));
+      const productsData = zodParse_helper_default(userPurchaseProduct_schema_default.insert.array())(productWithID);
+      const user_purchase_products_id = await Promise.all(productsData.map(async (i) => {
+        const [result] = await userPurchaseProducts_model_default.insert(i);
+        if (result.affectedRows == 0) throw new errorHandler_utilts_default({
+          message: "Lamentablemente, uno de los productos seleccionados no est\xE1 disponible para su compra en este momento.",
+          status: 400
+        });
+        return result.insertId;
+      }));
+      await tsx.commit();
+      return {
+        user_purchase_id,
+        user_purchase_products_id
+      };
+    } catch (error) {
+      if (tsx.rollback) await tsx.rollback();
+      throw error;
+    }
+  }
+};
+var orders_service_default = OrdersService;
+
+// src/controller/order.controller.ts
+var OrderController = class {
+  static async createOrder(req, res, next) {
+    try {
+      const { user_purchase_id } = await orders_service_default.createOrder(req.body);
+      const transform = await mercadoPago_service_default.transformProductsToCheckoutItems(user_purchase_id);
+      const { init_point } = await mercadoPago_service_default.createPreferenceOrder({
+        items: transform,
+        user_purchase_id
+      });
+      res.json({
+        data: {
+          checkout_url: init_point
+        }
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+};
+var order_controller_default = OrderController;
+
+// src/model/users.model.ts
+var UsersModel = class extends model_utils_default {
+  static async select(props = {}, modify) {
+    try {
+      const query = knex_config_default("users").where(props);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async update({ user_id, ...props }, modify) {
+    try {
+      const query = knex_config_default("users").update(props).where("user_id", user_id);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static updateUnconfirmedEmail(props) {
+    return this.update(props, (builder) => {
+      builder.where("email_confirmed", false);
+    });
+  }
+  static async insertByLimitIP(user, ip_limit = 0) {
+    const { email, fullname, ip, password, phone, permission } = user;
+    try {
+      return await knex_config_default.raw(`
+            INSERT INTO users (fullname,phone,email,password,ip,permission)
+            SELECT ?, ?, ?, ?, ?,?
+            WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ?
+              `, [
+        fullname,
+        phone,
+        email,
+        password,
+        ip,
+        permission,
+        ip,
+        ip_limit
+      ]);
+    } catch (error) {
+      throw this.generateError(error, {
+        ER_DUP_ENTRY: "El email que est\xE1s intentando registrar ya est\xE1 en uso."
+      });
+    }
+  }
+  static async delete(userID) {
+    try {
+      return await knex_config_default("users").where("user_id", userID).delete();
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+};
+var users_model_default = UsersModel;
+
+// src/middleware/isUser.middleware.ts
+var isUser = (req, res, next) => {
+  const user = req.session.user;
+  if (user) {
+    next();
+  } else {
+    res.status(401).json({
+      message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente."
+    });
+  }
+};
+var isUser_middleware_default = isUser;
+
+// src/middleware/isCompleteUser.middleware.ts
+var isCompleteUser = async (req, res, next) => {
+  const user = req.session.user;
+  if (!user) return isUser_middleware_default(req, res, next);
+  if (user.email_confirmed) {
+    return next();
+  }
+  const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
+  const { email_confirmed } = u;
+  if (email_confirmed) {
+    user.email_confirmed = true;
+    next();
+  } else {
+    res.status(401).json({
+      message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n."
+    });
+  }
+};
+var isCompleteUser_middleware_default = isCompleteUser;
+
+// src/router/order.router.ts
+var orderRouter = Router();
+orderRouter.post("/create", isCompleteUser_middleware_default, order_controller_default.createOrder);
+var order_router_default = orderRouter;
+
+// src/router/ProductColorImages.router.ts
+import express5 from "express";
 
 // src/model/productColorImages.model.ts
 var ProductColorImagesModel = class extends model_utils_default {
@@ -1467,20 +1158,20 @@ var ProductColorImagesModel = class extends model_utils_default {
 var productColorImages_model_default = ProductColorImagesModel;
 
 // src/schema/productColorImage.schema.ts
-import { z as z7 } from "zod";
-var base4 = z7.object({
+import { z as z8 } from "zod";
+var base6 = z8.object({
   product_color_image_id: databaseKey_schema_default,
   product_color_fk: databaseKey_schema_default,
-  url: z7.string()
+  url: z8.string()
 });
-var update4 = base4.partial().extend({
-  product_color_image_id: base4.shape.product_color_image_id
+var update5 = base6.partial().extend({
+  product_color_image_id: base6.shape.product_color_image_id
 });
-var insert4 = base4.omit({ product_color_image_id: true });
+var insert6 = base6.omit({ product_color_image_id: true });
 var productColorImageSchema = {
-  base: base4,
-  update: update4,
-  insert: insert4,
+  base: base6,
+  update: update5,
+  insert: insert6,
   delete: databaseKey_schema_default
 };
 var productColorImage_schema_default = productColorImageSchema;
@@ -1550,14 +1241,14 @@ var ProductColorImagesController = class {
 var productColorImages_controller_default = ProductColorImagesController;
 
 // src/router/ProductColorImages.router.ts
-var productColorImagesRouter = express4.Router();
+var productColorImagesRouter = express5.Router();
 productColorImagesRouter.post("/", productColorImages_controller_default.addProductColorImages);
 productColorImagesRouter.delete("/", productColorImages_controller_default.removeProductColorImages);
 productColorImagesRouter.patch("/", productColorImages_controller_default.modifyProductColorImages);
 var ProductColorImages_router_default = productColorImagesRouter;
 
 // src/router/productColors.router.ts
-import express5 from "express";
+import express6 from "express";
 
 // src/model/productColors.model.ts
 var ProductColorsModel = class extends model_utils_default {
@@ -1591,17 +1282,17 @@ var ProductColorsModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
-  static selectWithTableColor(props, modify) {
+  static selectJoinColor(props, modify) {
     return this.select(props, (builder) => {
       modify && builder.modify(modify);
-      builder.leftJoin("colors as c", "c.color_id", "pc.color_fk");
+      builder.innerJoin("colors as c", "c.color_id", "pc.color_fk");
     });
   }
   static selectExistsSizes(props, modify) {
-    return this.selectWithTableColor(props, (builder) => {
+    return this.selectJoinColor(props, (builder) => {
       modify && builder.modify(modify);
       builder.whereExists(
-        knex_config_default("product_color_sizes").whereRaw("product_color_fk = pc.product_color_id")
+        knex_config_default("product_color_sizes").whereRaw("product_color_fk = pc.product_color_id").where("status", true)
       );
     });
   }
@@ -1609,22 +1300,22 @@ var ProductColorsModel = class extends model_utils_default {
 var productColors_model_default = ProductColorsModel;
 
 // src/schema/productColor.schema.ts
-import { z as z8 } from "zod";
-var base5 = z8.object({
+import { z as z9 } from "zod";
+var base7 = z9.object({
   product_color_id: databaseKey_schema_default,
   color_fk: databaseKey_schema_default,
   product_fk: databaseKey_schema_default
 });
-var update5 = base5.partial().extend({
-  product_color_id: base5.shape.product_color_id
+var update6 = base7.partial().extend({
+  product_color_id: base7.shape.product_color_id
 });
-var insert5 = base5.omit({
+var insert7 = base7.omit({
   product_color_id: true
 });
 var productColorSchema = {
-  base: base5,
-  update: update5,
-  insert: insert5,
+  base: base7,
+  update: update6,
+  insert: insert7,
   delete: databaseKey_schema_default
 };
 var productColor_schema_default = productColorSchema;
@@ -1694,14 +1385,14 @@ var ProductColorsController = class {
 var productColors_controller_default = ProductColorsController;
 
 // src/router/productColors.router.ts
-var productColorsRouter = express5.Router();
+var productColorsRouter = express6.Router();
 productColorsRouter.post("/", productColors_controller_default.setProductColors);
 productColorsRouter.delete("/", productColors_controller_default.removeProductColors);
 productColorsRouter.patch("/", productColors_controller_default.modifyProductColors);
 var productColors_router_default = productColorsRouter;
 
 // src/router/ProductColorSizes.router.ts
-import express6 from "express";
+import express7 from "express";
 
 // src/model/productSizes.model.ts
 var ProductColorSizesModel = class extends model_utils_default {
@@ -1714,7 +1405,7 @@ var ProductColorSizesModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
-  static selectWithTableSize(props, modify) {
+  static selectJoinSize(props, modify) {
     return this.select(props, (builder) => {
       modify && builder.modify(modify);
       builder.leftJoin("sizes as s", "s.size_id", "pcs.size_fk");
@@ -1745,21 +1436,29 @@ var ProductColorSizesModel = class extends model_utils_default {
 var productSizes_model_default = ProductColorSizesModel;
 
 // src/schema/productColorSize.schema.ts
-import { z as z9 } from "zod";
-var base6 = z9.object({
+import { z as z11 } from "zod";
+
+// src/schema/databaseBoolean.schema.ts
+import { z as z10 } from "zod";
+var databaseBooleanSchema = z10.union([z10.literal(0), z10.literal(1), z10.boolean()]);
+var databaseBoolean_schema_default = databaseBooleanSchema;
+
+// src/schema/productColorSize.schema.ts
+var base8 = z11.object({
   product_color_size_id: databaseKey_schema_default,
   product_color_fk: databaseKey_schema_default,
   size_fk: databaseKey_schema_default,
-  stock: databaseBoolean_schema_default.optional().default(true)
+  stock: databaseBoolean_schema_default.default(true).optional(),
+  status: databaseBoolean_schema_default.default(true).optional()
 });
-var update6 = base6.partial().extend({
-  product_color_size_id: base6.shape.product_color_size_id
+var update7 = base8.partial().extend({
+  product_color_size_id: base8.shape.product_color_size_id
 });
-var insert6 = base6.omit({ product_color_size_id: true });
+var insert8 = base8.omit({ product_color_size_id: true });
 var productColorSizeSchema = {
-  base: base6,
-  update: update6,
-  insert: insert6,
+  base: base8,
+  update: update7,
+  insert: insert8,
   delete: databaseKey_schema_default
 };
 var productColorSize_schema_default = productColorSizeSchema;
@@ -1829,14 +1528,14 @@ var ProductColorSizesController = class {
 var productColorSizes_controller_default = ProductColorSizesController;
 
 // src/router/ProductColorSizes.router.ts
-var productColorSizesRouter = express6.Router();
+var productColorSizesRouter = express7.Router();
 productColorSizesRouter.post("/", productColorSizes_controller_default.setProductColorSizes);
 productColorSizesRouter.delete("/", productColorSizes_controller_default.removeProductColorSizes);
 productColorSizesRouter.patch("/", productColorSizes_controller_default.modifyProductColorSizes);
 var ProductColorSizes_router_default = productColorSizesRouter;
 
 // src/router/products.router.ts
-import express7 from "express";
+import express8 from "express";
 
 // src/model/products.model.ts
 var ProductsModel = class extends model_utils_default {
@@ -1882,25 +1581,25 @@ var ProductsModel = class extends model_utils_default {
 var products_model_default = ProductsModel;
 
 // src/schema/product.schema.ts
-import { z as z10 } from "zod";
-var base7 = z10.object({
+import { z as z12 } from "zod";
+var base9 = z12.object({
   product_id: databaseKey_schema_default,
   category_fk: databaseKey_schema_default,
-  product: z10.string(),
-  discount: z10.number().optional(),
-  price: z10.number(),
-  status: databaseBoolean_schema_default.optional().default(false)
+  product: z12.string(),
+  discount: z12.number().min(0).max(100).default(0).optional(),
+  price: z12.number(),
+  status: databaseBoolean_schema_default.default(true).optional()
 });
-var insert7 = base7.omit({
+var insert9 = base9.omit({
   product_id: true
 });
-var update7 = base7.partial().extend({
-  product_id: base7.shape.product_id
+var update8 = base9.partial().extend({
+  product_id: base9.shape.product_id
 });
 var productSchema = {
-  base: base7,
-  update: update7,
-  insert: insert7,
+  base: base9,
+  update: update8,
+  insert: insert9,
   delete: databaseKey_schema_default
 };
 var product_schema_default = productSchema;
@@ -1992,7 +1691,7 @@ var ProductsController = class {
 var products_controller_default = ProductsController;
 
 // src/router/products.router.ts
-var productsRouter = express7.Router();
+var productsRouter = express8.Router();
 productsRouter.get("/category/:category_id", products_controller_default.getProductsPerCategory);
 productsRouter.post("/", isAdmin_middleware_default, products_controller_default.addProducts);
 productsRouter.patch("/", isAdmin_middleware_default, products_controller_default.modifyProducts);
@@ -2000,7 +1699,7 @@ productsRouter.delete("/", isAdmin_middleware_default, products_controller_defau
 var products_router_default = productsRouter;
 
 // src/router/productsRecomendations.router.ts
-import express8 from "express";
+import express9 from "express";
 
 // src/model/categoriesRecomendations.model.ts
 var CategoriesRecomendationsModel = class extends model_utils_default {
@@ -2061,12 +1760,12 @@ var ProductsRecomendationsController = class {
 var productsRecomendations_controller_default = ProductsRecomendationsController;
 
 // src/router/productsRecomendations.router.ts
-var productRecomendationsRouter = express8.Router();
+var productRecomendationsRouter = express9.Router();
 productRecomendationsRouter.get("/random", productsRecomendations_controller_default.getRandomProductRecomendation);
 var productsRecomendations_router_default = productRecomendationsRouter;
 
 // src/router/productsView.router.ts
-import express9 from "express";
+import express10 from "express";
 
 // src/service/productFullview.service.ts
 var handleEmptyResult = (isError, message) => {
@@ -2084,8 +1783,7 @@ var ProductFullViewService = class {
     return productColorModel;
   }
   static async getProductColorSize(product_color_fk) {
-    const color_sizes = await productSizes_model_default.selectWithTableSize({ product_color_fk });
-    handleEmptyResult(color_sizes.length === 0, "No se encontro ningun tama\xF1o asociado al color");
+    const color_sizes = await productSizes_model_default.selectJoinSize({ product_color_fk });
     return color_sizes;
   }
   static async getProductColorImage(product_color_fk) {
@@ -2138,9 +1836,13 @@ var productsPreviewModel = async (querys) => {
     ).innerJoin("categories as pt", "pt.brand_fk", "pb.brand_id").innerJoin("products as p", "p.category_fk", "pt.category_id").innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").leftJoin(subQueryForOneImagePerProductColor.as("pci"), (pci) => {
       pci.on("pci.product_color_fk", "=", "pc.product_color_id");
       pci.andOn("pci.row_num", "=", 1);
-    }).where("p.status", true).where("pb.status", true).where("pt.status", true);
+    }).where("p.status", true);
     !size && query.whereExists(
-      knex_config_default("product_color_sizes").whereRaw("product_color_fk = pc.product_color_id")
+      /**
+       * Esto solo verifica si hay tamaños disponibles para cada color de forma generalizada.
+       * Siempre en caso de que no se indiquen tamaños, ya que de lo contrario lo verifica otra consulta mas abajo.
+       */
+      knex_config_default("product_color_sizes").whereRaw("product_color_fk = pc.product_color_id").where("status", true)
     );
     brand_id && query.where("pb.brand_id", brand_id);
     category_id && query.where("pt.category_id", category_id);
@@ -2149,7 +1851,7 @@ var productsPreviewModel = async (querys) => {
     color && query.whereIn("c.color_id", color);
     size && query.whereIn(
       "pc.product_color_id",
-      knex_config_default("product_color_sizes").select("product_color_fk").whereIn("size_fk", size)
+      knex_config_default("product_color_sizes").select("product_color_fk").whereIn("size_fk", size).where("status", true)
     );
     return await query;
   } catch (error) {
@@ -2258,7 +1960,7 @@ var ProductsViewController = class {
 var productsView_controller_default = ProductsViewController;
 
 // src/router/productsView.router.ts
-var productsViewRouter = express9.Router();
+var productsViewRouter = express10.Router();
 productsViewRouter.get("/preview", productsView_controller_default.getProductsPreview);
 productsViewRouter.get("/preview/:brand_id", productsView_controller_default.getProductsPreview);
 productsViewRouter.get("/preview/:brand_id/:category_id", productsView_controller_default.getProductsPreview);
@@ -2266,7 +1968,7 @@ productsViewRouter.get("/fullview/:product_id", productsView_controller_default.
 var productsView_router_default = productsViewRouter;
 
 // src/router/sizes.router.ts
-import express10 from "express";
+import express11 from "express";
 
 // src/model/sizes.model.ts
 var SizesModel = class extends model_utils_default {
@@ -2308,21 +2010,21 @@ var SizesModel = class extends model_utils_default {
 var sizes_model_default = SizesModel;
 
 // src/schema/size.schema.ts
-import { z as z11 } from "zod";
-var base8 = z11.object({
+import { z as z13 } from "zod";
+var base10 = z13.object({
   size_id: databaseKey_schema_default,
-  size: z11.string()
+  size: z13.string()
 });
-var insert8 = base8.omit({
+var insert10 = base10.omit({
   size_id: true
 });
-var update8 = base8.partial().extend({
-  size_id: base8.shape.size_id
+var update9 = base10.partial().extend({
+  size_id: base10.shape.size_id
 });
 var sizeSchema = {
-  base: base8,
-  update: update8,
-  insert: insert8,
+  base: base10,
+  update: update9,
+  insert: insert10,
   delete: databaseKey_schema_default
 };
 var size_schema_default = sizeSchema;
@@ -2410,7 +2112,7 @@ var SizeController = class {
 var sizes_controller_default = SizeController;
 
 // src/router/sizes.router.ts
-var sizesRouter = express10.Router();
+var sizesRouter = express11.Router();
 sizesRouter.get("/", sizes_controller_default.getSizes);
 sizesRouter.post("/", isAdmin_middleware_default, sizes_controller_default.addSizes);
 sizesRouter.patch("/", isAdmin_middleware_default, sizes_controller_default.modifySizes);
@@ -2418,7 +2120,7 @@ sizesRouter.delete("/", isAdmin_middleware_default, sizes_controller_default.rem
 var sizes_router_default = sizesRouter;
 
 // src/router/userAccount.router.ts
-import express11 from "express";
+import express12 from "express";
 
 // src/constant/tokenSettings.constant.ts
 var tokenSettings = {
@@ -2443,14 +2145,14 @@ var nodemailer_config_default = transport;
 
 // src/service/email/sendPasswordReset.email.ts
 var sendPasswordReset = async ({ to, token }) => {
-  const url = `http://localhost:3000/users/account/reset/password/${token}`;
+  const url2 = `http://localhost:3000/users/account/reset/password/${token}`;
   return await nodemailer_config_default.sendMail({
     from: "Olga Hat's <olgahats@noreply.com>",
     to,
     subject: "Cambio de contrase\xF1a",
     html: `
         <p>Recibimos una solicitud para cambiar tu contrase\xF1a. Si fuiste t\xFA, por favor haz clic en el siguiente enlace para proceder con el cambio:</p>
-        <a href="${url}">Cambiar mi contrase\xF1a</a>
+        <a href="${url2}">Cambiar mi contrase\xF1a</a>
         <p><strong>Este enlace expira en 3 horas.</strong></p>
         `
   });
@@ -2459,14 +2161,14 @@ var sendPasswordReset_email_default = sendPasswordReset;
 
 // src/service/email/sendEmailConfirm.email.ts
 var sendEmailConfirm = async ({ to, token }) => {
-  const url = `http://localhost:3000/users/register/confirmation/${token}`;
+  const url2 = `http://localhost:3000/users/register/confirmation/${token}`;
   return await nodemailer_config_default.sendMail({
     from: "Olga Hat's <olgahats@noreply.com>",
     to,
     subject: "Verificaci\xF3n de correo electr\xF3nico",
     html: `
             <p>Por favor, haz clic en el siguiente enlace para confirmar el correo electronico.</p>
-            <a href="${url}">Confirmar correo electronico.</a>
+            <a href="${url2}">Confirmar correo electronico.</a>
             <p><strong>Este enlace expira en 24 horas.</strong></p>
         `
   });
@@ -2480,66 +2182,8 @@ var emailService = {
 };
 var email_default = emailService;
 
-// src/model/users.model.ts
-var UsersModel = class extends model_utils_default {
-  static async select(props = {}, modify) {
-    try {
-      const query = knex_config_default("users").where(props);
-      modify && query.modify(modify);
-      return await query;
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
-  static async update({ user_id, ...props }, modify) {
-    try {
-      const query = knex_config_default("users").update(props).where("user_id", user_id);
-      modify && query.modify(modify);
-      return await query;
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
-  static updateUnconfirmedEmail(props) {
-    return this.update(props, (builder) => {
-      builder.where("email_confirmed", false);
-    });
-  }
-  static async insertByLimitIP(user, ip_limit = 0) {
-    const { email, fullname, ip, password, phone, permission } = user;
-    try {
-      return await knex_config_default.raw(`
-            INSERT INTO users (fullname,phone,email,password,ip,permission)
-            SELECT ?, ?, ?, ?, ?,?
-            WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ?
-              `, [
-        fullname,
-        phone,
-        email,
-        password,
-        ip,
-        permission,
-        ip,
-        ip_limit
-      ]);
-    } catch (error) {
-      throw this.generateError(error, {
-        ER_DUP_ENTRY: "El email que est\xE1s intentando registrar ya est\xE1 en uso."
-      });
-    }
-  }
-  static async delete(userID) {
-    try {
-      return await knex_config_default("users").where("user_id", userID).delete();
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
-};
-var users_model_default = UsersModel;
-
 // src/schema/user.schema.ts
-import { z as z12 } from "zod";
+import { z as z14 } from "zod";
 
 // src/constant/IPsRegExp.constant.ts
 var v4 = /^(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}$/;
@@ -2563,49 +2207,49 @@ var passwordPatterns = [
   { regexp: /(?=.*\d)/, message: "Debe contener al menos un n\xFAmero" },
   { regexp: /^.{8,16}$/, message: "Debe tener entre 8 y 16 caracteres de longitud" }
 ];
-var addRegexpInPasswor = (init = z12.string()) => {
+var addRegexpInPasswor = (init = z14.string()) => {
   passwordPatterns.forEach(({ regexp, message }) => init = init.regex(regexp, message));
   return init;
 };
-var base9 = z12.object({
+var base11 = z14.object({
   user_id: databaseKey_schema_default,
-  fullname: z12.string().regex(fullnamePattern.regexp, fullnamePattern.message),
-  phone: z12.string().nullable().optional().default(null),
+  fullname: z14.string().regex(fullnamePattern.regexp, fullnamePattern.message),
+  phone: z14.string().nullable().default(null).optional(),
   //FALTA MEJORAR ESTO
-  email: z12.string().email("El formato del email no es valido"),
+  email: z14.string().email("El formato del email no es valido"),
   password: addRegexpInPasswor(),
-  permission: z12.enum(["admin", "standard"]).optional().default("standard"),
-  ip: z12.string().refine((value) => Object.values(IPsRegExp_constant_default).some((i) => i.test(value)), { message: "No es una IP valida.", path: ["ip"] }),
+  permission: z14.enum(["admin", "standard"]).optional().default("standard"),
+  ip: z14.string().refine((value) => Object.values(IPsRegExp_constant_default).some((i) => i.test(value)), { message: "No es una IP valida.", path: ["ip"] }),
   email_confirmed: databaseBoolean_schema_default.optional().default(false),
-  create_at: z12.string().optional()
+  create_at: z14.string().optional()
 });
-var insert9 = base9.omit({
+var insert11 = base11.omit({
   user_id: true,
   create_at: true,
   email_confirmed: true
 }).extend({
-  permission: z12.literal("standard").default("standard")
+  permission: z14.literal("standard").default("standard")
 });
-var update9 = base9.partial().extend({
-  user_id: base9.shape.user_id
+var update10 = base11.partial().extend({
+  user_id: base11.shape.user_id
 }).omit({
   ip: true,
   permission: true,
   create_at: true
 });
-var updatePassword = base9.pick({ password: true, user_id: true });
-var updateInfo = update9.omit({
+var updatePassword = base11.pick({ password: true, user_id: true });
+var updateInfo = update10.omit({
   email: true,
   email_confirmed: true
 });
-var formatUser = base9.omit({
+var formatUser = base11.omit({
   create_at: true,
   password: true
 }).required();
 var userSchema = {
-  base: base9,
-  insert: insert9,
-  update: update9,
+  base: base11,
+  insert: insert11,
+  update: update10,
   delete: databaseKey_schema_default,
   formatUser,
   updatePassword,
@@ -2658,8 +2302,8 @@ var userRegister_service_default = UserRegisterService;
 
 // src/service/userAccount.service.ts
 var UserAccountService = class {
-  static async updateInfo(update11) {
-    const { password, phone, fullname, user_id } = zodParse_helper_default(user_schema_default.update)(update11);
+  static async updateInfo(update12) {
+    const { password, phone, fullname, user_id } = zodParse_helper_default(user_schema_default.update)(update12);
     const selectedInfo = {
       password: password && await userRegister_service_default.createPassword(password),
       phone,
@@ -2699,7 +2343,7 @@ var UserAuthService = class {
 var userAuth_service_default = UserAuthService;
 
 // src/service/userToken.service.ts
-import crypto2 from "crypto";
+import crypto3 from "crypto";
 
 // src/model/userTokens.model.ts
 var UserTokensModel = class extends model_utils_default {
@@ -2766,28 +2410,28 @@ var getAdjustedUTCDate = (UTC) => {
 var getAdjustedUTCDate_utils_default = getAdjustedUTCDate;
 
 // src/schema/token.schema.ts
-import { z as z13 } from "zod";
-var requestTokenSchema = z13.enum(["email_confirm", "password_reset_by_email"]);
-var base10 = z13.object({
+import { z as z15 } from "zod";
+var requestTokenSchema = z15.enum(["email_confirm", "password_reset_by_email"]);
+var base12 = z15.object({
   user_token_id: databaseKey_schema_default,
   user_fk: databaseKey_schema_default,
   request: requestTokenSchema,
-  token: z13.string(),
-  ip: z13.string(),
-  expired_at: z13.string(),
+  token: z15.string(),
+  ip: z15.string(),
+  expired_at: z15.string(),
   used: databaseBoolean_schema_default.optional().default(false),
-  created_at: z13.string().optional()
+  created_at: z15.string().optional()
 });
-var insert10 = base10.omit({
+var insert12 = base12.omit({
   user_token_id: true,
   created_at: true,
   used: true
 });
-var update10 = base10.pick({ token: true, used: true });
+var update11 = base12.pick({ token: true, used: true });
 var userTokenSchema = {
-  base: base10,
-  insert: insert10,
-  update: update10,
+  base: base12,
+  insert: insert12,
+  update: update11,
   delete: databaseKey_schema_default,
   requestTokenSchema
 };
@@ -2807,7 +2451,7 @@ var UserTokenService = class {
     return date.toISOString().replace("T", " ").substring(0, 19);
   }
   static async createToken(props, { maxTokens, ...tokenDate }) {
-    const token = crypto2.randomUUID();
+    const token = crypto3.randomUUID();
     const data = zodParse_helper_default(token_schema_default.insert)({
       ...props,
       token,
@@ -2950,48 +2594,15 @@ var UserAccountController = class {
 };
 var userAccount_controller_default = UserAccountController;
 
-// src/middleware/isUser.middleware.ts
-var isUser = (req, res, next) => {
-  const user = req.session.user;
-  if (user) {
-    next();
-  } else {
-    res.status(401).json({
-      message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente."
-    });
-  }
-};
-var isUser_middleware_default = isUser;
-
-// src/middleware/isConfirmedEmail.middleware.ts
-var isConfirmedEmail = async (req, res, next) => {
-  const user = req.session.user;
-  if (!user) return isUser_middleware_default(req, res, next);
-  if (user.email_confirmed) {
-    return next();
-  }
-  const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
-  const { email_confirmed } = u;
-  if (email_confirmed) {
-    user.email_confirmed = true;
-    next();
-  } else {
-    res.status(401).json({
-      message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n."
-    });
-  }
-};
-var isConfirmedEmail_middleware_default = isConfirmedEmail;
-
 // src/router/userAccount.router.ts
-var userAccountRouter = express11.Router();
+var userAccountRouter = express12.Router();
 userAccountRouter.post("/reset/password", userAccount_controller_default.sendPasswordReset);
 userAccountRouter.post("/reset/password/:token", userAccount_controller_default.passwordReset);
-userAccountRouter.post("/update/info", isUser_middleware_default, isConfirmedEmail_middleware_default, userAccount_controller_default.updateInfo);
+userAccountRouter.post("/update/info", isCompleteUser_middleware_default, userAccount_controller_default.updateInfo);
 var userAccount_router_default = userAccountRouter;
 
 // src/router/userRegister.router.ts
-import express12 from "express";
+import express13 from "express";
 
 // src/controller/userRegister.controller.ts
 var handlerRegisterToken = async ({ ip, email, user_fk }) => {
@@ -3070,13 +2681,13 @@ var UserRegisterController = class {
 };
 var userRegister_controller_default = UserRegisterController;
 
-// src/middleware/isNotConfirmedEmail.middleware.ts
+// src/middleware/isNotCompleteUser.middleware.ts
 var response = (res) => {
   res.status(401).json({
     message: "El email ya est\xE1 confirmado, no puedes continuar con esta operacion."
   });
 };
-var isNotConfirmedEmail = async (req, res, next) => {
+var isNotCompleteUser = async (req, res, next) => {
   const user = req.session.user;
   if (!user) return isUser_middleware_default(req, res, next);
   if (user.email_confirmed) return response(res);
@@ -3089,17 +2700,17 @@ var isNotConfirmedEmail = async (req, res, next) => {
     response(res);
   }
 };
-var isNotConfirmedEmail_middleware_default = isNotConfirmedEmail;
+var isNotCompleteUser_middleware_default = isNotCompleteUser;
 
 // src/router/userRegister.router.ts
-var userRegisterRouter = express12.Router();
+var userRegisterRouter = express13.Router();
 userRegisterRouter.post("/", userRegister_controller_default.register);
 userRegisterRouter.get("/confirmation/:token", userRegister_controller_default.confirmRegistration);
-userRegisterRouter.get("/send/token", isUser_middleware_default, isNotConfirmedEmail_middleware_default, userRegister_controller_default.sendRegisterToken);
+userRegisterRouter.get("/send/token", isNotCompleteUser_middleware_default, userRegister_controller_default.sendRegisterToken);
 var userRegister_router_default = userRegisterRouter;
 
 // src/router/users.router.ts
-import express13 from "express";
+import express14 from "express";
 
 // src/controller/users.controller.ts
 var UsersController = class {
@@ -3134,18 +2745,30 @@ var UsersController = class {
 var users_controller_default = UsersController;
 
 // src/router/users.router.ts
-var usersRouter = express13.Router();
+var usersRouter = express14.Router();
 usersRouter.post("/login", users_controller_default.login);
 usersRouter.get("/logout", isUser_middleware_default, users_controller_default.logout);
 var users_router_default = usersRouter;
 
 // src/index.ts
-var port = 3e3;
-var app = express14();
-app.use(express14.json());
+var port = env_constant_default.BACKEND_PORT;
+var app = express15();
+app.use(express15.json());
 app.use(session_config_default);
 app.use(cors_config_default);
 app.use(rate_limit_config_default);
+app.use("/", (req, res, next) => {
+  req.session.user = {
+    permission: "admin",
+    fullname: "fsdada",
+    user_id: 1,
+    email: "ifrank4444@gmail.com",
+    ip: "123",
+    phone: null,
+    email_confirmed: true
+  };
+  next();
+});
 app.use("/categories", categories_router_default);
 app.use("/products", products_router_default);
 app.use("/products/recomendations", productsRecomendations_router_default);
@@ -3159,6 +2782,8 @@ app.use("/colors", colors_router_default);
 app.use("/users", users_router_default);
 app.use("/users/register", userRegister_router_default);
 app.use("/users/account", userAccount_router_default);
+app.use("/mercadopago", mercadoPago_router_default);
+app.use("/order", order_router_default);
 app.use(errorGlobal_middleware_default);
 userToken_service_default.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 });
 app.listen(port, () => console.log("SERVER START"));

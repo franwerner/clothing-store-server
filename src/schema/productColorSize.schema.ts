@@ -6,7 +6,8 @@ const base = z.object({
     product_color_size_id: databaseKeySchema,
     product_color_fk: databaseKeySchema,
     size_fk: databaseKeySchema,
-    stock: databaseBooleanSchema.optional().default(true)
+    stock: databaseBooleanSchema.default(true).optional(),
+    status : databaseBooleanSchema.default(true).optional()
 })
 
 const update = base.partial().extend({

@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "node  --watch dist/index.js",
-    "build": "node build.js --watch"
+    "build": "node build.js --watch",
+    "tunnel" : "ngrok.exe http 3000"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +20,7 @@
     "express-rate-limit": "^7.4.1",
     "express-session": "^1.18.1",
     "knex": "^3.1.0",
+    "mercadopago": "^2.0.15",
     "mysql2": "^3.11.3",
     "nodemailer": "^6.9.16",
     "zod": "^3.23.8"

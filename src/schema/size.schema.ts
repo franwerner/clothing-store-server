@@ -3,7 +3,7 @@ import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
 
 const base = z.object({
     size_id: databaseKeySchema,
-    size: z.string()
+    size: z.string(),
 })
 
 const insert = base.omit({

@@ -45,6 +45,10 @@ class DatabaseErrorHandler extends ErrorHandler {
         return error?.sql
     }
 
+    static isInstanceOf(instance: any): instance is DatabaseErrorHandler {
+        return instance instanceof DatabaseErrorHandler
+    }
+
 }
 
 export type {

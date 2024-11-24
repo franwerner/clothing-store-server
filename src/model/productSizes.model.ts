@@ -24,7 +24,7 @@ class ProductColorSizesModel extends ModelUtils {
         }
     }
 
-    static selectWithTableSize<T extends ProductColorSizeKeys = ProductColorSizeKeys>(
+    static selectJoinSize<T extends ProductColorSizeKeys = ProductColorSizeKeys>(
         props?: ProductColorSizePartial,
         modify?: APP.ModifySQL<Pick<ProductColorSizeRequired, T>>
     ) {

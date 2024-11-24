@@ -23,7 +23,7 @@ const addRegexpInPasswor = (init = z.string()) => {
 const base = z.object({
     user_id: databaseKeySchema,
     fullname: z.string().regex(fullnamePattern.regexp, fullnamePattern.message),
-    phone: z.string().nullable().optional().default(null), //FALTA MEJORAR ESTO
+    phone: z.string().nullable().default(null).optional(), //FALTA MEJORAR ESTO
     email: z.string().email("El formato del email no es valido"),
     password: addRegexpInPasswor(),
     permission: z.enum(['admin', 'standard']).optional().default("standard"),

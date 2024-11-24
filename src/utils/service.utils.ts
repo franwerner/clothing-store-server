@@ -1,12 +1,17 @@
 import DatabaseErrorHandler from "./databaseErrorHandler.utilts.js"
 
-class ServiceUtils {
+type WriteOperationsHandlerResults<T> = Array<{
+    success: boolean
+    message?: any,
+    payload: T
+}>
 
+class ServiceUtils {
     static async writeOperationsHandler<T>(
         input: T[], 
         operation: (value: T) => void 
     ) {
-        const data: APP.WriteOperationsHandlerResults<T> = [] 
+        const data: WriteOperationsHandlerResults<T> = [] 
 
         for (const e of input) {
             try {
@@ -25,8 +30,9 @@ class ServiceUtils {
         }
         return data
     }
-
 }
 
-
+export {
+    type WriteOperationsHandlerResults
+}
 export default ServiceUtils

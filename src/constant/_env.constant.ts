@@ -4,13 +4,15 @@ interface ENV {
     EMAIL_PASSWORD: string
     FROTEND_DOMAIN: string
     BACKEND_DOMAIN: string
-    PORT: number
+    BACKEND_PORT : number
     DB: string
     DB_HOST: string
     DB_USER: string
     DB_PASSWORD: string
     DB_PORT: number
-    NODE_ENV : "dev" | "prod"
+    NODE_ENV : "dev" | "prod",
+    MP_ACCESS_TOKEN : string
+    MP_WEB_HOOK_TOKEN : string
 }
 /**
  * Accedemos de forma segura a los ENV declarados.

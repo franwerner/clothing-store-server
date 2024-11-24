@@ -6,8 +6,8 @@ const isAdmin = (req: Request, res: Response, next: NextFunction) => {
       next()
    }
    else {
-      res.status(403).json({
-         message: "No tienes permisos suficientes para continuar.",
+      res.status(401).json({
+         message: "No estas autorizado para continuar con esta operacion.",
       })
    }
 

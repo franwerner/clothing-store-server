@@ -1,13 +1,17 @@
 import express from "express"
 import corsConfig from "./config/cors.config.js"
 import "./config/dotenv.config.js"
+import "./config/mercadopago.config.js"
 import limiter from "./config/rate-limit.config.js"
 import sessionConfig from "./config/session.config.js"
+import _env from "./constant/_env.constant.js"
 import errorGlobal from "./middleware/errorGlobal.middleware.js"
 import isAdmin from "./middleware/isAdmin.middleware.js"
 import brandsRouter from "./router/brands.router.js"
 import categoriesRouter from "./router/categories.router.js"
 import colorsRouter from "./router/colors.router.js"
+import mercadoPagoRouter from "./router/mercadoPago.router.js"
+import orderRouter from "./router/order.router.js"
 import productColorImagesRouter from "./router/ProductColorImages.router.js"
 import productColorsRouter from "./router/productColors.router.js"
 import productColorSizesRouter from "./router/ProductColorSizes.router.js"
@@ -20,25 +24,25 @@ import userRegisterRouter from "./router/userRegister.router.js"
 import usersRouter from "./router/users.router.js"
 import UserTokenService from "./service/userToken.service.js"
 
-const port = 3000
+const port = _env.BACKEND_PORT
 const app = express()
 app.use(express.json())
 app.use(sessionConfig)
 app.use(corsConfig)
 app.use(limiter)
 
-// app.use("/", (req: Request, res, next) => {
-//     req.session.user = {
-//         permission: "admin",
-//         fullname : "fsdada",
-//         user_id: 1,
-//         email: "ifrank4444@gmail.com",
-//         ip : "123",
-//         phone : null,
-//         email_confirmed : true
-//     }
-//     next()
-// })
+app.use("/", (req: Request, res, next) => {
+    req.session.user = {
+        permission: "admin",
+        fullname : "fsdada",
+        user_id: 1,
+        email: "ifrank4444@gmail.com",
+        ip : "123",
+        phone : null,
+        email_confirmed : true
+    }
+    next()
+})
 
 app.use("/categories", categoriesRouter)
 app.use("/products", productsRouter)
@@ -51,9 +55,10 @@ app.use("/brands", brandsRouter)
 app.use("/sizes", sizesRouter)
 app.use("/colors", colorsRouter)
 app.use("/users", usersRouter)
-app.use("/users/register",userRegisterRouter)
-app.use("/users/account",userAccountRouter)
-
+app.use("/users/register", userRegisterRouter)
+app.use("/users/account", userAccountRouter)
+app.use("/mercadopago", mercadoPagoRouter)
+app.use("/order",orderRouter)
 app.use(errorGlobal)
 
 UserTokenService.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 })

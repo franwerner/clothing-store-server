@@ -10,7 +10,7 @@ const hexadecimalPattern = {
 const base = z.object({
     color_id: databaseKeySchema,
     color: z.string(),
-    hexadecimal: z.string().regex(hexadecimalPattern.regexp, hexadecimalPattern.message)
+    hexadecimal: z.string().regex(hexadecimalPattern.regexp, hexadecimalPattern.message),
 })
 
 const update = base.partial().extend({

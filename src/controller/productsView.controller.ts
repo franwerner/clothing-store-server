@@ -16,10 +16,10 @@ type Query = {
 class ProductsViewController {
 
     static async getProductsPreview
-    (req: Request<Params, any, any, Query>, 
-        res: APP.ResponseTemplate, 
-        next: NextFunction
-    ) {
+        (req: Request<Params, any, any, Query>,
+            res: APP.ResponseTemplate,
+            next: NextFunction
+        ) {
         try {
             const { brand_id, category_id } = req.params
             const { color, price, search, size } = req.query

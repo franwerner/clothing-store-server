@@ -36,12 +36,15 @@ const productsPreviewModel = async (querys: ProductPreviewFilters) => {
                 pci.andOn('pci.row_num', '=', (1 as any))
             })
             .where("p.status", true)
-            .where("pb.status", true)
-            .where("pt.status", true)
 
-        !size && query.whereExists(
+        !size && query.whereExists( 
+            /**
+             * Esto solo verifica si hay tamaños disponibles para cada color de forma generalizada.
+             * Siempre en caso de que no se indiquen tamaños, ya que de lo contrario lo verifica otra consulta mas abajo.
+             */
             sql("product_color_sizes")
                 .whereRaw('product_color_fk = pc.product_color_id')
+                .where("status", true)
         )
 
         brand_id && query.where("pb.brand_id", brand_id)
@@ -49,10 +52,11 @@ const productsPreviewModel = async (querys: ProductPreviewFilters) => {
         search && query.whereRaw("p.product LIKE ?", [`%${search}%`]);
         price && query.whereBetween("p.price", price)
         color && query.whereIn("c.color_id", color)
-        size && query.whereIn("pc.product_color_id",
+        size && query.whereIn("pc.product_color_id", 
             sql("product_color_sizes")
                 .select("product_color_fk")
                 .whereIn("size_fk", size)
+                .where("status", true)
         )
 
         return await query

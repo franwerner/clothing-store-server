@@ -26,8 +26,7 @@ class ProductFullViewService {
     }
 
     static async getProductColorSize(product_color_fk: DatabaseKeySchema){
-        const color_sizes = await ProductColorSizesModel.selectWithTableSize({ product_color_fk })
-        handleEmptyResult(color_sizes.length === 0, "No se encontro ningun tamaño asociado al color")
+        const color_sizes = await ProductColorSizesModel.selectJoinSize({ product_color_fk })
         return color_sizes
     }
 

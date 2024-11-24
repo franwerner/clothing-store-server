@@ -52,13 +52,13 @@ class ProductColorsModel extends ModelUtils {
         }
     }
 
-    static selectWithTableColor<T extends ProductColorKeys = ProductColorKeys>(
+    static selectJoinColor<T extends ProductColorKeys = ProductColorKeys>(
         props?: ProductColorPartial ,
         modify?: APP.ModifySQL<Pick<ProductColorRequerid, T>>) {
         return this.select<T>(props, (builder) => {
             modify && builder.modify(modify)
             builder
-                .leftJoin("colors as c", "c.color_id", "pc.color_fk")
+                .innerJoin("colors as c", "c.color_id", "pc.color_fk")
         })
     }
 
@@ -66,12 +66,13 @@ class ProductColorsModel extends ModelUtils {
         props?: ProductColorPartial,
         modify?: APP.ModifySQL<Pick<ProductColorRequerid, T>>
     ) {
-        return this.selectWithTableColor<T>(props, (builder) => {
+        return this.selectJoinColor<T>(props, (builder) => {
             modify && builder.modify(modify)
             builder
                 .whereExists(
                     sql("product_color_sizes")
                         .whereRaw("product_color_fk = pc.product_color_id")
+                        .where("status",true)
                 )
         })
     }

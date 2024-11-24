@@ -10,3 +10,4 @@ brandsRouter.patch("/", isAdmin, BrandsController.modifyBrands)
 brandsRouter.delete("/", isAdmin, BrandsController.removeBrands)
 
 export default brandsRouter
+

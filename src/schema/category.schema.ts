@@ -1,12 +1,10 @@
 import { z } from "zod"
 import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
-import databaseBooleanSchema from "./databaseBoolean.schema.js"
 
 const base = z.object({
     category_id: databaseKeySchema,
     category: z.string(),
     brand_fk: databaseKeySchema,
-    status: databaseBooleanSchema.optional().default(false)
 })
 
 
