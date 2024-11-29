@@ -1,8 +1,9 @@
 import express from "express"
 import MercadoPagoController from "../controller/mercadoPago.controller"
-import validateMercadoPagoWebhook from "../middleware/validateMercadoPagoWebhook.middleware"
+import verifyOrderPreference from "../middleware/verifyOrderPreference.middleware"
 
 const mercadoPagoRouter = express.Router()
 
-mercadoPagoRouter.post("/notification", validateMercadoPagoWebhook, MercadoPagoController.notification)
+mercadoPagoRouter.get("/checkout",verifyOrderPreference, MercadoPagoController.checkout)
+
 export default mercadoPagoRouter

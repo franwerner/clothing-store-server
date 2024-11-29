@@ -1,8 +1,8 @@
 import { NextFunction, Request } from "express";
 import { ProductColorSchema } from "../schema/productColor.schema.js";
+import { ProductColorSizeSchema } from "../schema/productColorSize.schema.js";
 import ProductColorsService from "../service/productColors.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-
 
 class ProductColorsController {
     static async setProductColors(
@@ -27,6 +27,8 @@ class ProductColorsController {
         }
     }
 
+ 
+
     static async modifyProductColors(
         req: Request,
         res: APP.ResponseTemplateWithWOR<ProductColorSchema.Update>,
@@ -50,7 +52,7 @@ class ProductColorsController {
 
     static async removeProductColors(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorSchema.Delete>, 
+        res: APP.ResponseTemplateWithWOR<ProductColorSchema.Delete>,
         next: NextFunction
     ) {
         try {

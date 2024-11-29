@@ -57,6 +57,18 @@ class ProductsModel extends ModelUtils {
         }
     }
 
+    static async updateByCategory<T extends ProductSchema.UpdateByCategory>(
+        {category_fk,...props}:Exact<T,ProductSchema.UpdateByCategory>
+    ) {
+        try {
+            return await sql("products")
+            .where({category_fk})
+            .update(props)
+        } catch (error) {
+            throw this.generateError(error)
+        }
+    }
+
     static async delete(productID: ProductSchema.Delete) {
         try {
             return await sql("products")

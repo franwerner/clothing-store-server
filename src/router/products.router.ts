@@ -8,6 +8,7 @@ productsRouter.get("/category/:category_id", ProductsController.getProductsPerCa
 productsRouter.post("/", isAdmin, ProductsController.addProducts)
 productsRouter.patch("/", isAdmin, ProductsController.modifyProducts)
 productsRouter.delete("/", isAdmin, ProductsController.removeProducts)
+productsRouter.patch("/updateByCategory",ProductsController.updateByCategory)
 
 
 export default productsRouter

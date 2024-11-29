@@ -20,18 +20,26 @@ const update = base.partial().extend({
   product_id: base.shape.product_id
 })
 
+const updateByCategory = z.object({
+  category_fk: base.shape.category_fk,
+  discount: base.shape.discount,
+  status : base.shape.status
+})
+
 declare namespace ProductSchema {
   type Base = z.infer<typeof base>
   type Insert = z.infer<typeof insert>
   type Update = z.infer<typeof update>
   type Delete = DatabaseKeySchema
+  type UpdateByCategory = z.infer<typeof updateByCategory>
 }
 
 const productSchema = {
   base,
   update,
   insert,
-  delete: databaseKeySchema
+  delete: databaseKeySchema,
+  updateByCategory
 }
 
 export {

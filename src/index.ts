@@ -1,4 +1,4 @@
-import express from "express"
+import express, { Request } from "express"
 import corsConfig from "./config/cors.config.js"
 import "./config/dotenv.config.js"
 import "./config/mercadopago.config.js"
@@ -23,6 +23,7 @@ import userAccountRouter from "./router/userAccount.router.js"
 import userRegisterRouter from "./router/userRegister.router.js"
 import usersRouter from "./router/users.router.js"
 import UserTokenService from "./service/userToken.service.js"
+import isCompleteUser from "./middleware/isCompleteUser.middleware.js"
 
 const port = _env.BACKEND_PORT
 const app = express()
@@ -35,7 +36,7 @@ app.use("/", (req: Request, res, next) => {
     req.session.user = {
         permission: "admin",
         fullname : "fsdada",
-        user_id: 1,
+        user_id: 37,
         email: "ifrank4444@gmail.com",
         ip : "123",
         phone : null,
@@ -57,10 +58,10 @@ app.use("/colors", colorsRouter)
 app.use("/users", usersRouter)
 app.use("/users/register", userRegisterRouter)
 app.use("/users/account", userAccountRouter)
-app.use("/mercadopago", mercadoPagoRouter)
-app.use("/order",orderRouter)
+app.use("/mercadopago",isCompleteUser, mercadoPagoRouter)
+app.use("/orders",isCompleteUser,orderRouter)
 app.use(errorGlobal)
 
-UserTokenService.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 })
+UserTokenService.cleanExpiredTokens({ cleaning_hour: 15, cleaning_minute: 0 }) //12PM en UTC -3(ARG)
 
 app.listen(port, () => console.log("SERVER START"))

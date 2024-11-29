@@ -52,13 +52,15 @@ class UserPurchasesModel extends ModelUtils {
         }
     }
 
-    static async updateOperationIfNull<T extends UserPurchaseSchema.Update>(
-        props: Exact<T, UserPurchaseSchema.Update>
+    static async updateForUser<T extends UserPurchaseSchema.UpdateForUser>(
+        { user_fk, ...props }: Exact<T, UserPurchaseSchema.UpdateForUser>,
     ) {
-        return this.update(props, (builder) => {
-            builder.where("operation_id", null)
+        return this.update<any>(props, (builder) => {
+            builder.where("user_fk", user_fk)
         })
     }
+
+
 }
 
 export default UserPurchasesModel

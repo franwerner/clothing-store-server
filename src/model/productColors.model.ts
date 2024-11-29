@@ -23,7 +23,7 @@ class ProductColorsModel extends ModelUtils {
         }
     }
 
-    static async insert<T extends ProductColorSchema.Insert>(productColor: Exact<T,ProductColorSchema.Insert>) {
+    static async insert<T extends ProductColorSchema.Insert>(productColor: Exact<T, ProductColorSchema.Insert>) {
         try {
             return await sql("product_colors")
                 .insert(productColor)
@@ -32,17 +32,17 @@ class ProductColorsModel extends ModelUtils {
         }
     }
 
-    static async update<T extends ProductColorSchema.Insert>({ product_color_id, ...productColor }: Exact<T,ProductColorSchema.Update>) {
+    static async update<T extends ProductColorSchema.Insert>({ product_color_id, ...productColor }: Exact<T, ProductColorSchema.Update>) {
         try {
             return await sql("product_colors")
                 .update(productColor)
                 .where("product_color_id", product_color_id)
         } catch (error) {
-           throw this.generateError(error)
+            throw this.generateError(error)
         }
     }
 
-    static async delete(productColorID:ProductColorSchema.Delete) {
+    static async delete(productColorID: ProductColorSchema.Delete) {
         try {
             return await sql("product_colors")
                 .where("product_color_id", productColorID)
@@ -53,7 +53,7 @@ class ProductColorsModel extends ModelUtils {
     }
 
     static selectJoinColor<T extends ProductColorKeys = ProductColorKeys>(
-        props?: ProductColorPartial ,
+        props?: ProductColorPartial,
         modify?: APP.ModifySQL<Pick<ProductColorRequerid, T>>) {
         return this.select<T>(props, (builder) => {
             modify && builder.modify(modify)
@@ -72,7 +72,6 @@ class ProductColorsModel extends ModelUtils {
                 .whereExists(
                     sql("product_color_sizes")
                         .whereRaw("product_color_fk = pc.product_color_id")
-                        .where("status",true)
                 )
         })
     }

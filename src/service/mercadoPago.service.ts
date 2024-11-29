@@ -2,75 +2,93 @@ import { Payment, Preference, } from "mercadopago"
 import { Items } from "mercadopago/dist/clients/commonTypes"
 import sql from "../config/knex.config"
 import mercadoPagoConfig from "../config/mercadopago.config"
-import _env from "../constant/_env.constant"
 import UserPurchaseProductsModel from "../model/userPurchaseProducts.model"
-import userPurchasesService from "./userPurchases.service"
+import { DatabaseKeySchema } from "../schema/databaseKey.schema"
 import ErrorHandler from "../utils/errorHandler.utilts"
-import DatabaseErrorHandler from "../utils/databaseErrorHandler.utilts"
 
-interface CreatePreferenceOrder {
+interface createCheckout {
     items: Array<Items>,
-    user_purchase_id: number
+    external_reference: DatabaseKeySchema,
+    date_of_expiration: Date
 }
 
 const preferences = new Preference(mercadoPagoConfig)
 const payment = new Payment(mercadoPagoConfig)
-const url = (i: string) => {
-    return new URL(i, _env.BACKEND_DOMAIN).href
-}
 
 class MercadoPagoService {
 
-    static async paymentHandler({ action, data }: { action: string, data: { id: number } }) {
-        if (action !== "payment.created") return
-        const res = await payment.get({ id: data.id })
+    static async getPayment(external_reference?: string) {
         try {
-            await userPurchasesService.updateOperationID({
-                operation_id: data.id,
-                user_purchase_id: res.external_reference as string
-            })
+            return await payment.search({ options: { external_reference: external_reference as string } })
         } catch (error) {
-            /**
-   * Esto asegura que solo se responda con un error en caso de problemas en la base de datos o errores desconocidos.
-   * La notificación de MercadoPago espera recibir una respuesta con un código de estado 200 o 201,
-   * de lo contrario, intentará volver a ejecutar la API enviando múltiples notificaciones.
-   */
-            if (DatabaseErrorHandler.isInstanceOf(error) || !ErrorHandler.isInstanceOf(error)) {
-                throw error
-            }
+             return new ErrorHandler({
+                message : "Pago no encontrado.",
+                status : 404
+             })
         }
     }
 
-    static async createPreferenceOrder({
+    static async getPreference(preference_id?: string) {
+        try {
+            return await preferences.get({ preferenceId: preference_id as string })
+        } catch (error) {
+            return  new ErrorHandler({
+                message: "Preferencia no encontrada",
+                status: 404
+            })
+        }
+    }
+
+    static async createCheckout({
         items,
-        user_purchase_id
-    }: CreatePreferenceOrder) {
+        external_reference,
+        date_of_expiration
+    }: createCheckout) {
+        /**
+         * Tiempo de expiracion 3 horas.
+         * Solo se generara cuando se cree la orden de compra y debe ser unico por cada external_reference.
+         */
+
         return await preferences.create({
             body: {
                 items: items,
-                notification_url: url("mercadopago/notification"),
-                external_reference: user_purchase_id.toString(),
+                external_reference: external_reference.toString(),
+                expires: true,
+                date_of_expiration: this.toMercadoPagoFormat(date_of_expiration),
             },
         })
     }
 
-    static async transformProductsToCheckoutItems(user_purchase_fk: number) {
-        const data = await UserPurchaseProductsModel.selectAndJoined({ user_purchase_fk },
+    static async transformProductsToCheckoutItems(props: { user_fk: DatabaseKeySchema, user_purchase_fk: DatabaseKeySchema, }) {
+        const data = await UserPurchaseProductsModel.selectDetailedForUser(props,
             (build) => build.select(sql.raw(
                 `
                 user_purchase_product_id as id,
                 product as title,
                 quantity,
-                price as unit_price,
+                upp.price * (1 - (upp.discount / 100)) as unit_price,
                 CONCAT('Color:',' ',color,' | ','Talle:',' ',size) as description,
                 'ARS' as currency_id
                 `
-
             ))
         )
+        if (data.length == 0) throw new ErrorHandler({
+            status: 404,
+            message: "No se pueden generar productos para la preferencia, ya que no se encontraron productos asociados a la orden."
+        })
         return data as unknown as Array<Items>
     }
-}
 
+    static toMercadoPagoFormat(date: Date) {
+        const offset = "-04:00" //UTC -4 de mercadopago.
+
+        date.setUTCHours(date.getUTCHours() - 4)
+        const isoString = date.toISOString().replace("Z", "");
+
+        const [datePart, timePart] = isoString.split("T");
+
+        return `${datePart}T${timePart.slice(0, 8)}${offset}`;
+    }
+}
 
 export default MercadoPagoService

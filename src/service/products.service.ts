@@ -17,6 +17,11 @@ class ProductsService extends ServiceUtils {
         return products
     }
 
+    static async updateByCategory(products: Array<ProductSchema.UpdateByCategory>) {
+        const data = zodParse(productSchema.updateByCategory.array())(products)
+        return await this.writeOperationsHandler(data, (e) => ProductsModel.updateByCategory(e))
+    }
+
     static async update(products: Array<ProductSchema.Update>) {
         const data = zodParse(productSchema.update.array())(products)
         return await this.writeOperationsHandler(data, (e) => ProductsModel.update(e))

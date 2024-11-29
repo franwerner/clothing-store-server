@@ -1,10 +1,9 @@
 import crypto from "crypto";
+import zodParse from "../helper/zodParse.helper.js";
 import UserTokensModel from "../model/userTokens.model.js";
+import userTokenSchema, { UserTokenSchema } from "../schema/token.schema.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 import getAdjustedUTCDate from "../utils/getAdjustedUTCDate.utils.js";
-import userTokenSchema, { UserTokenSchema } from "../schema/token.schema.js";
-import zodParse from "../helper/zodParse.helper.js";
-import { DatabaseKeySchema } from "../schema/databaseKey.schema.js";
 
 interface TokenDate {
     timeUnit: "minute" | "hour" | "day",
@@ -17,10 +16,11 @@ interface CreateToken extends TokenDate {
 
 interface Token { token: string, request: UserTokenSchema.RequestToken }
 
+
 class UserTokenService {
 
     private static createTokenDate({ timeUnit, timeValue }: TokenDate) {
-        const date = getAdjustedUTCDate(-3)
+        const date = new Date()
         if (timeUnit == "day") {
             date.setUTCDate(date.getUTCDate() + timeValue)
         } else if (timeUnit == "hour") {
@@ -85,15 +85,16 @@ class UserTokenService {
             return
         }
 
-        const current_date = getAdjustedUTCDate(-3)
-        const expected_date = getAdjustedUTCDate(-3)
+        const current_date = new Date()
+        const expected_date = new Date()
 
         expected_date.setUTCHours(cleaning_hour)
         expected_date.setUTCMinutes(cleaning_minute)
 
-        if (expected_date.getTime() - current_date.getTime() <= 0) {
+        if (current_date.getTime() >= expected_date.getTime()) {
             expected_date.setUTCDate(expected_date.getUTCDate() + 1)
         }
+        
         const milliseconds = (expected_date.getTime() - current_date.getTime())
 
         const hours = Math.floor(milliseconds / 3600000)
@@ -116,6 +117,6 @@ class UserTokenService {
 
 }
 
-export { type CreateToken }
+export { type CreateToken };
 
 export default UserTokenService

@@ -2,7 +2,6 @@ import { NextFunction, Request } from "express";
 import { SizeSchema } from "../schema/size.schema.js";
 import SizeService from "../service/sizes.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js";
 class SizeController {
     static async getSizes(
         _: Request,

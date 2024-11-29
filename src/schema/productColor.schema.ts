@@ -17,7 +17,6 @@ const insert = base.omit({
 })
 
 
-
 export declare namespace ProductColorSchema{
     type Base = z.infer<typeof base>
     type Update = z.infer<typeof update>
@@ -29,7 +28,7 @@ const productColorSchema = {
     base,
     update,
     insert,
-    delete : databaseKeySchema
+    delete : databaseKeySchema,
 }
 
 export default productColorSchema

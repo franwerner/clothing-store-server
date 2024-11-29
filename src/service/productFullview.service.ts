@@ -1,7 +1,7 @@
 import ProductColorImagesModel from "../model/productColorImages.model.js"
 import ProductColorsModel from "../model/productColors.model.js"
 import ProductsModel from "../model/products.model.js"
-import ProductColorSizesModel from "../model/productSizes.model.js"
+import ProductColorSizesModel from "../model/productColorSizes.model.js"
 import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
 import { ProductColorSchema } from "../schema/productColor.schema.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
@@ -27,12 +27,11 @@ class ProductFullViewService {
 
     static async getProductColorSize(product_color_fk: DatabaseKeySchema){
         const color_sizes = await ProductColorSizesModel.selectJoinSize({ product_color_fk })
-        return color_sizes
+        return [color_sizes]
     }
 
     static async getProductColorImage(product_color_fk: DatabaseKeySchema) {
         const color_images = await ProductColorImagesModel.select({ product_color_fk })
-        //No causar error, ya que no importa si no hay imagenes, no es crucial.
         return color_images
     }
 

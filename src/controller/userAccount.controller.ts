@@ -1,10 +1,10 @@
 import { NextFunction, Request } from "express";
 import tokenSettings from "../constant/tokenSettings.constant.js";
-import emailService from "../service/email";
-import UserAccountService from "../service/userAccount.service";
+import emailService from "../service/email/index.js";
+import UserAccountService from "../service/userAccount.service.js";
 import UserAuthService from "../service/userAuth.service.js";
-import UserTokenService from "../service/userToken.service";
-import ErrorHandler from "../utils/errorHandler.utilts";
+import UserTokenService from "../service/userToken.service.js";
+import ErrorHandler from "../utils/errorHandler.utilts.js";
 import { UserSchema } from "../schema/user.schema.js";
 import getSessionData from "../helper/getSessionData.helper.js";
 

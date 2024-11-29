@@ -1,4 +1,5 @@
 import sql from "../config/knex.config.js"
+import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
 import { ProductColorSizeSchema } from "../schema/productColorSize.schema.js"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
@@ -32,6 +33,18 @@ class ProductColorSizesModel extends ModelUtils {
             modify && builder.modify(modify)
             builder.leftJoin("sizes as s", "s.size_id", "pcs.size_fk")
         })
+    }
+
+    static async updatetByProductColor<T extends ProductColorSizeSchema.UpdateByProductColor>(
+        { product_color_fk, ...props }: Exact<T, ProductColorSizeSchema.UpdateByProductColor>
+    ) {
+        try {
+            return await sql("product_color_sizes").
+                where({ product_color_fk })
+                .update(props)
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
 
     static async insert<T extends ProductColorSizeSchema.Insert>(size: Exact<T, ProductColorSizeSchema.Insert>) {

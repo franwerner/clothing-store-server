@@ -10,7 +10,7 @@ class ProductColorSizesController {
         next: NextFunction
     ) {
         try {
-            const data = await ProductColorSizesService.insert(req.body.sizes)
+            const data = await ProductColorSizesService.insert(req.body)
             res.json({
                 data
             })
@@ -24,13 +24,36 @@ class ProductColorSizesController {
         }
     }
 
+    static async updateByProductColor(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductColorSizeSchema.UpdateByProductColor>,
+        next: NextFunction
+    ) {
+        try {
+
+            const data = await ProductColorSizesService.updateByProductColor(req.body)
+
+            res.json({
+                data
+            })
+           
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else {
+                next()
+            }
+        }
+    }
+
     static async modifyProductColorSizes(
         req: Request,
         res: APP.ResponseTemplateWithWOR<ProductColorSizeSchema.Update>,
         next: NextFunction
     ) {
         try {
-            const data = await ProductColorSizesService.update(req.body.sizes)
+            const data = await ProductColorSizesService.update(req.body)
             res.json({
                 data
             })
@@ -50,7 +73,7 @@ class ProductColorSizesController {
         next: NextFunction
     ) {
         try {
-            const data = await ProductColorSizesService.delete(req.body.sizes)
+            const data = await ProductColorSizesService.delete(req.body)
             res.json({
                 data
             })

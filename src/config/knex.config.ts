@@ -10,6 +10,7 @@ const sql = knex({
       port: DB_PORT,
       password: DB_PASSWORD,
       database: DB,
+      timezone : "+00:00"
    },
    pool: {
       min: 1,

@@ -6,7 +6,7 @@ import ErrorHandler from "../utils/errorHandler.utilts.js"
 class ProductsController {
 
     static async getProductsPerCategory(
-        _: Request, 
+        _: Request,
         res: APP.ResponseTemplate<ProductSchema.Base[]>,
         next: NextFunction
     ) {
@@ -15,6 +15,29 @@ class ProductsController {
             res.json({
                 data
             })
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else {
+                next()
+            }
+        }
+    }
+
+    static async updateByCategory(
+        req: Request,
+        res: APP.ResponseTemplateWithWOR<ProductSchema.UpdateByCategory>,
+        next: NextFunction
+    ) {
+        try {
+
+            const data = await ProductsService.updateByCategory(req.body)
+
+            res.json({
+                data
+            })
+
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)

@@ -151,7 +151,8 @@ var sql = knex({
     user: DB_USER,
     port: DB_PORT,
     password: DB_PASSWORD,
-    database: DB
+    database: DB,
+    timezone: "+00:00"
   },
   pool: {
     min: 1,
@@ -173,6 +174,7 @@ var sqlErrorMapping = {
   "CR_CONNECTION_REFUSED": 503,
   "ER_NO_SUCH_TABLE": 404,
   "ER_ROW_IS_REFERENCED_2": 409,
+  "ER_NO_REFERENCED_ROW_2": 400,
   "ER_WARN_DATA_OUT_OF_RANGE": 422,
   "ER_UNKNOWN_ERROR": 500,
   "ER_TIMEOUT": 408,
@@ -282,11 +284,12 @@ var brand_schema_default = brandSchema;
 
 // src/utils/service.utils.ts
 var ServiceUtils = class {
-  static async writeOperationsHandler(input, operation) {
+  static async writeOperationsHandler(input, operation, logic) {
     const data = [];
     for (const e of input) {
       try {
-        await operation(e);
+        const res = await operation(e);
+        logic && logic(res);
         data.push({
           payload: e,
           success: true
@@ -295,7 +298,7 @@ var ServiceUtils = class {
         data.push({
           success: false,
           payload: e,
-          message: databaseErrorHandler_utilts_default.isInstanceOf(error) ? error.message : "Error interno del servidor."
+          message: errorHandler_utilts_default.isInstanceOf(error) ? error.message : "Error interno del servidor."
         });
       }
     }
@@ -720,6 +723,17 @@ var colors_router_default = colorsRouter;
 // src/router/mercadoPago.router.ts
 import express4 from "express";
 
+// src/helper/getSessionData.helper.ts
+var getSessionData = (keys, session2) => {
+  const data = session2[keys];
+  if (!data) throw new errorHandler_utilts_default({
+    status: 500,
+    message: "Problemas internos para encontrar la session."
+  });
+  return data;
+};
+var getSessionData_helper_default = getSessionData;
+
 // src/service/mercadoPago.service.ts
 import { Payment, Preference } from "mercadopago";
 
@@ -734,12 +748,26 @@ var UserPurchaseProductsModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
-  static async insert(user_purchase) {
-    const { color_fk, product_fk, size_fk, user_purchase_fk } = user_purchase;
+  static async selectDetailed(props = {}, modify) {
+    return this.select(props, (builder) => {
+      builder.innerJoin("products as p", "p.product_id", "upp.product_fk").innerJoin("colors as c", "c.color_id", "upp.color_fk").innerJoin("sizes as s", "s.size_id", "upp.size_fk");
+      modify && builder.modify(modify);
+    });
+  }
+  static async selectDetailedForUser({ user_fk, ...props }, modify) {
+    return this.selectDetailed(props, (builder) => {
+      builder.whereExists(
+        knex_config_default("user_purchases").where({ user_fk, user_purchase_id: props.user_purchase_fk })
+      );
+      modify && builder.modify(modify);
+    });
+  }
+  static async insert(props, tsx = knex_config_default) {
+    const { color_fk, product_fk, size_fk, user_purchase_fk, quantity } = props;
     try {
-      const query = knex_config_default.raw(`
-                INSERT INTO user_purchase_products (product_fk,user_purchase_fk,color_fk,size_fk)
-                SELECT ?,?,?,? FROM
+      const query = tsx.raw(`
+                INSERT INTO user_purchase_products (product_fk,user_purchase_fk,color_fk,size_fk,quantity,price,discount)
+                SELECT ?,?,?,?,?,p.price,p.discount FROM
                 products p
                 INNER JOIN product_colors pc ON pc.product_fk = p.product_id 
                 INNER JOIN product_color_sizes pcs ON pcs.product_color_fk = pc.product_color_id  
@@ -747,13 +775,13 @@ var UserPurchaseProductsModel = class extends model_utils_default {
                 p.status = true AND 
                 pc.color_fk = ? AND  
                 pcs.size_fk = ? AND
-                pcs.stock = true AND 
-                pcs.status = true
+                pcs.stock = true  
                 `, [
         product_fk,
         user_purchase_fk,
         color_fk,
         size_fk,
+        quantity,
         product_fk,
         color_fk,
         size_fk
@@ -763,14 +791,76 @@ var UserPurchaseProductsModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
-  static async selectAndJoined(props = {}, modify) {
-    return this.select(props, (builder) => {
-      builder.innerJoin("products as p", "p.product_id", "upp.product_fk").innerJoin("colors as c", "c.color_id", "upp.color_fk").innerJoin("sizes as s", "s.size_id", "upp.size_fk");
-      modify && builder.modify(modify);
-    });
-  }
 };
 var userPurchaseProducts_model_default = UserPurchaseProductsModel;
+
+// src/service/mercadoPago.service.ts
+var preferences = new Preference(mercadopago_config_default);
+var payment = new Payment(mercadopago_config_default);
+var MercadoPagoService = class {
+  static async getPayment(external_reference) {
+    try {
+      return await payment.search({ options: { external_reference } });
+    } catch (error) {
+      return new errorHandler_utilts_default({
+        message: "Pago no encontrado.",
+        status: 404
+      });
+    }
+  }
+  static async getPreference(preference_id) {
+    try {
+      return await preferences.get({ preferenceId: preference_id });
+    } catch (error) {
+      return new errorHandler_utilts_default({
+        message: "Preferencia no encontrada",
+        status: 404
+      });
+    }
+  }
+  static async createCheckout({
+    items,
+    external_reference,
+    date_of_expiration
+  }) {
+    return await preferences.create({
+      body: {
+        items,
+        external_reference: external_reference.toString(),
+        expires: true,
+        date_of_expiration: this.toMercadoPagoFormat(date_of_expiration)
+      }
+    });
+  }
+  static async transformProductsToCheckoutItems(props) {
+    const data = await userPurchaseProducts_model_default.selectDetailedForUser(
+      props,
+      (build) => build.select(knex_config_default.raw(
+        `
+                user_purchase_product_id as id,
+                product as title,
+                quantity,
+                upp.price * (1 - (upp.discount / 100)) as unit_price,
+                CONCAT('Color:',' ',color,' | ','Talle:',' ',size) as description,
+                'ARS' as currency_id
+                `
+      ))
+    );
+    if (data.length == 0) throw new errorHandler_utilts_default({
+      status: 404,
+      message: "No se pueden generar productos para la preferencia, ya que no se encontraron productos asociados a la orden."
+    });
+    return data;
+  }
+  static toMercadoPagoFormat(date) {
+    const offset = "-04:00";
+    date.setUTCHours(date.getUTCHours() - 4);
+    const isoString = date.toISOString().replace("Z", "");
+    const [datePart, timePart] = isoString.split("T");
+    return `${datePart}T${timePart.slice(0, 8)}${offset}`;
+  }
+};
+var mercadoPago_service_default = MercadoPagoService;
 
 // src/model/userPurchases.model.ts
 var UserPurchasesModel = class extends model_utils_default {
@@ -801,9 +891,9 @@ var UserPurchasesModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
-  static async updateOperationIfNull(props) {
+  static async updateForUser({ user_fk, ...props }) {
     return this.update(props, (builder) => {
-      builder.where("operation_id", null);
+      builder.where("user_fk", user_fk);
     });
   }
 };
@@ -813,151 +903,51 @@ var userPurchases_model_default = UserPurchasesModel;
 import { z as z6 } from "zod";
 var base4 = z6.object({
   user_purchase_id: databaseKey_schema_default,
-  operation_id: databaseKey_schema_default.nullable().default(null).optional(),
   user_fk: databaseKey_schema_default,
-  status: z6.enum(["canceled", "pending", "completed"]).default("pending").optional(),
-  note: z6.string().nullable().default(null).optional()
+  state: z6.enum(["canceled", "pending", "completed"]).default("pending").optional(),
+  note: z6.string().nullable().default(null).optional(),
+  preference_id: z6.string(),
+  expire_at: z6.string()
 });
-var insert4 = base4.omit({ user_purchase_id: true });
-var update4 = z6.object({
-  operation_id: databaseKey_schema_default,
-  user_purchase_id: databaseKey_schema_default
+var insert4 = base4.omit({
+  user_purchase_id: true,
+  preference_id: true,
+  state: true
+});
+var update4 = base4.pick({
+  state: true,
+  preference_id: true
+}).partial().extend({
+  user_purchase_id: base4.shape.user_purchase_id
+});
+var updateForUser = update4.extend({
+  user_fk: base4.shape.user_fk
 });
 var userPurchaseSchema = {
   base: base4,
   insert: insert4,
-  update: update4
+  update: update4,
+  updateForUser
 };
 var userPurchase_schema_default = userPurchaseSchema;
-
-// src/service/userPurchases.service.ts
-var userPurchasesService = class {
-  static async updateOperationID(props) {
-    const data = zodParse_helper_default(userPurchase_schema_default.update)(props);
-    const res = await userPurchases_model_default.updateOperationIfNull(data);
-    if (res === 0) throw new errorHandler_utilts_default({
-      message: "No se puede actualizar el ID de la operaci\xF3n porque ya tiene un valor asignado",
-      status: 400
-    });
-    return res;
-  }
-};
-var userPurchases_service_default = userPurchasesService;
-
-// src/service/mercadoPago.service.ts
-var preferences = new Preference(mercadopago_config_default);
-var payment = new Payment(mercadopago_config_default);
-var url = (i) => {
-  return new URL(i, env_constant_default.BACKEND_DOMAIN).href;
-};
-var MercadoPagoService = class {
-  static async paymentHandler({ action, data }) {
-    if (action !== "payment.created") return;
-    const res = await payment.get({ id: data.id });
-    try {
-      await userPurchases_service_default.updateOperationID({
-        operation_id: data.id,
-        user_purchase_id: res.external_reference
-      });
-    } catch (error) {
-      if (databaseErrorHandler_utilts_default.isInstanceOf(error) || !errorHandler_utilts_default.isInstanceOf(error)) {
-        throw error;
-      }
-    }
-  }
-  static async createPreferenceOrder({
-    items,
-    user_purchase_id
-  }) {
-    return await preferences.create({
-      body: {
-        items,
-        notification_url: url("mercadopago/notification"),
-        external_reference: user_purchase_id.toString()
-      }
-    });
-  }
-  static async transformProductsToCheckoutItems(user_purchase_fk) {
-    const data = await userPurchaseProducts_model_default.selectAndJoined(
-      { user_purchase_fk },
-      (build) => build.select(knex_config_default.raw(
-        `
-                user_purchase_product_id as id,
-                product as title,
-                quantity,
-                price as unit_price,
-                CONCAT('Color:',' ',color,' | ','Talle:',' ',size) as description,
-                'ARS' as currency_id
-                `
-      ))
-    );
-    return data;
-  }
-};
-var mercadoPago_service_default = MercadoPagoService;
-
-// src/controller/mercadoPago.controller.ts
-var MercadoPagoController = class {
-  static async notification(req, res, next) {
-    try {
-      await mercadoPago_service_default.paymentHandler(req.body);
-      res.status(201).json({ message: "success" });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
-      } else {
-        next();
-      }
-    }
-  }
-};
-var mercadoPago_controller_default = MercadoPagoController;
-
-// src/middleware/validateMercadoPagoWebhook.middleware.ts
-import crypto2 from "crypto";
-var validateMercadoPagoWebhook = (req, res, next) => {
-  const headers = req.headers;
-  const xSignature = headers["x-signature"] || "";
-  const xRequestId = headers["x-request-id"];
-  const dataID = req.query["data.id"];
-  const parts = xSignature.split(",");
-  const [ts, hash] = parts.map((part) => {
-    const [key, value] = part.split("=");
-    if (!value || !["ts", "v1"].includes(key)) return;
-    return value.trim();
-  });
-  const manifest = `id:${dataID};request-id:${xRequestId};ts:${ts};`;
-  const hmac = crypto2.createHmac("sha256", env_constant_default.MP_WEB_HOOK_TOKEN);
-  hmac.update(manifest);
-  const sha = hmac.digest("hex");
-  if (sha === hash) {
-    next();
-  } else {
-    res.status(401).json({
-      message: "No estas autorizado a realizar esta operacion"
-    });
-  }
-};
-var validateMercadoPagoWebhook_middleware_default = validateMercadoPagoWebhook;
-
-// src/router/mercadoPago.router.ts
-var mercadoPagoRouter = express4.Router();
-mercadoPagoRouter.post("/notification", validateMercadoPagoWebhook_middleware_default, mercadoPago_controller_default.notification);
-var mercadoPago_router_default = mercadoPagoRouter;
-
-// src/router/order.router.ts
-import { Router } from "express";
 
 // src/schema/userPurchaseProduct.schema.ts
 import { z as z7 } from "zod";
 var base5 = z7.object({
   user_purchase_product_id: databaseKey_schema_default,
+  discount: z7.number().min(0).max(100).default(0).optional(),
+  quantity: z7.number().min(1).int(),
+  price: z7.number(),
   product_fk: databaseKey_schema_default,
   user_purchase_fk: databaseKey_schema_default,
   color_fk: databaseKey_schema_default,
   size_fk: databaseKey_schema_default
 });
-var insert5 = base5.omit({ user_purchase_product_id: true });
+var insert5 = base5.omit({
+  user_purchase_product_id: true,
+  price: true,
+  discount: true
+});
 var userPurchaseProductSchema = {
   base: base5,
   insert: insert5
@@ -965,22 +955,27 @@ var userPurchaseProductSchema = {
 var userPurchaseProduct_schema_default = userPurchaseProductSchema;
 
 // src/service/orders.service.ts
-var OrdersService = class {
-  static async createOrder({ order_details, products }) {
+var OrdersService = class extends service_utils_default {
+  static adapteExpireDataToDB(date) {
+    return date.toISOString().replace("T", " ").substring(0, 19);
+  }
+  static async create({ order, order_products }) {
     let tsx = {};
     try {
-      const orderData = zodParse_helper_default(userPurchase_schema_default.insert)(order_details);
-      tsx = await knex_config_default.transaction();
-      const [user_purchase_id] = await userPurchases_model_default.insert(orderData, (builder) => {
-        builder.transacting(tsx);
+      const orderData = zodParse_helper_default(userPurchase_schema_default.insert)({
+        ...order,
+        expire_at: this.adapteExpireDataToDB(order.expire_at)
       });
-      const productWithID = products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }));
-      const productsData = zodParse_helper_default(userPurchaseProduct_schema_default.insert.array())(productWithID);
+      tsx = await knex_config_default.transaction();
+      const [user_purchase_id] = await userPurchases_model_default.insert(orderData, (builder) => builder.transacting(tsx));
+      const productWithID = order_products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }));
+      const productsData = zodParse_helper_default(userPurchaseProduct_schema_default.insert.array().min(1))(productWithID);
       const user_purchase_products_id = await Promise.all(productsData.map(async (i) => {
-        const [result] = await userPurchaseProducts_model_default.insert(i);
+        const [result] = await userPurchaseProducts_model_default.insert(i, tsx);
         if (result.affectedRows == 0) throw new errorHandler_utilts_default({
-          message: "Lamentablemente, uno de los productos seleccionados no est\xE1 disponible para su compra en este momento.",
-          status: 400
+          message: `Lamentablemente, uno de los productos seleccionados no est\xE1 disponible para su compra en este momento.`,
+          status: 400,
+          data: i
         });
         return result.insertId;
       }));
@@ -994,23 +989,206 @@ var OrdersService = class {
       throw error;
     }
   }
+  static async updateForUser(props) {
+    const parse = zodParse_helper_default(userPurchase_schema_default.updateForUser)(props);
+    return await userPurchases_model_default.updateForUser(parse);
+  }
 };
 var orders_service_default = OrdersService;
+
+// src/controller/mercadoPago.controller.ts
+var MercadoPagoController = class {
+  static async checkout(req, res, next) {
+    try {
+      const { user_id } = getSessionData_helper_default("user", req.session);
+      const { user_purchase_id = "" } = req.query;
+      const transform = await mercadoPago_service_default.transformProductsToCheckoutItems({
+        user_fk: user_id,
+        user_purchase_fk: user_purchase_id
+      });
+      const { init_point, date_of_expiration, id } = await mercadoPago_service_default.createCheckout({
+        items: transform,
+        external_reference: user_purchase_id,
+        date_of_expiration: res.locals.expired_date
+      });
+      await orders_service_default.updateForUser({
+        user_purchase_id,
+        preference_id: id,
+        user_fk: user_id
+      });
+      res.status(201).json({
+        data: {
+          init_point,
+          date_of_expiration
+        }
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+};
+var mercadoPago_controller_default = MercadoPagoController;
+
+// src/middleware/verifyOrderPreference.middleware.ts
+var verifyOrderPreference = async (req, res, next) => {
+  const { user_purchase_id = "" } = req.query;
+  const [{ preference_id, expire_at = "", user_purchase_id: id } = {}] = await userPurchases_model_default.select({ user_purchase_id }, (builder) => builder.select("preference_id", "expire_at", "user_purchase_id"));
+  const current_date = /* @__PURE__ */ new Date();
+  const expired_date = new Date(expire_at);
+  if (!id) {
+    res.status(404).json({
+      message: `No se encontro ninguna orden de compra con la ID:${user_purchase_id}`
+    });
+    return;
+  } else if (current_date > expired_date) {
+    res.status(403).json({
+      message: "No puedes obtener la preferencia de pago debido a que venci\xF3 el plazo de la orden de compra."
+    });
+    return;
+  }
+  const preference = await mercadoPago_service_default.getPreference(preference_id?.toString());
+  if (!errorHandler_utilts_default.isInstanceOf(preference)) {
+    const { init_point, date_of_expiration } = preference;
+    res.json({
+      data: {
+        init_point,
+        date_of_expiration
+      }
+    });
+  } else {
+    res.locals = {
+      expired_date
+    };
+    next();
+  }
+};
+var verifyOrderPreference_middleware_default = verifyOrderPreference;
+
+// src/router/mercadoPago.router.ts
+var mercadoPagoRouter = express4.Router();
+mercadoPagoRouter.get("/checkout", verifyOrderPreference_middleware_default, mercadoPago_controller_default.checkout);
+var mercadoPago_router_default = mercadoPagoRouter;
+
+// src/router/order.router.ts
+import { Router } from "express";
+
+// src/service/userPurchaseProducts.service.ts
+var UserPurchaseProductService = class extends service_utils_default {
+  static async getForUser({ user_purchase_fk, user_fk }) {
+    const res = await userPurchaseProducts_model_default.selectDetailedForUser({ user_purchase_fk, user_fk });
+    if (res.length == 0) throw new errorHandler_utilts_default({
+      status: 404,
+      message: "Los detalles de la orden que intentas obtener no se encuentran disponibles."
+    });
+    return res;
+  }
+};
+var userPurchaseProducts_service_default = UserPurchaseProductService;
+
+// src/service/userPurchases.service.ts
+var userPurchasesService = class {
+  static async updateStatus(props) {
+    const data = zodParse_helper_default(userPurchase_schema_default.update)(props);
+    const res = await userPurchases_model_default.update(data);
+    if (res === 0) throw new errorHandler_utilts_default({
+      status: 400,
+      message: "Al parecer ocurrio un error al intentar actualizar el estado de la orden de compra."
+    });
+    return res;
+  }
+  static async getForUser({ user_purchase_id, user_fk }) {
+    const [res] = await userPurchases_model_default.select({ user_purchase_id, user_fk });
+    if (!res) throw new errorHandler_utilts_default({
+      message: "No se encontr\xF3 ninguna orden con la id especificada.",
+      status: 404
+    });
+    return res;
+  }
+};
+var userPurchases_service_default = userPurchasesService;
+
+// src/utils/getAdjustedUTCDate.utils.ts
+var getAdjustedUTCDate = (UTC) => {
+  const date = /* @__PURE__ */ new Date();
+  date.setUTCHours(date.getUTCHours() + UTC);
+  return date;
+};
+var getAdjustedUTCDate_utils_default = getAdjustedUTCDate;
 
 // src/controller/order.controller.ts
 var OrderController = class {
   static async createOrder(req, res, next) {
     try {
-      const { user_purchase_id } = await orders_service_default.createOrder(req.body);
-      const transform = await mercadoPago_service_default.transformProductsToCheckoutItems(user_purchase_id);
-      const { init_point } = await mercadoPago_service_default.createPreferenceOrder({
+      const user = getSessionData_helper_default("user", req.session);
+      const { order = {}, order_products = [] } = req.body;
+      const expire_date = getAdjustedUTCDate_utils_default(3);
+      const { user_purchase_id } = await orders_service_default.create({
+        order: {
+          ...order,
+          user_fk: user.user_id,
+          expire_at: expire_date
+        },
+        order_products
+      });
+      const transform = await mercadoPago_service_default.transformProductsToCheckoutItems({
+        user_fk: user.user_id,
+        user_purchase_fk: user_purchase_id
+      });
+      const data = await mercadoPago_service_default.createCheckout({
         items: transform,
-        user_purchase_id
+        external_reference: user_purchase_id,
+        date_of_expiration: expire_date
+      });
+      await orders_service_default.updateForUser({
+        user_purchase_id,
+        preference_id: data.id,
+        user_fk: user.user_id
+      });
+      const { init_point, date_of_expiration } = data;
+      res.status(201).json({
+        data: {
+          init_point,
+          date_of_expiration
+        }
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async getOrder(req, res, next) {
+    try {
+      const { purchase_id = "" } = req.query;
+      const { user_id } = getSessionData_helper_default("user", req.session);
+      const data = await userPurchases_service_default.getForUser({
+        user_fk: user_id,
+        user_purchase_id: purchase_id
       });
       res.json({
-        data: {
-          checkout_url: init_point
-        }
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async getOrderDetails(req, res, next) {
+    try {
+      const { user_id } = getSessionData_helper_default("user", req.session);
+      const { purchase_id = "" } = req.query;
+      const data = await userPurchaseProducts_service_default.getForUser({ user_purchase_fk: purchase_id, user_fk: user_id });
+      res.json({
+        data
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1023,100 +1201,11 @@ var OrderController = class {
 };
 var order_controller_default = OrderController;
 
-// src/model/users.model.ts
-var UsersModel = class extends model_utils_default {
-  static async select(props = {}, modify) {
-    try {
-      const query = knex_config_default("users").where(props);
-      modify && query.modify(modify);
-      return await query;
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
-  static async update({ user_id, ...props }, modify) {
-    try {
-      const query = knex_config_default("users").update(props).where("user_id", user_id);
-      modify && query.modify(modify);
-      return await query;
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
-  static updateUnconfirmedEmail(props) {
-    return this.update(props, (builder) => {
-      builder.where("email_confirmed", false);
-    });
-  }
-  static async insertByLimitIP(user, ip_limit = 0) {
-    const { email, fullname, ip, password, phone, permission } = user;
-    try {
-      return await knex_config_default.raw(`
-            INSERT INTO users (fullname,phone,email,password,ip,permission)
-            SELECT ?, ?, ?, ?, ?,?
-            WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ?
-              `, [
-        fullname,
-        phone,
-        email,
-        password,
-        ip,
-        permission,
-        ip,
-        ip_limit
-      ]);
-    } catch (error) {
-      throw this.generateError(error, {
-        ER_DUP_ENTRY: "El email que est\xE1s intentando registrar ya est\xE1 en uso."
-      });
-    }
-  }
-  static async delete(userID) {
-    try {
-      return await knex_config_default("users").where("user_id", userID).delete();
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
-};
-var users_model_default = UsersModel;
-
-// src/middleware/isUser.middleware.ts
-var isUser = (req, res, next) => {
-  const user = req.session.user;
-  if (user) {
-    next();
-  } else {
-    res.status(401).json({
-      message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente."
-    });
-  }
-};
-var isUser_middleware_default = isUser;
-
-// src/middleware/isCompleteUser.middleware.ts
-var isCompleteUser = async (req, res, next) => {
-  const user = req.session.user;
-  if (!user) return isUser_middleware_default(req, res, next);
-  if (user.email_confirmed) {
-    return next();
-  }
-  const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
-  const { email_confirmed } = u;
-  if (email_confirmed) {
-    user.email_confirmed = true;
-    next();
-  } else {
-    res.status(401).json({
-      message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n."
-    });
-  }
-};
-var isCompleteUser_middleware_default = isCompleteUser;
-
 // src/router/order.router.ts
 var orderRouter = Router();
-orderRouter.post("/create", isCompleteUser_middleware_default, order_controller_default.createOrder);
+orderRouter.post("/", order_controller_default.createOrder);
+orderRouter.get("/", order_controller_default.getOrder);
+orderRouter.get("/details", order_controller_default.getOrderDetails);
 var order_router_default = orderRouter;
 
 // src/router/ProductColorImages.router.ts
@@ -1292,7 +1381,7 @@ var ProductColorsModel = class extends model_utils_default {
     return this.selectJoinColor(props, (builder) => {
       modify && builder.modify(modify);
       builder.whereExists(
-        knex_config_default("product_color_sizes").whereRaw("product_color_fk = pc.product_color_id").where("status", true)
+        knex_config_default("product_color_sizes").whereRaw("product_color_fk = pc.product_color_id")
       );
     });
   }
@@ -1324,11 +1413,27 @@ var productColor_schema_default = productColorSchema;
 var ProductColorsService = class extends service_utils_default {
   static async update(productColors) {
     const data = zodParse_helper_default(productColor_schema_default.update.array())(productColors);
-    return await this.writeOperationsHandler(data, (e) => productColors_model_default.update(e));
+    return await this.writeOperationsHandler(
+      data,
+      (e) => productColors_model_default.update(e),
+      (e) => {
+        if (!e) throw new errorHandler_utilts_default({
+          message: "Al parecer el color que intentar actualizar no existe."
+        });
+      }
+    );
   }
   static async delete(productColors) {
     const data = zodParse_helper_default(productColor_schema_default.delete.array())(productColors);
-    return await this.writeOperationsHandler(data, (e) => productColors_model_default.delete(e));
+    return await this.writeOperationsHandler(
+      data,
+      (e) => productColors_model_default.delete(e),
+      (e) => {
+        if (!e) throw new errorHandler_utilts_default({
+          message: "Al parecer el color que intentar eliminar no existe."
+        });
+      }
+    );
   }
   static async insert(productColors) {
     const data = zodParse_helper_default(productColor_schema_default.insert.array())(productColors);
@@ -1394,7 +1499,7 @@ var productColors_router_default = productColorsRouter;
 // src/router/ProductColorSizes.router.ts
 import express7 from "express";
 
-// src/model/productSizes.model.ts
+// src/model/productColorSizes.model.ts
 var ProductColorSizesModel = class extends model_utils_default {
   static async select(props = {}, modify) {
     try {
@@ -1410,6 +1515,13 @@ var ProductColorSizesModel = class extends model_utils_default {
       modify && builder.modify(modify);
       builder.leftJoin("sizes as s", "s.size_id", "pcs.size_fk");
     });
+  }
+  static async updatetByProductColor({ product_color_fk, ...props }) {
+    try {
+      return await knex_config_default("product_color_sizes").where({ product_color_fk }).update(props);
+    } catch (error) {
+      throw this.generateError(error);
+    }
   }
   static async insert(size) {
     try {
@@ -1433,7 +1545,7 @@ var ProductColorSizesModel = class extends model_utils_default {
     }
   }
 };
-var productSizes_model_default = ProductColorSizesModel;
+var productColorSizes_model_default = ProductColorSizesModel;
 
 // src/schema/productColorSize.schema.ts
 import { z as z11 } from "zod";
@@ -1448,18 +1560,22 @@ var base8 = z11.object({
   product_color_size_id: databaseKey_schema_default,
   product_color_fk: databaseKey_schema_default,
   size_fk: databaseKey_schema_default,
-  stock: databaseBoolean_schema_default.default(true).optional(),
-  status: databaseBoolean_schema_default.default(true).optional()
+  stock: databaseBoolean_schema_default.default(true).optional()
 });
 var update7 = base8.partial().extend({
   product_color_size_id: base8.shape.product_color_size_id
 });
 var insert8 = base8.omit({ product_color_size_id: true });
+var updateByProductColor = z11.object({
+  stock: z11.boolean().optional(),
+  product_color_fk: base8.shape.product_color_fk
+});
 var productColorSizeSchema = {
   base: base8,
   update: update7,
   insert: insert8,
-  delete: databaseKey_schema_default
+  delete: databaseKey_schema_default,
+  updateByProductColor
 };
 var productColorSize_schema_default = productColorSizeSchema;
 
@@ -1467,15 +1583,43 @@ var productColorSize_schema_default = productColorSizeSchema;
 var ProductColorSizesService = class extends service_utils_default {
   static async insert(sizes) {
     const data = zodParse_helper_default(productColorSize_schema_default.insert.array())(sizes);
-    return await this.writeOperationsHandler(data, (e) => productSizes_model_default.insert(e));
+    return await this.writeOperationsHandler(data, (e) => productColorSizes_model_default.insert(e));
   }
   static async update(sizes) {
     const data = zodParse_helper_default(productColorSize_schema_default.update.array())(sizes);
-    return await this.writeOperationsHandler(data, (e) => productSizes_model_default.update(e));
+    return await this.writeOperationsHandler(
+      data,
+      (e) => productColorSizes_model_default.update(e),
+      (e) => {
+        if (!e) throw new errorHandler_utilts_default({
+          message: "El tama\xF1o que intentar actualizar no existe."
+        });
+      }
+    );
+  }
+  static async updateByProductColor(productColors) {
+    const data = zodParse_helper_default(productColorSize_schema_default.updateByProductColor.array())(productColors);
+    return await this.writeOperationsHandler(
+      data,
+      (e) => productColorSizes_model_default.updatetByProductColor(e),
+      (e) => {
+        if (!e) throw new errorHandler_utilts_default({
+          message: `Al parecer el color que intentas actualizar no existe.`
+        });
+      }
+    );
   }
   static async delete(sizes) {
     const data = zodParse_helper_default(productColorSize_schema_default.delete.array())(sizes);
-    return await this.writeOperationsHandler(data, (e) => productSizes_model_default.delete(e));
+    return await this.writeOperationsHandler(
+      data,
+      (e) => productColorSizes_model_default.delete(e),
+      (e) => {
+        if (!e) throw new errorHandler_utilts_default({
+          message: "El tama\xF1o que intenta eliminar no existe."
+        });
+      }
+    );
   }
 };
 var productColorSizes_service_default = ProductColorSizesService;
@@ -1484,7 +1628,21 @@ var productColorSizes_service_default = ProductColorSizesService;
 var ProductColorSizesController = class {
   static async setProductColorSizes(req, res, next) {
     try {
-      const data = await productColorSizes_service_default.insert(req.body.sizes);
+      const data = await productColorSizes_service_default.insert(req.body);
+      res.json({
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async updateByProductColor(req, res, next) {
+    try {
+      const data = await productColorSizes_service_default.updateByProductColor(req.body);
       res.json({
         data
       });
@@ -1498,7 +1656,7 @@ var ProductColorSizesController = class {
   }
   static async modifyProductColorSizes(req, res, next) {
     try {
-      const data = await productColorSizes_service_default.update(req.body.sizes);
+      const data = await productColorSizes_service_default.update(req.body);
       res.json({
         data
       });
@@ -1512,7 +1670,7 @@ var ProductColorSizesController = class {
   }
   static async removeProductColorSizes(req, res, next) {
     try {
-      const data = await productColorSizes_service_default.delete(req.body.sizes);
+      const data = await productColorSizes_service_default.delete(req.body);
       res.json({
         data
       });
@@ -1532,6 +1690,7 @@ var productColorSizesRouter = express7.Router();
 productColorSizesRouter.post("/", productColorSizes_controller_default.setProductColorSizes);
 productColorSizesRouter.delete("/", productColorSizes_controller_default.removeProductColorSizes);
 productColorSizesRouter.patch("/", productColorSizes_controller_default.modifyProductColorSizes);
+productColorSizesRouter.patch("/updateByProductColor", productColorSizes_controller_default.updateByProductColor);
 var ProductColorSizes_router_default = productColorSizesRouter;
 
 // src/router/products.router.ts
@@ -1570,6 +1729,13 @@ var ProductsModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
+  static async updateByCategory({ category_fk, ...props }) {
+    try {
+      return await knex_config_default("products").where({ category_fk }).update(props);
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
   static async delete(productID) {
     try {
       return await knex_config_default("products").where("product_id", productID).delete();
@@ -1596,11 +1762,17 @@ var insert9 = base9.omit({
 var update8 = base9.partial().extend({
   product_id: base9.shape.product_id
 });
+var updateByCategory = z12.object({
+  category_fk: base9.shape.category_fk,
+  discount: base9.shape.discount,
+  status: base9.shape.status
+});
 var productSchema = {
   base: base9,
   update: update8,
   insert: insert9,
-  delete: databaseKey_schema_default
+  delete: databaseKey_schema_default,
+  updateByCategory
 };
 var product_schema_default = productSchema;
 
@@ -1613,6 +1785,10 @@ var ProductsService = class extends service_utils_default {
       status: 404
     });
     return products;
+  }
+  static async updateByCategory(products) {
+    const data = zodParse_helper_default(product_schema_default.updateByCategory.array())(products);
+    return await this.writeOperationsHandler(data, (e) => products_model_default.updateByCategory(e));
   }
   static async update(products) {
     const data = zodParse_helper_default(product_schema_default.update.array())(products);
@@ -1634,6 +1810,20 @@ var ProductsController = class {
   static async getProductsPerCategory(_, res, next) {
     try {
       const data = await products_service_default.get();
+      res.json({
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async updateByCategory(req, res, next) {
+    try {
+      const data = await products_service_default.updateByCategory(req.body);
       res.json({
         data
       });
@@ -1696,6 +1886,7 @@ productsRouter.get("/category/:category_id", products_controller_default.getProd
 productsRouter.post("/", isAdmin_middleware_default, products_controller_default.addProducts);
 productsRouter.patch("/", isAdmin_middleware_default, products_controller_default.modifyProducts);
 productsRouter.delete("/", isAdmin_middleware_default, products_controller_default.removeProducts);
+productsRouter.patch("/updateByCategory", products_controller_default.updateByCategory);
 var products_router_default = productsRouter;
 
 // src/router/productsRecomendations.router.ts
@@ -1783,8 +1974,8 @@ var ProductFullViewService = class {
     return productColorModel;
   }
   static async getProductColorSize(product_color_fk) {
-    const color_sizes = await productSizes_model_default.selectJoinSize({ product_color_fk });
-    return color_sizes;
+    const color_sizes = await productColorSizes_model_default.selectJoinSize({ product_color_fk });
+    return [color_sizes];
   }
   static async getProductColorImage(product_color_fk) {
     const color_images = await productColorImages_model_default.select({ product_color_fk });
@@ -1837,13 +2028,6 @@ var productsPreviewModel = async (querys) => {
       pci.on("pci.product_color_fk", "=", "pc.product_color_id");
       pci.andOn("pci.row_num", "=", 1);
     }).where("p.status", true);
-    !size && query.whereExists(
-      /**
-       * Esto solo verifica si hay tamaños disponibles para cada color de forma generalizada.
-       * Siempre en caso de que no se indiquen tamaños, ya que de lo contrario lo verifica otra consulta mas abajo.
-       */
-      knex_config_default("product_color_sizes").whereRaw("product_color_fk = pc.product_color_id").where("status", true)
-    );
     brand_id && query.where("pb.brand_id", brand_id);
     category_id && query.where("pt.category_id", category_id);
     search && query.whereRaw("p.product LIKE ?", [`%${search}%`]);
@@ -1851,7 +2035,7 @@ var productsPreviewModel = async (querys) => {
     color && query.whereIn("c.color_id", color);
     size && query.whereIn(
       "pc.product_color_id",
-      knex_config_default("product_color_sizes").select("product_color_fk").whereIn("size_fk", size).where("status", true)
+      knex_config_default("product_color_sizes").select("product_color_fk").whereIn("size_fk", size)
     );
     return await query;
   } catch (error) {
@@ -2145,14 +2329,14 @@ var nodemailer_config_default = transport;
 
 // src/service/email/sendPasswordReset.email.ts
 var sendPasswordReset = async ({ to, token }) => {
-  const url2 = `http://localhost:3000/users/account/reset/password/${token}`;
+  const url = `http://localhost:3000/users/account/reset/password/${token}`;
   return await nodemailer_config_default.sendMail({
     from: "Olga Hat's <olgahats@noreply.com>",
     to,
     subject: "Cambio de contrase\xF1a",
     html: `
         <p>Recibimos una solicitud para cambiar tu contrase\xF1a. Si fuiste t\xFA, por favor haz clic en el siguiente enlace para proceder con el cambio:</p>
-        <a href="${url2}">Cambiar mi contrase\xF1a</a>
+        <a href="${url}">Cambiar mi contrase\xF1a</a>
         <p><strong>Este enlace expira en 3 horas.</strong></p>
         `
   });
@@ -2161,14 +2345,14 @@ var sendPasswordReset_email_default = sendPasswordReset;
 
 // src/service/email/sendEmailConfirm.email.ts
 var sendEmailConfirm = async ({ to, token }) => {
-  const url2 = `http://localhost:3000/users/register/confirmation/${token}`;
+  const url = `http://localhost:3000/users/register/confirmation/${token}`;
   return await nodemailer_config_default.sendMail({
     from: "Olga Hat's <olgahats@noreply.com>",
     to,
     subject: "Verificaci\xF3n de correo electr\xF3nico",
     html: `
             <p>Por favor, haz clic en el siguiente enlace para confirmar el correo electronico.</p>
-            <a href="${url2}">Confirmar correo electronico.</a>
+            <a href="${url}">Confirmar correo electronico.</a>
             <p><strong>Este enlace expira en 24 horas.</strong></p>
         `
   });
@@ -2181,6 +2365,64 @@ var emailService = {
   sendPasswordReset: sendPasswordReset_email_default
 };
 var email_default = emailService;
+
+// src/model/users.model.ts
+var UsersModel = class extends model_utils_default {
+  static async select(props = {}, modify) {
+    try {
+      const query = knex_config_default("users").where(props);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async update({ user_id, ...props }, modify) {
+    try {
+      const query = knex_config_default("users").update(props).where("user_id", user_id);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static updateUnconfirmedEmail(props) {
+    return this.update(props, (builder) => {
+      builder.where("email_confirmed", false);
+    });
+  }
+  static async insertByLimitIP(user, ip_limit = 0) {
+    const { email, fullname, ip, password, phone, permission } = user;
+    try {
+      return await knex_config_default.raw(`
+            INSERT INTO users (fullname,phone,email,password,ip,permission)
+            SELECT ?, ?, ?, ?, ?,?
+            WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ?
+              `, [
+        fullname,
+        phone,
+        email,
+        password,
+        ip,
+        permission,
+        ip,
+        ip_limit
+      ]);
+    } catch (error) {
+      throw this.generateError(error, {
+        ER_DUP_ENTRY: "El email que est\xE1s intentando registrar ya est\xE1 en uso."
+      });
+    }
+  }
+  static async delete(userID) {
+    try {
+      return await knex_config_default("users").where("user_id", userID).delete();
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+};
+var users_model_default = UsersModel;
 
 // src/schema/user.schema.ts
 import { z as z14 } from "zod";
@@ -2343,7 +2585,7 @@ var UserAuthService = class {
 var userAuth_service_default = UserAuthService;
 
 // src/service/userToken.service.ts
-import crypto3 from "crypto";
+import crypto2 from "crypto";
 
 // src/model/userTokens.model.ts
 var UserTokensModel = class extends model_utils_default {
@@ -2401,14 +2643,6 @@ var UserTokensModel = class extends model_utils_default {
 };
 var userTokens_model_default = UserTokensModel;
 
-// src/utils/getAdjustedUTCDate.utils.ts
-var getAdjustedUTCDate = (UTC) => {
-  const date = /* @__PURE__ */ new Date();
-  date.setUTCHours(date.getUTCHours() + UTC);
-  return date;
-};
-var getAdjustedUTCDate_utils_default = getAdjustedUTCDate;
-
 // src/schema/token.schema.ts
 import { z as z15 } from "zod";
 var requestTokenSchema = z15.enum(["email_confirm", "password_reset_by_email"]);
@@ -2440,7 +2674,7 @@ var token_schema_default = userTokenSchema;
 // src/service/userToken.service.ts
 var UserTokenService = class {
   static createTokenDate({ timeUnit, timeValue }) {
-    const date = getAdjustedUTCDate_utils_default(-3);
+    const date = /* @__PURE__ */ new Date();
     if (timeUnit == "day") {
       date.setUTCDate(date.getUTCDate() + timeValue);
     } else if (timeUnit == "hour") {
@@ -2451,7 +2685,7 @@ var UserTokenService = class {
     return date.toISOString().replace("T", " ").substring(0, 19);
   }
   static async createToken(props, { maxTokens, ...tokenDate }) {
-    const token = crypto3.randomUUID();
+    const token = crypto2.randomUUID();
     const data = zodParse_helper_default(token_schema_default.insert)({
       ...props,
       token,
@@ -2490,11 +2724,11 @@ var UserTokenService = class {
       console.log("The expired token cleanup process failed to initialize due to incorrect time range data.");
       return;
     }
-    const current_date = getAdjustedUTCDate_utils_default(-3);
-    const expected_date = getAdjustedUTCDate_utils_default(-3);
+    const current_date = /* @__PURE__ */ new Date();
+    const expected_date = /* @__PURE__ */ new Date();
     expected_date.setUTCHours(cleaning_hour);
     expected_date.setUTCMinutes(cleaning_minute);
-    if (expected_date.getTime() - current_date.getTime() <= 0) {
+    if (current_date.getTime() >= expected_date.getTime()) {
       expected_date.setUTCDate(expected_date.getUTCDate() + 1);
     }
     const milliseconds = expected_date.getTime() - current_date.getTime();
@@ -2513,17 +2747,6 @@ var UserTokenService = class {
   }
 };
 var userToken_service_default = UserTokenService;
-
-// src/helper/getSessionData.helper.ts
-var getSessionData = (keys, session2) => {
-  const data = session2[keys];
-  if (!data) throw new errorHandler_utilts_default({
-    status: 500,
-    message: "Problemas internos para encontrar la session."
-  });
-  return data;
-};
-var getSessionData_helper_default = getSessionData;
 
 // src/controller/userAccount.controller.ts
 var UserAccountController = class {
@@ -2593,6 +2816,39 @@ var UserAccountController = class {
   }
 };
 var userAccount_controller_default = UserAccountController;
+
+// src/middleware/isUser.middleware.ts
+var isUser = (req, res, next) => {
+  const user = req.session.user;
+  if (user) {
+    next();
+  } else {
+    res.status(401).json({
+      message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente."
+    });
+  }
+};
+var isUser_middleware_default = isUser;
+
+// src/middleware/isCompleteUser.middleware.ts
+var isCompleteUser = async (req, res, next) => {
+  const user = req.session.user;
+  if (!user) return isUser_middleware_default(req, res, next);
+  if (user.email_confirmed) {
+    return next();
+  }
+  const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
+  const { email_confirmed } = u;
+  if (email_confirmed) {
+    user.email_confirmed = true;
+    next();
+  } else {
+    res.status(401).json({
+      message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n."
+    });
+  }
+};
+var isCompleteUser_middleware_default = isCompleteUser;
 
 // src/router/userAccount.router.ts
 var userAccountRouter = express12.Router();
@@ -2761,7 +3017,7 @@ app.use("/", (req, res, next) => {
   req.session.user = {
     permission: "admin",
     fullname: "fsdada",
-    user_id: 1,
+    user_id: 37,
     email: "ifrank4444@gmail.com",
     ip: "123",
     phone: null,
@@ -2782,8 +3038,8 @@ app.use("/colors", colors_router_default);
 app.use("/users", users_router_default);
 app.use("/users/register", userRegister_router_default);
 app.use("/users/account", userAccount_router_default);
-app.use("/mercadopago", mercadoPago_router_default);
-app.use("/order", order_router_default);
+app.use("/mercadopago", isCompleteUser_middleware_default, mercadoPago_router_default);
+app.use("/orders", isCompleteUser_middleware_default, order_router_default);
 app.use(errorGlobal_middleware_default);
-userToken_service_default.cleanExpiredTokens({ cleaning_hour: 12, cleaning_minute: 0 });
+userToken_service_default.cleanExpiredTokens({ cleaning_hour: 15, cleaning_minute: 0 });
 app.listen(port, () => console.log("SERVER START"));

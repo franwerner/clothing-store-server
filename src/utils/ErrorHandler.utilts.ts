@@ -1,7 +1,7 @@
 
 interface ErrorHandlerProps {
     message?: string
-    status: number
+    status?: number
     data?: any
 }
 
