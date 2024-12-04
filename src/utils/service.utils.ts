@@ -1,36 +1,37 @@
-import ErrorHandler from "./errorHandler.utilts.js"
+import ErrorHandler, { ErrorHandlerData } from "./errorHandler.utilts.js"
 
-type WriteOperationsHandlerResults<T> = Array<{
-    success: boolean
-    message?: any,
-    payload: T
-}>
+type WriteOperationsHandlerResults<T> = ErrorHandlerData<T>
 
 class ServiceUtils {
-    static async writeOperationsHandler<T,U>(
-        input: T[], 
+    static async writeOperationsHandler<T, U>(
+        input: T[],
         operation: (value: T) => Promise<U>,
-        logic?:(response:U) => void
+        logic?: (response: U) => void
     ) {
-        const data: WriteOperationsHandlerResults<T> = [] 
+        const errors: WriteOperationsHandlerResults<T> = []
 
         for (const e of input) {
             try {
                 const res = await operation(e)
                 logic && logic(res)
-                data.push({
-                    payload: e,
-                    success: true
-                })
             } catch (error) {
-                data.push({
-                    success: false,
-                    payload: e,
-                    message: ErrorHandler.isInstanceOf(error) ? error.message : "Error interno del servidor."
+                errors.push({
+                    source: e,
+                    reason: ErrorHandler.isInstanceOf(error) ? error.message : (typeof error === "string" ? error : "Error desconocido."),
                 })
             }
         }
-        return data
+
+        return (code: string) => {
+            if (errors.length > 0) throw new ErrorHandler({
+                data: errors,
+                code: code,
+                status: 206
+            })
+        }
+    }
+    static  genericMessage({text,action}:{text:string,action:"eliminar" | "actualizar"}){
+      return `Al parecer ${text} que intentas ${action} no existe.`
     }
 }
 

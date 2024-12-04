@@ -10,22 +10,36 @@ class BrandsService extends ServiceUtils {
 
         if (brands.length === 0) throw new ErrorHandler({
             message: "No se ninguna marca",
-            status: 404
+            status: 404,
+            code: "brands_not_found"
         })
 
         return brands
     }
     static async update(brands: Array<BrandSchema.Update>) {
-        const data = zodParse(brandSchema.update.array())(brands)
-        return await this.writeOperationsHandler(data, (e) => BrandsModel.update(e))
+        const data = zodParse(brandSchema.update.array().min(1))(brands)
+        const res = await this.writeOperationsHandler(data,
+            (e) => BrandsModel.update(e),
+            (e) => {
+                if (!e) throw this.genericMessage({ text: "la marca", action: "actualizar" })
+            }
+        )
+        res("brands_update")
     }
     static async insert(brands: Array<BrandSchema.Insert>) {
-        const data = zodParse(brandSchema.insert.array())(brands)
-        return await this.writeOperationsHandler(data, (e) => BrandsModel.insert(e))
+        const data = zodParse(brandSchema.insert.array().min(1))(brands)
+        const res = await this.writeOperationsHandler(data, (e) => BrandsModel.insert(e))
+        res("brands_insert")
     }
     static async delete(brands: Array<BrandSchema.Delete>) {
-        const data = zodParse(brandSchema.delete.array())(brands)
-        return await this.writeOperationsHandler(data, (e) => BrandsModel.delete(e))
+        const data = zodParse(brandSchema.delete.array().min(1))(brands)
+        const res = await this.writeOperationsHandler(data,
+            (e) => BrandsModel.delete(e),
+            (e) => {
+                if (!e) throw this.genericMessage({ text: "la marca", action: "eliminar" })
+            }
+        )
+        res("brands_delete")
     }
 }
 

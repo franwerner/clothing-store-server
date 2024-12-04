@@ -4,7 +4,8 @@ import ErrorHandler from "../utils/errorHandler.utilts.js"
 import userSchema, { UserSchema } from "../schema/user.schema.js"
 import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
 import zodParse from "../helper/zodParse.helper.js"
-import maxAccountPerIp from "../constant/maxAccoutPerIP.constant.js"
+import storeConfig from "../constant/storeConfig.contant.js"
+
 class UserRegisterService {
 
     static async completeRegister(user_id: DatabaseKeySchema) {
@@ -13,7 +14,8 @@ class UserRegisterService {
         if (!updateAffects) {
             throw new ErrorHandler({
                 message: "El email ya ha sido confirmado previamente.",
-                status: 409
+                status: 409,
+                code : "conflict_email_confirmed"
             })
         }
     }
@@ -33,12 +35,13 @@ class UserRegisterService {
         const [rawHeaders] = await UsersModel.insertByLimitIP({
             ...data,
             password: hash
-        }, maxAccountPerIp)
+        }, storeConfig.maxAccountPerIp)
 
         const { insertId, affectedRows } = rawHeaders
 
         if (affectedRows == 0) throw new ErrorHandler({
-            message: `Superaste el limite de ${maxAccountPerIp} por IP`,
+            message: `Superaste el limite de ${storeConfig.maxAccountPerIp} por IP`,
+            code: "limit_account_per_ip",
             status: 429
         })
         return zodParse(userSchema.formatUser)({

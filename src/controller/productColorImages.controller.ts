@@ -7,15 +7,16 @@ import ErrorHandler from "../utils/errorHandler.utilts.js"
 class ProductColorImagesController {
     static async addProductColorImages(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorImageSchema.Insert>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
 
         try {
-            const data = await ProductColorImagesService.insert(req.body)
+            await ProductColorImagesService.insert(req.body)
 
             res.json({
-                data
+               message : "Imagenes agregadas correctamente."
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -29,14 +30,15 @@ class ProductColorImagesController {
 
     static async modifyProductColorImages(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorImageSchema.Update>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
 
-            const data = await ProductColorImagesService.update(req.body)
+            await ProductColorImagesService.update(req.body)
             res.json({
-                data
+                message : "Imagenes modificadas correctamente."
+                
             })
 
         } catch (error) {
@@ -51,12 +53,13 @@ class ProductColorImagesController {
 
     static async removeProductColorImages(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorImageSchema.Delete>,
+        res: APP.ResponseTemplate,
         next: NextFunction) {
         try {
-            const data = await ProductColorImagesService.delete(req.body)
+             await ProductColorImagesService.delete(req.body)
             res.json({
-                data
+                message :"Imagenes eliminadas correctamente",
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

@@ -26,7 +26,9 @@ class CategoriesModel extends ModelUtils {
             return await sql("categories")
                 .insert(props)
         } catch (error) {
-            throw this.generateError(error)
+            throw this.generateError(error,{
+                "ER_NO_REFERENCED_ROW_2" : "La marca que intentas referenciar con la categoria no existe."
+            })
         }
     }
 
@@ -36,7 +38,9 @@ class CategoriesModel extends ModelUtils {
                 .update(category)
                 .where("category_id", category_id)
         } catch (error) {
-            throw this.generateError(error)
+            throw this.generateError(error,{
+                "ER_NO_REFERENCED_ROW_2" : "La marca que intentas referenciar con la categoria no existe."
+            })
         }
     }
 

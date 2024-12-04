@@ -36,7 +36,7 @@ class BrandsModel extends ModelUtils {
                 .where("brand_id", brand_id)
         } catch (error) {
             throw this.generateError(error, {
-                ER_DUP_ENTRY: "El nombre de la marca que intentas actualizar ya se existe en la base de datos."
+                ER_DUP_ENTRY: "El nombre de la marca que intentas registrar ya se existe en la base de datos."
             })
 
         }

@@ -1,21 +1,21 @@
 import { NextFunction, Request } from "express";
 import { ProductColorSchema } from "../schema/productColor.schema.js";
-import { ProductColorSizeSchema } from "../schema/productColorSize.schema.js";
 import ProductColorsService from "../service/productColors.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 
 class ProductColorsController {
     static async setProductColors(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorSchema.Insert>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
 
         try {
-            const data = await ProductColorsService.insert(req.body)
+           await ProductColorsService.insert(req.body)
 
             res.json({
-                data
+                message : "Colores de los productos agregados correctamente.",
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -31,13 +31,14 @@ class ProductColorsController {
 
     static async modifyProductColors(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorSchema.Update>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await ProductColorsService.update(req.body)
+           await ProductColorsService.update(req.body)
             res.json({
-                data
+                message : "Colores de los productos modificados correctamente.",
+                
             })
 
         } catch (error) {
@@ -52,13 +53,14 @@ class ProductColorsController {
 
     static async removeProductColors(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorSchema.Delete>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await ProductColorsService.delete(req.body)
+            await ProductColorsService.delete(req.body)
             res.json({
-                data
+                message : "Colores de los productos eliminados correctamente.",
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

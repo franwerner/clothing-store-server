@@ -3,7 +3,6 @@ import zodParse from "../helper/zodParse.helper.js";
 import UserTokensModel from "../model/userTokens.model.js";
 import userTokenSchema, { UserTokenSchema } from "../schema/token.schema.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-import getAdjustedUTCDate from "../utils/getAdjustedUTCDate.utils.js";
 
 interface TokenDate {
     timeUnit: "minute" | "hour" | "day",
@@ -45,7 +44,8 @@ class UserTokenService {
         if (ResultSetHeader.affectedRows == 0) {
             throw new ErrorHandler({
                 status: 429,
-                message: `Se ha excedido el límite de ${maxTokens} solicitudes de generación de tokens para este usuario.`
+                message: `Se ha excedido el límite de ${maxTokens} solicitudes de generación de tokens para este usuario.`,
+                code : "limit_tokens_by_ip"
             })
         }
         return data.token
@@ -59,7 +59,8 @@ class UserTokenService {
         if (!user) {
             throw new ErrorHandler({
                 status: 404,
-                message: `El token que estás intentando utilizar ha expirado.`
+                message: `El token que estás intentando utilizar ha expirado o no existe.`,
+                code :"token_not_found"
             })
         }
         return user

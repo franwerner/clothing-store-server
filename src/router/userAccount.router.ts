@@ -7,6 +7,7 @@ const userAccountRouter = express.Router()
 userAccountRouter.post("/reset/password", UserAccountController.sendPasswordReset)
 userAccountRouter.post("/reset/password/:token", UserAccountController.passwordReset)
 userAccountRouter.post("/update/info",isCompleteUser, UserAccountController.updateInfo)
+userAccountRouter.get("/",isCompleteUser,UserAccountController.getLoginUserInfo)
 
 export default userAccountRouter
 

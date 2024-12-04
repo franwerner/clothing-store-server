@@ -45,16 +45,46 @@ var sessionConfig = session({
     maxAge: 1e3 * 60 * 60 * 24 * 30,
     // 30 dias,
     secure: env_constant_default.NODE_ENV == "prod",
-    httpOnly: true
+    httpOnly: true,
+    sameSite: "lax"
   }
 });
 var session_config_default = sessionConfig;
 
+// src/utils/errorHandler.utilts.ts
+var ErrorHandler = class _ErrorHandler extends Error {
+  message;
+  name;
+  status;
+  data;
+  code;
+  constructor({ message, status, data, code }) {
+    super();
+    this.message = message || "";
+    this.name = "ErrorHandler", this.status = status && status >= 100 && status <= 599 ? status : 500;
+    this.data = data;
+    this.code = `err_${code}`;
+  }
+  static isInstanceOf(instance) {
+    return instance instanceof _ErrorHandler;
+  }
+  response(res) {
+    res.status(this.status).json({
+      message: this.message || void 0,
+      data: this.data,
+      code: this.code
+    });
+  }
+};
+var errorHandler_utilts_default = ErrorHandler;
+
 // src/middleware/errorGlobal.middleware.ts
 var errorGlobal = (_, res) => {
-  res.status(500).json({
-    message: "Ocurri\xF3 un error inesperado en el servidor."
-  });
+  new errorHandler_utilts_default({
+    status: 500,
+    message: "Ocurri\xF3 un error inesperado en el servidor.",
+    code: "err_internal"
+  }).response(res);
 };
 var errorGlobal_middleware_default = errorGlobal;
 
@@ -64,9 +94,10 @@ var isAdmin = (req, res, next) => {
   if (user && user.permission == "admin") {
     next();
   } else {
-    res.status(401).json({
-      message: "No estas autorizado para continuar con esta operacion."
-    });
+    new errorHandler_utilts_default({
+      message: "No estas autorizado para continuar con esta operacion.",
+      status: 401
+    }).response(res);
   }
 };
 var isAdmin_middleware_default = isAdmin;
@@ -76,38 +107,11 @@ import express from "express";
 
 // src/utils/zodErrorHandler.utilts.ts
 import { ZodError } from "zod";
-
-// src/utils/errorHandler.utilts.ts
-var ErrorHandler = class _ErrorHandler extends Error {
-  message;
-  name;
-  status;
-  data;
-  constructor({ message, status, data }) {
-    super();
-    this.message = message || "";
-    this.name = "ErrorHandler", this.status = status || 500;
-    this.data = data;
-  }
-  static isInstanceOf(instance) {
-    return instance instanceof _ErrorHandler;
-  }
-  response(res) {
-    res.status(this.status).json({
-      message: this.message || void 0,
-      //Si es undefined la propiedad no se incluira
-      data: this.data
-    });
-  }
-};
-var errorHandler_utilts_default = ErrorHandler;
-
-// src/utils/zodErrorHandler.utilts.ts
 function transformErrorToClient(zod_error) {
-  return zod_error.issues.map(({ message, path }) => {
+  return zod_error.issues.map(({ message, path, code }) => {
     return {
-      property: path.find((i) => typeof i === "string"),
-      message
+      source: path.find((i) => typeof i === "string") || code,
+      reason: message
     };
   });
 }
@@ -116,7 +120,8 @@ var ZodErrorHandler = class extends errorHandler_utilts_default {
   constructor(error) {
     super({
       status: 400,
-      data: transformErrorToClient(error)
+      data: transformErrorToClient(error),
+      code: "zod_error"
     });
     this.zod_error = error;
   }
@@ -239,7 +244,7 @@ var BrandsModel = class extends model_utils_default {
       return await knex_config_default("brands").update(brand).where("brand_id", brand_id);
     } catch (error) {
       throw this.generateError(error, {
-        ER_DUP_ENTRY: "El nombre de la marca que intentas actualizar ya se existe en la base de datos."
+        ER_DUP_ENTRY: "El nombre de la marca que intentas registrar ya se existe en la base de datos."
       });
     }
   }
@@ -285,24 +290,28 @@ var brand_schema_default = brandSchema;
 // src/utils/service.utils.ts
 var ServiceUtils = class {
   static async writeOperationsHandler(input, operation, logic) {
-    const data = [];
+    const errors = [];
     for (const e of input) {
       try {
         const res = await operation(e);
         logic && logic(res);
-        data.push({
-          payload: e,
-          success: true
-        });
       } catch (error) {
-        data.push({
-          success: false,
-          payload: e,
-          message: errorHandler_utilts_default.isInstanceOf(error) ? error.message : "Error interno del servidor."
+        errors.push({
+          source: e,
+          reason: errorHandler_utilts_default.isInstanceOf(error) ? error.message : typeof error === "string" ? error : "Error desconocido."
         });
       }
     }
-    return data;
+    return (code) => {
+      if (errors.length > 0) throw new errorHandler_utilts_default({
+        data: errors,
+        code,
+        status: 206
+      });
+    };
+  }
+  static genericMessage({ text, action }) {
+    return `Al parecer ${text} que intentas ${action} no existe.`;
   }
 };
 var service_utils_default = ServiceUtils;
@@ -313,21 +322,37 @@ var BrandsService = class extends service_utils_default {
     const brands = await brands_model_default.select();
     if (brands.length === 0) throw new errorHandler_utilts_default({
       message: "No se ninguna marca",
-      status: 404
+      status: 404,
+      code: "brands_not_found"
     });
     return brands;
   }
   static async update(brands) {
-    const data = zodParse_helper_default(brand_schema_default.update.array())(brands);
-    return await this.writeOperationsHandler(data, (e) => brands_model_default.update(e));
+    const data = zodParse_helper_default(brand_schema_default.update.array().min(1))(brands);
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => brands_model_default.update(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "la marca", action: "actualizar" });
+      }
+    );
+    res("brands_update");
   }
   static async insert(brands) {
-    const data = zodParse_helper_default(brand_schema_default.insert.array())(brands);
-    return await this.writeOperationsHandler(data, (e) => brands_model_default.insert(e));
+    const data = zodParse_helper_default(brand_schema_default.insert.array().min(1))(brands);
+    const res = await this.writeOperationsHandler(data, (e) => brands_model_default.insert(e));
+    res("brands_insert");
   }
   static async delete(brands) {
-    const data = zodParse_helper_default(brand_schema_default.delete.array())(brands);
-    return await this.writeOperationsHandler(data, (e) => brands_model_default.delete(e));
+    const data = zodParse_helper_default(brand_schema_default.delete.array().min(1))(brands);
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => brands_model_default.delete(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "la marca", action: "eliminar" });
+      }
+    );
+    res("brands_delete");
   }
 };
 var brands_service_default = BrandsService;
@@ -350,9 +375,9 @@ var BrandsController = class {
   }
   static async addBrands(req, res, next) {
     try {
-      const data = await brands_service_default.insert(req.body);
+      await brands_service_default.insert(req.body);
       res.json({
-        data
+        message: "Todas las marcas agregadas modificas exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -364,9 +389,9 @@ var BrandsController = class {
   }
   static async modifyBrands(req, res, next) {
     try {
-      const data = await brands_service_default.update(req.body);
+      await brands_service_default.update(req.body);
       res.json({
-        data
+        message: "Todas las marcas fueron modificas exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -378,9 +403,9 @@ var BrandsController = class {
   }
   static async removeBrands(req, res, next) {
     try {
-      const data = await brands_service_default.delete(req.body);
+      await brands_service_default.delete(req.body);
       res.json({
-        data
+        message: "Todas las marcas fueron modificas exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -438,14 +463,18 @@ var CategoriesModel = class extends model_utils_default {
     try {
       return await knex_config_default("categories").insert(props);
     } catch (error) {
-      throw this.generateError(error);
+      throw this.generateError(error, {
+        "ER_NO_REFERENCED_ROW_2": "La marca que intentas referenciar con la categoria no existe."
+      });
     }
   }
   static async update({ category_id, ...category }) {
     try {
       return await knex_config_default("categories").update(category).where("category_id", category_id);
     } catch (error) {
-      throw this.generateError(error);
+      throw this.generateError(error, {
+        "ER_NO_REFERENCED_ROW_2": "La marca que intentas referenciar con la categoria no existe."
+      });
     }
   }
   static async delete(categoryID) {
@@ -462,35 +491,51 @@ var categories_model_default = CategoriesModel;
 
 // src/service/categories.service.ts
 var CategoriesService = class extends service_utils_default {
-  static async get() {
-    const categories = await categories_model_default.select();
+  static async getByBrand(brand_fk) {
+    const categories = await categories_model_default.select({ brand_fk });
     if (categories.length === 0) throw new errorHandler_utilts_default({
       message: "No se encontraron categorias.",
-      status: 404
+      status: 404,
+      code: "categories_not_found"
     });
     return categories;
   }
   static async update(categories) {
-    const data = zodParse_helper_default(category_schema_default.update.array())(categories);
-    return await this.writeOperationsHandler(data, (e) => categories_model_default.update(e));
+    const data = zodParse_helper_default(category_schema_default.update.array().min(1))(categories);
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => categories_model_default.update(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "la categoria", action: "actualizar" });
+      }
+    );
+    res("categories_update");
   }
   static async insert(categories) {
-    const data = zodParse_helper_default(category_schema_default.insert.array())(categories);
-    return await this.writeOperationsHandler(data, (e) => categories_model_default.insert(e));
+    const data = zodParse_helper_default(category_schema_default.insert.array().min(1))(categories);
+    const res = await this.writeOperationsHandler(data, (e) => categories_model_default.insert(e));
+    res("categories_insert");
   }
   static async delete(categories) {
-    const data = zodParse_helper_default(category_schema_default.delete.array())(categories);
-    return await this.writeOperationsHandler(data, (e) => categories_model_default.delete(e));
+    const data = zodParse_helper_default(category_schema_default.delete.array().min(1))(categories);
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => categories_model_default.delete(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "la categoria", action: "eliminar" });
+      }
+    );
+    res("categories_delete");
   }
 };
 var categories_service_default = CategoriesService;
 
 // src/controller/categories.controller.ts
 var CategoriesController = class {
-  static async getCategoriesPerBrand(req, res, next) {
+  static async getByBrand(req, res, next) {
     try {
       const { brand_id } = req.params;
-      const data = await categories_model_default.select({ brand_fk: brand_id });
+      const data = await categories_service_default.getByBrand(brand_id);
       res.json({
         data
       });
@@ -504,10 +549,9 @@ var CategoriesController = class {
   }
   static async addCategories(req, res, next) {
     try {
-      const categories = category_schema_default.insert.array().parse(req.body);
-      const data = await categories_service_default.insert(categories);
+      await categories_service_default.insert(req.body);
       res.json({
-        data
+        message: "Categorias agregadas exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -519,10 +563,9 @@ var CategoriesController = class {
   }
   static async modifyCategories(req, res, next) {
     try {
-      const categories = category_schema_default.update.array().parse(req.body);
-      const data = await categories_service_default.update(categories);
+      await categories_service_default.update(req.body);
       res.json({
-        data
+        message: "Categorias modificadas exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -534,10 +577,9 @@ var CategoriesController = class {
   }
   static async removeCategories(req, res, next) {
     try {
-      const categories = brand_schema_default.delete.array().parse(req.body);
-      const data = await categories_service_default.delete(categories);
+      await categories_service_default.delete(req.body);
       res.json({
-        data
+        message: "Todas las categorias se removiero exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -552,7 +594,7 @@ var categories_controller_default = CategoriesController;
 
 // src/router/categories.router.ts
 var categoriesRouter = express2.Router();
-categoriesRouter.get("/brand/:brand_id", categories_controller_default.getCategoriesPerBrand);
+categoriesRouter.get("/brand/:brand_id", categories_controller_default.getByBrand);
 categoriesRouter.post("/", isAdmin_middleware_default, categories_controller_default.addCategories);
 categoriesRouter.patch("/", isAdmin_middleware_default, categories_controller_default.modifyCategories);
 categoriesRouter.delete("/", isAdmin_middleware_default, categories_controller_default.removeCategories);
@@ -632,21 +674,38 @@ var ColorsService = class extends service_utils_default {
     if (res.length === 0) {
       throw new errorHandler_utilts_default({
         message: "No se encontraron colores.",
-        status: 404
+        status: 404,
+        code: "colors_not_found"
       });
     }
+    return res;
   }
   static async delete(colors) {
-    const data = zodParse_helper_default(color_schema_default.delete.array())(colors);
-    return await this.writeOperationsHandler(data, (color) => colors_model_default.delete(color));
+    const data = zodParse_helper_default(color_schema_default.delete.array().min(1))(colors);
+    const res = await this.writeOperationsHandler(
+      data,
+      (color) => colors_model_default.delete(color),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "el color", action: "eliminar" });
+      }
+    );
+    res("colors_delete");
   }
   static async insert(colors) {
-    const data = zodParse_helper_default(color_schema_default.insert.array())(colors);
-    return await this.writeOperationsHandler(data, (color) => colors_model_default.insert(color));
+    const data = zodParse_helper_default(color_schema_default.insert.array().min(1))(colors);
+    const res = await this.writeOperationsHandler(data, (color) => colors_model_default.insert(color));
+    res("colors_insert");
   }
   static async update(colors) {
-    const data = zodParse_helper_default(color_schema_default.update.array())(colors);
-    return await this.writeOperationsHandler(data, (color) => colors_model_default.update(color));
+    const data = zodParse_helper_default(color_schema_default.update.array().min(1))(colors);
+    const res = await this.writeOperationsHandler(
+      data,
+      (color) => colors_model_default.update(color),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "el color", action: "actualizar" });
+      }
+    );
+    res("colors_update");
   }
 };
 var colors_service_default = ColorsService;
@@ -655,9 +714,9 @@ var colors_service_default = ColorsService;
 var ColorsController = class {
   static async addColors(req, res, next) {
     try {
-      const data = await colors_service_default.insert(req.body);
+      await colors_service_default.insert(req.body);
       res.json({
-        data
+        message: "Colores agregados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -669,9 +728,9 @@ var ColorsController = class {
   }
   static async modifyColors(req, res, next) {
     try {
-      const data = await colors_service_default.update(req.body);
+      await colors_service_default.update(req.body);
       res.json({
-        data
+        message: "Colores modificados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -683,9 +742,9 @@ var ColorsController = class {
   }
   static async removeColors(req, res, next) {
     try {
-      const data = await colors_service_default.delete(req.body);
+      await colors_service_default.delete(req.body);
       res.json({
-        data
+        message: "Colores eliminados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -697,7 +756,7 @@ var ColorsController = class {
   }
   static async getColors(_, res, next) {
     try {
-      const data = await colors_model_default.select();
+      const data = await colors_service_default.get();
       res.json({
         data
       });
@@ -723,6 +782,13 @@ var colors_router_default = colorsRouter;
 // src/router/mercadoPago.router.ts
 import express4 from "express";
 
+// src/constant/storeConfig.contant.ts
+var storeConfig = {
+  maxAccountPerIp: 10,
+  minFreeShipping: 9e4
+};
+var storeConfig_contant_default = storeConfig;
+
 // src/helper/getSessionData.helper.ts
 var getSessionData = (keys, session2) => {
   const data = session2[keys];
@@ -747,6 +813,14 @@ var UserPurchaseProductsModel = class extends model_utils_default {
     } catch (error) {
       throw this.generateError(error);
     }
+  }
+  static async selectForUser({ user_fk, ...props }, modify) {
+    return this.select(props, (builder) => {
+      builder.whereExists(
+        knex_config_default("user_purchases").where({ user_fk, user_purchase_id: props.user_purchase_fk })
+      );
+      modify && builder.modify(modify);
+    });
   }
   static async selectDetailed(props = {}, modify) {
     return this.select(props, (builder) => {
@@ -804,7 +878,8 @@ var MercadoPagoService = class {
     } catch (error) {
       return new errorHandler_utilts_default({
         message: "Pago no encontrado.",
-        status: 404
+        status: 404,
+        code: "payment_not_found"
       });
     }
   }
@@ -814,21 +889,27 @@ var MercadoPagoService = class {
     } catch (error) {
       return new errorHandler_utilts_default({
         message: "Preferencia no encontrada",
-        status: 404
+        status: 404,
+        code: "preference_not_found"
       });
     }
   }
   static async createCheckout({
     items,
     external_reference,
-    date_of_expiration
+    date_of_expiration,
+    shipments
   }) {
     return await preferences.create({
       body: {
         items,
         external_reference: external_reference.toString(),
         expires: true,
-        date_of_expiration: this.toMercadoPagoFormat(date_of_expiration)
+        date_of_expiration: this.toMercadoPagoFormat(date_of_expiration),
+        shipments: {
+          ...shipments,
+          mode: "not_specified"
+        }
       }
     });
   }
@@ -848,7 +929,8 @@ var MercadoPagoService = class {
     );
     if (data.length == 0) throw new errorHandler_utilts_default({
       status: 404,
-      message: "No se pueden generar productos para la preferencia, ya que no se encontraron productos asociados a la orden."
+      message: "No se pueden generar productos para la preferencia, ya que no se encontraron productos asociados a la orden.",
+      code: "products_not_found"
     });
     return data;
   }
@@ -906,7 +988,7 @@ var base4 = z6.object({
   user_fk: databaseKey_schema_default,
   state: z6.enum(["canceled", "pending", "completed"]).default("pending").optional(),
   note: z6.string().nullable().default(null).optional(),
-  preference_id: z6.string(),
+  preference_id: z6.string().nullable().default(null),
   expire_at: z6.string()
 });
 var insert4 = base4.omit({
@@ -930,6 +1012,138 @@ var userPurchaseSchema = {
   updateForUser
 };
 var userPurchase_schema_default = userPurchaseSchema;
+
+// src/service/userPurchases.service.ts
+var UserPurchasesService = class {
+  static async updateForUser(props) {
+    const parse = zodParse_helper_default(userPurchase_schema_default.updateForUser)(props);
+    return await userPurchases_model_default.updateForUser(parse);
+  }
+  static async getForUser({ user_purchase_id, user_fk }) {
+    const [res] = await userPurchases_model_default.select({ user_purchase_id, user_fk });
+    if (!res) throw new errorHandler_utilts_default({
+      message: "No se encontr\xF3 ninguna orden con la id especificada.",
+      status: 404,
+      code: "order_not_found"
+    });
+    return res;
+  }
+};
+var userPurchases_service_default = UserPurchasesService;
+
+// src/service/userPurchaseShippings.service.ts
+var UserPurchaseShippings = class {
+  static async calculateFreeShipping(props) {
+    const [res] = await userPurchaseProducts_model_default.selectForUser(
+      props,
+      (builder) => {
+        builder.select(
+          knex_config_default.raw("SUM(price * (1-(discount / 100)) * quantity) as total")
+        );
+      }
+    );
+    const { total } = res;
+    if (!total) {
+      throw new errorHandler_utilts_default({
+        message: "No se pudo calcular el total porque no existen productos asociados a la orden con el ID especificado.",
+        status: 404,
+        code: "order_products_not_found"
+      });
+    }
+    return total;
+  }
+};
+var userPurchaseShippings_service_default = UserPurchaseShippings;
+
+// src/controller/mercadoPago.controller.ts
+var MercadoPagoController = class {
+  static async checkout(req, res, next) {
+    try {
+      const { user_id } = getSessionData_helper_default("user", req.session);
+      const { user_purchase_id = "" } = req.query;
+      const transform = await mercadoPago_service_default.transformProductsToCheckoutItems({
+        user_fk: user_id,
+        user_purchase_fk: user_purchase_id
+      });
+      const total = await userPurchaseShippings_service_default.calculateFreeShipping({
+        user_fk: user_id,
+        user_purchase_fk: user_purchase_id
+      });
+      const { init_point, date_of_expiration, id } = await mercadoPago_service_default.createCheckout({
+        items: transform,
+        external_reference: user_purchase_id,
+        date_of_expiration: res.locals.expired_date,
+        shipments: {
+          cost: 15e3,
+          free_shipping: total >= storeConfig_contant_default.minFreeShipping
+        }
+      });
+      await userPurchases_service_default.updateForUser({
+        user_purchase_id,
+        preference_id: id,
+        user_fk: user_id
+      });
+      res.status(201).json({
+        data: {
+          init_point,
+          date_of_expiration
+        }
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+};
+var mercadoPago_controller_default = MercadoPagoController;
+
+// src/middleware/verifyOrderPreference.middleware.ts
+var verifyOrderPreference = async (req, res, next) => {
+  const { user_purchase_id = "" } = req.query;
+  const [{ preference_id, expire_at = "", user_purchase_id: id } = {}] = await userPurchases_model_default.select({ user_purchase_id }, (builder) => builder.select("preference_id", "expire_at", "user_purchase_id"));
+  const current_date = /* @__PURE__ */ new Date();
+  const expired_date = new Date(expire_at);
+  if (!id) {
+    new errorHandler_utilts_default({
+      message: `No se encontro ninguna orden de compra.`,
+      status: 404
+    }).response(res);
+    return;
+  } else if (current_date > expired_date) {
+    new errorHandler_utilts_default({
+      message: "No puedes obtener la preferencia de pago debido a que venci\xF3 el plazo de la orden de compra.",
+      status: 403
+    }).response(res);
+    return;
+  }
+  const preference = await mercadoPago_service_default.getPreference(preference_id?.toString());
+  if (!errorHandler_utilts_default.isInstanceOf(preference)) {
+    const { init_point, date_of_expiration } = preference;
+    res.json({
+      data: {
+        init_point,
+        date_of_expiration
+      }
+    });
+  } else {
+    res.locals = {
+      expired_date
+    };
+    next();
+  }
+};
+var verifyOrderPreference_middleware_default = verifyOrderPreference;
+
+// src/router/mercadoPago.router.ts
+var mercadoPagoRouter = express4.Router();
+mercadoPagoRouter.get("/checkout", verifyOrderPreference_middleware_default, mercadoPago_controller_default.checkout);
+var mercadoPago_router_default = mercadoPagoRouter;
+
+// src/router/order.router.ts
+import { Router } from "express";
 
 // src/schema/userPurchaseProduct.schema.ts
 import { z as z7 } from "zod";
@@ -968,14 +1182,18 @@ var OrdersService = class extends service_utils_default {
       });
       tsx = await knex_config_default.transaction();
       const [user_purchase_id] = await userPurchases_model_default.insert(orderData, (builder) => builder.transacting(tsx));
-      const productWithID = order_products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }));
-      const productsData = zodParse_helper_default(userPurchaseProduct_schema_default.insert.array().min(1))(productWithID);
+      const productsWithID = order_products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }));
+      const productsData = zodParse_helper_default(userPurchaseProduct_schema_default.insert.array().min(1))(productsWithID);
       const user_purchase_products_id = await Promise.all(productsData.map(async (i) => {
         const [result] = await userPurchaseProducts_model_default.insert(i, tsx);
         if (result.affectedRows == 0) throw new errorHandler_utilts_default({
-          message: `Lamentablemente, uno de los productos seleccionados no est\xE1 disponible para su compra en este momento.`,
           status: 400,
-          data: i
+          message: "Problemas con los productos de la orden.",
+          data: [{
+            source: i,
+            reason: "El producto no se encuentra disponible para su compra."
+          }],
+          code: "product_unavailable"
         });
         return result.insertId;
       }));
@@ -989,92 +1207,8 @@ var OrdersService = class extends service_utils_default {
       throw error;
     }
   }
-  static async updateForUser(props) {
-    const parse = zodParse_helper_default(userPurchase_schema_default.updateForUser)(props);
-    return await userPurchases_model_default.updateForUser(parse);
-  }
 };
 var orders_service_default = OrdersService;
-
-// src/controller/mercadoPago.controller.ts
-var MercadoPagoController = class {
-  static async checkout(req, res, next) {
-    try {
-      const { user_id } = getSessionData_helper_default("user", req.session);
-      const { user_purchase_id = "" } = req.query;
-      const transform = await mercadoPago_service_default.transformProductsToCheckoutItems({
-        user_fk: user_id,
-        user_purchase_fk: user_purchase_id
-      });
-      const { init_point, date_of_expiration, id } = await mercadoPago_service_default.createCheckout({
-        items: transform,
-        external_reference: user_purchase_id,
-        date_of_expiration: res.locals.expired_date
-      });
-      await orders_service_default.updateForUser({
-        user_purchase_id,
-        preference_id: id,
-        user_fk: user_id
-      });
-      res.status(201).json({
-        data: {
-          init_point,
-          date_of_expiration
-        }
-      });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
-      } else {
-        next();
-      }
-    }
-  }
-};
-var mercadoPago_controller_default = MercadoPagoController;
-
-// src/middleware/verifyOrderPreference.middleware.ts
-var verifyOrderPreference = async (req, res, next) => {
-  const { user_purchase_id = "" } = req.query;
-  const [{ preference_id, expire_at = "", user_purchase_id: id } = {}] = await userPurchases_model_default.select({ user_purchase_id }, (builder) => builder.select("preference_id", "expire_at", "user_purchase_id"));
-  const current_date = /* @__PURE__ */ new Date();
-  const expired_date = new Date(expire_at);
-  if (!id) {
-    res.status(404).json({
-      message: `No se encontro ninguna orden de compra con la ID:${user_purchase_id}`
-    });
-    return;
-  } else if (current_date > expired_date) {
-    res.status(403).json({
-      message: "No puedes obtener la preferencia de pago debido a que venci\xF3 el plazo de la orden de compra."
-    });
-    return;
-  }
-  const preference = await mercadoPago_service_default.getPreference(preference_id?.toString());
-  if (!errorHandler_utilts_default.isInstanceOf(preference)) {
-    const { init_point, date_of_expiration } = preference;
-    res.json({
-      data: {
-        init_point,
-        date_of_expiration
-      }
-    });
-  } else {
-    res.locals = {
-      expired_date
-    };
-    next();
-  }
-};
-var verifyOrderPreference_middleware_default = verifyOrderPreference;
-
-// src/router/mercadoPago.router.ts
-var mercadoPagoRouter = express4.Router();
-mercadoPagoRouter.get("/checkout", verifyOrderPreference_middleware_default, mercadoPago_controller_default.checkout);
-var mercadoPago_router_default = mercadoPagoRouter;
-
-// src/router/order.router.ts
-import { Router } from "express";
 
 // src/service/userPurchaseProducts.service.ts
 var UserPurchaseProductService = class extends service_utils_default {
@@ -1082,34 +1216,13 @@ var UserPurchaseProductService = class extends service_utils_default {
     const res = await userPurchaseProducts_model_default.selectDetailedForUser({ user_purchase_fk, user_fk });
     if (res.length == 0) throw new errorHandler_utilts_default({
       status: 404,
-      message: "Los detalles de la orden que intentas obtener no se encuentran disponibles."
+      message: "Los detalles de la orden que intentas obtener no se encuentran disponibles.",
+      code: "order_products_not_found"
     });
     return res;
   }
 };
 var userPurchaseProducts_service_default = UserPurchaseProductService;
-
-// src/service/userPurchases.service.ts
-var userPurchasesService = class {
-  static async updateStatus(props) {
-    const data = zodParse_helper_default(userPurchase_schema_default.update)(props);
-    const res = await userPurchases_model_default.update(data);
-    if (res === 0) throw new errorHandler_utilts_default({
-      status: 400,
-      message: "Al parecer ocurrio un error al intentar actualizar el estado de la orden de compra."
-    });
-    return res;
-  }
-  static async getForUser({ user_purchase_id, user_fk }) {
-    const [res] = await userPurchases_model_default.select({ user_purchase_id, user_fk });
-    if (!res) throw new errorHandler_utilts_default({
-      message: "No se encontr\xF3 ninguna orden con la id especificada.",
-      status: 404
-    });
-    return res;
-  }
-};
-var userPurchases_service_default = userPurchasesService;
 
 // src/utils/getAdjustedUTCDate.utils.ts
 var getAdjustedUTCDate = (UTC) => {
@@ -1138,12 +1251,20 @@ var OrderController = class {
         user_fk: user.user_id,
         user_purchase_fk: user_purchase_id
       });
+      const total = await userPurchaseShippings_service_default.calculateFreeShipping({
+        user_fk: user.user_id,
+        user_purchase_fk: user_purchase_id
+      });
       const data = await mercadoPago_service_default.createCheckout({
         items: transform,
         external_reference: user_purchase_id,
-        date_of_expiration: expire_date
+        date_of_expiration: expire_date,
+        shipments: {
+          cost: 15e3,
+          free_shipping: total >= storeConfig_contant_default.minFreeShipping
+        }
       });
-      await orders_service_default.updateForUser({
+      await userPurchases_service_default.updateForUser({
         user_purchase_id,
         preference_id: data.id,
         user_fk: user.user_id
@@ -1268,16 +1389,31 @@ var productColorImage_schema_default = productColorImageSchema;
 // src/service/productColorImages.service.ts
 var ProductColorImagesService = class extends service_utils_default {
   static async update(productColorImages) {
-    const data = zodParse_helper_default(productColorImage_schema_default.update.array())(productColorImages);
-    return await this.writeOperationsHandler(data, (e) => productColorImages_model_default.update(e));
+    const data = zodParse_helper_default(productColorImage_schema_default.update.array().min(1))(productColorImages);
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => productColorImages_model_default.update(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "la imagen del color", action: "actualizar" });
+      }
+    );
+    res("product_color_images_update");
   }
   static async delete(productColorImages) {
-    const data = zodParse_helper_default(productColorImage_schema_default.delete.array())(productColorImages);
-    return await this.writeOperationsHandler(data, (e) => productColorImages_model_default.delete(e));
+    const data = zodParse_helper_default(productColorImage_schema_default.delete.array().min(1))(productColorImages);
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => productColorImages_model_default.delete(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "la imagen del color", action: "eliminar" });
+      }
+    );
+    res("product_color_images_delete");
   }
   static async insert(productColorImages) {
-    const data = zodParse_helper_default(productColorImage_schema_default.insert.array())(productColorImages);
-    return await this.writeOperationsHandler(data, (e) => productColorImages_model_default.insert(e));
+    const data = zodParse_helper_default(productColorImage_schema_default.insert.array().min(1))(productColorImages);
+    const res = await this.writeOperationsHandler(data, (e) => productColorImages_model_default.insert(e));
+    res("product_color_images_insert");
   }
 };
 var productColorImages_service_default = ProductColorImagesService;
@@ -1286,9 +1422,9 @@ var productColorImages_service_default = ProductColorImagesService;
 var ProductColorImagesController = class {
   static async addProductColorImages(req, res, next) {
     try {
-      const data = await productColorImages_service_default.insert(req.body);
+      await productColorImages_service_default.insert(req.body);
       res.json({
-        data
+        message: "Imagenes agregadas correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1300,9 +1436,9 @@ var ProductColorImagesController = class {
   }
   static async modifyProductColorImages(req, res, next) {
     try {
-      const data = await productColorImages_service_default.update(req.body);
+      await productColorImages_service_default.update(req.body);
       res.json({
-        data
+        message: "Imagenes modificadas correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1314,9 +1450,9 @@ var ProductColorImagesController = class {
   }
   static async removeProductColorImages(req, res, next) {
     try {
-      const data = await productColorImages_service_default.delete(req.body);
+      await productColorImages_service_default.delete(req.body);
       res.json({
-        data
+        message: "Imagenes eliminadas correctamente"
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1412,32 +1548,31 @@ var productColor_schema_default = productColorSchema;
 // src/service/productColors.service.ts
 var ProductColorsService = class extends service_utils_default {
   static async update(productColors) {
-    const data = zodParse_helper_default(productColor_schema_default.update.array())(productColors);
-    return await this.writeOperationsHandler(
+    const data = zodParse_helper_default(productColor_schema_default.update.array().min(1))(productColors);
+    const res = await this.writeOperationsHandler(
       data,
       (e) => productColors_model_default.update(e),
       (e) => {
-        if (!e) throw new errorHandler_utilts_default({
-          message: "Al parecer el color que intentar actualizar no existe."
-        });
+        if (!e) throw this.genericMessage({ text: "el color", action: "actualizar" });
       }
     );
+    res("product_colors_update");
   }
   static async delete(productColors) {
-    const data = zodParse_helper_default(productColor_schema_default.delete.array())(productColors);
-    return await this.writeOperationsHandler(
+    const data = zodParse_helper_default(productColor_schema_default.delete.array().min(1))(productColors);
+    const res = await this.writeOperationsHandler(
       data,
       (e) => productColors_model_default.delete(e),
       (e) => {
-        if (!e) throw new errorHandler_utilts_default({
-          message: "Al parecer el color que intentar eliminar no existe."
-        });
+        if (!e) throw this.genericMessage({ text: "el color", action: "eliminar" });
       }
     );
+    res("product_colors_delete");
   }
   static async insert(productColors) {
-    const data = zodParse_helper_default(productColor_schema_default.insert.array())(productColors);
-    return await this.writeOperationsHandler(data, (e) => productColors_model_default.insert(e));
+    const data = zodParse_helper_default(productColor_schema_default.insert.array().min(1))(productColors);
+    const res = await this.writeOperationsHandler(data, (e) => productColors_model_default.insert(e));
+    res("product_colors_insert");
   }
 };
 var productColors_service_default = ProductColorsService;
@@ -1446,9 +1581,9 @@ var productColors_service_default = ProductColorsService;
 var ProductColorsController = class {
   static async setProductColors(req, res, next) {
     try {
-      const data = await productColors_service_default.insert(req.body);
+      await productColors_service_default.insert(req.body);
       res.json({
-        data
+        message: "Colores de los productos agregados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1460,9 +1595,9 @@ var ProductColorsController = class {
   }
   static async modifyProductColors(req, res, next) {
     try {
-      const data = await productColors_service_default.update(req.body);
+      await productColors_service_default.update(req.body);
       res.json({
-        data
+        message: "Colores de los productos modificados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1474,9 +1609,9 @@ var ProductColorsController = class {
   }
   static async removeProductColors(req, res, next) {
     try {
-      const data = await productColors_service_default.delete(req.body);
+      await productColors_service_default.delete(req.body);
       res.json({
-        data
+        message: "Colores de los productos eliminados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1582,44 +1717,42 @@ var productColorSize_schema_default = productColorSizeSchema;
 // src/service/productColorSizes.service.ts
 var ProductColorSizesService = class extends service_utils_default {
   static async insert(sizes) {
-    const data = zodParse_helper_default(productColorSize_schema_default.insert.array())(sizes);
-    return await this.writeOperationsHandler(data, (e) => productColorSizes_model_default.insert(e));
+    const data = zodParse_helper_default(productColorSize_schema_default.insert.array().min(1))(sizes);
+    const res = await this.writeOperationsHandler(data, (e) => productColorSizes_model_default.insert(e));
+    res("product_color_sizes_insert");
   }
   static async update(sizes) {
-    const data = zodParse_helper_default(productColorSize_schema_default.update.array())(sizes);
-    return await this.writeOperationsHandler(
+    const data = zodParse_helper_default(productColorSize_schema_default.update.array().min(1))(sizes);
+    const res = await this.writeOperationsHandler(
       data,
       (e) => productColorSizes_model_default.update(e),
       (e) => {
-        if (!e) throw new errorHandler_utilts_default({
-          message: "El tama\xF1o que intentar actualizar no existe."
-        });
+        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "actualizar" });
       }
     );
+    res("product_color_sizes_update");
   }
   static async updateByProductColor(productColors) {
-    const data = zodParse_helper_default(productColorSize_schema_default.updateByProductColor.array())(productColors);
-    return await this.writeOperationsHandler(
+    const data = zodParse_helper_default(productColorSize_schema_default.updateByProductColor.array().min(1))(productColors);
+    const res = await this.writeOperationsHandler(
       data,
       (e) => productColorSizes_model_default.updatetByProductColor(e),
       (e) => {
-        if (!e) throw new errorHandler_utilts_default({
-          message: `Al parecer el color que intentas actualizar no existe.`
-        });
+        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "actualizar" });
       }
     );
+    res("product_color_sizes_update_by");
   }
   static async delete(sizes) {
-    const data = zodParse_helper_default(productColorSize_schema_default.delete.array())(sizes);
-    return await this.writeOperationsHandler(
+    const data = zodParse_helper_default(productColorSize_schema_default.delete.array().min(1))(sizes);
+    const res = await this.writeOperationsHandler(
       data,
       (e) => productColorSizes_model_default.delete(e),
       (e) => {
-        if (!e) throw new errorHandler_utilts_default({
-          message: "El tama\xF1o que intenta eliminar no existe."
-        });
+        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "eliminar" });
       }
     );
+    res("product_color_sizes_delete");
   }
 };
 var productColorSizes_service_default = ProductColorSizesService;
@@ -1628,9 +1761,9 @@ var productColorSizes_service_default = ProductColorSizesService;
 var ProductColorSizesController = class {
   static async setProductColorSizes(req, res, next) {
     try {
-      const data = await productColorSizes_service_default.insert(req.body);
+      await productColorSizes_service_default.insert(req.body);
       res.json({
-        data
+        message: "Tama\xF1os de los colores agregados exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1642,9 +1775,9 @@ var ProductColorSizesController = class {
   }
   static async updateByProductColor(req, res, next) {
     try {
-      const data = await productColorSizes_service_default.updateByProductColor(req.body);
+      await productColorSizes_service_default.updateByProductColor(req.body);
       res.json({
-        data
+        message: "Tama\xF1os de los colores modificado  exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1656,9 +1789,9 @@ var ProductColorSizesController = class {
   }
   static async modifyProductColorSizes(req, res, next) {
     try {
-      const data = await productColorSizes_service_default.update(req.body);
+      await productColorSizes_service_default.update(req.body);
       res.json({
-        data
+        message: "Tama\xF1os de los colores modificado  exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1670,9 +1803,9 @@ var ProductColorSizesController = class {
   }
   static async removeProductColorSizes(req, res, next) {
     try {
-      const data = await productColorSizes_service_default.delete(req.body);
+      await productColorSizes_service_default.delete(req.body);
       res.json({
-        data
+        message: "Tama\xF1os de los colores eliminados exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1778,38 +1911,58 @@ var product_schema_default = productSchema;
 
 // src/service/products.service.ts
 var ProductsService = class extends service_utils_default {
-  static async get() {
-    const products = await products_model_default.select();
+  static async getByCategory(category_fk) {
+    const products = await products_model_default.select({ category_fk });
     if (products.length === 0) throw new errorHandler_utilts_default({
       message: "No se encontraron productos",
-      status: 404
+      status: 404,
+      code: "products_not_found"
     });
     return products;
   }
   static async updateByCategory(products) {
-    const data = zodParse_helper_default(product_schema_default.updateByCategory.array())(products);
-    return await this.writeOperationsHandler(data, (e) => products_model_default.updateByCategory(e));
+    const data = zodParse_helper_default(product_schema_default.updateByCategory.array().min(1))(products);
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => products_model_default.updateByCategory(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "el producto", action: "actualizar" });
+      }
+    );
+    res("products_update_by");
   }
   static async update(products) {
-    const data = zodParse_helper_default(product_schema_default.update.array())(products);
-    return await this.writeOperationsHandler(data, (e) => products_model_default.update(e));
+    const data = zodParse_helper_default(product_schema_default.update.array().min(1))(products);
+    const res = await this.writeOperationsHandler(data, (e) => products_model_default.update(e), (e) => {
+      if (!e) throw this.genericMessage({ text: "el producto", action: "actualizar" });
+    });
+    res("products_update");
   }
   static async insert(products) {
-    const data = zodParse_helper_default(product_schema_default.insert.array())(products);
-    return await this.writeOperationsHandler(data, (e) => products_model_default.insert(e));
+    const data = zodParse_helper_default(product_schema_default.insert.array().min(1))(products);
+    const res = await this.writeOperationsHandler(data, (e) => products_model_default.insert(e));
+    res("products_insert");
   }
   static async delete(products) {
-    const data = zodParse_helper_default(product_schema_default.delete.array())(products);
-    return await this.writeOperationsHandler(data, (e) => products_model_default.delete(e));
+    const data = zodParse_helper_default(product_schema_default.delete.array().min(1))(products);
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => products_model_default.delete(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "el producto", action: "eliminar" });
+      }
+    );
+    res("products_delete");
   }
 };
 var products_service_default = ProductsService;
 
 // src/controller/products.controller.ts
 var ProductsController = class {
-  static async getProductsPerCategory(_, res, next) {
+  static async getByCategory(req, res, next) {
     try {
-      const data = await products_service_default.get();
+      const { category_id = "" } = req.params;
+      const data = await products_service_default.getByCategory(category_id);
       res.json({
         data
       });
@@ -1823,9 +1976,9 @@ var ProductsController = class {
   }
   static async updateByCategory(req, res, next) {
     try {
-      const data = await products_service_default.updateByCategory(req.body);
+      await products_service_default.updateByCategory(req.body);
       res.json({
-        data
+        message: "Productos modificados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1837,9 +1990,9 @@ var ProductsController = class {
   }
   static async addProducts(req, res, next) {
     try {
-      const data = await products_service_default.insert(req.body);
+      await products_service_default.insert(req.body);
       res.json({
-        data
+        message: "Productos agregados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1851,9 +2004,9 @@ var ProductsController = class {
   }
   static async modifyProducts(req, res, next) {
     try {
-      const data = await products_service_default.update(req.body);
+      await products_service_default.update(req.body);
       res.json({
-        data
+        message: "Productos modificados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1865,9 +2018,9 @@ var ProductsController = class {
   }
   static async removeProducts(req, res, next) {
     try {
-      const data = await products_service_default.delete(req.body);
+      await products_service_default.delete(req.body);
       res.json({
-        data
+        message: "Productos eliminados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -1882,11 +2035,11 @@ var products_controller_default = ProductsController;
 
 // src/router/products.router.ts
 var productsRouter = express8.Router();
-productsRouter.get("/category/:category_id", products_controller_default.getProductsPerCategory);
+productsRouter.get("/category/:category_id", products_controller_default.getByCategory);
 productsRouter.post("/", isAdmin_middleware_default, products_controller_default.addProducts);
 productsRouter.patch("/", isAdmin_middleware_default, products_controller_default.modifyProducts);
 productsRouter.delete("/", isAdmin_middleware_default, products_controller_default.removeProducts);
-productsRouter.patch("/updateByCategory", products_controller_default.updateByCategory);
+productsRouter.patch("/updateByCategory", isAdmin_middleware_default, products_controller_default.updateByCategory);
 var products_router_default = productsRouter;
 
 // src/router/productsRecomendations.router.ts
@@ -1918,7 +2071,11 @@ var categoriesRecomendations_model_default = CategoriesRecomendationsModel;
 var ProductsRecomendationsService = class {
   static async getRandomProductRecomendation() {
     const res = await categoriesRecomendations_model_default.randomRecomendation({ limit: 3 });
-    if (res.length === 0) throw new errorHandler_utilts_default({ message: "No se encontraron categorias para recomendar.", status: 404 });
+    if (res.length === 0) throw new errorHandler_utilts_default({
+      message: "No se encontraron categorias para recomendar.",
+      status: 404,
+      code: "products_recomendations_not_found"
+    });
     return await Promise.all(res.map(async (i) => {
       return {
         ...i,
@@ -1959,18 +2116,21 @@ var productsRecomendations_router_default = productRecomendationsRouter;
 import express10 from "express";
 
 // src/service/productFullview.service.ts
-var handleEmptyResult = (isError, message) => {
-  if (isError) throw new errorHandler_utilts_default({ message, status: 404 });
-};
 var ProductFullViewService = class {
   static async getProduct(product_id) {
     const [product] = await products_model_default.selectExistsColors({ product_id, status: true });
-    handleEmptyResult(!product, "No se encontro ningun producto");
+    if (!product) throw new errorHandler_utilts_default({
+      message: "Product no encontrado.",
+      code: "product_not_found"
+    });
     return product;
   }
   static async getProductColors(product_fk) {
     const productColorModel = await productColors_model_default.selectExistsSizes({ product_fk });
-    handleEmptyResult(productColorModel.length === 0, "No se encontro ningun color asociado al producto");
+    if (productColorModel.length === 0) throw new errorHandler_utilts_default({
+      message: "No se encontro ningun color asociado al producto",
+      code: "product_colors_not_found"
+    });
     return productColorModel;
   }
   static async getProductColorSize(product_color_fk) {
@@ -2088,7 +2248,8 @@ var ProductsPreviewService = class {
     if (res.length == 0) {
       throw new errorHandler_utilts_default({
         message: "No se encontro ningun producto",
-        status: 404
+        status: 404,
+        code: "product_not_found"
       });
     }
     return res;
@@ -2220,22 +2381,38 @@ var SizeService = class extends service_utils_default {
     if (sizes.length === 0) {
       throw new errorHandler_utilts_default({
         message: "No se encontraron tama\xF1os",
-        status: 404
+        status: 404,
+        code: "size_not_found"
       });
     }
     return sizes;
   }
   static async update(sizes) {
     const data = zodParse_helper_default(size_schema_default.update.array())(sizes);
-    return await this.writeOperationsHandler(data, (e) => sizes_model_default.update(e));
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => sizes_model_default.update(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "actualizar" });
+      }
+    );
+    res("sizes_update");
   }
   static async insert(sizes) {
     const data = zodParse_helper_default(size_schema_default.insert.array())(sizes);
-    return await this.writeOperationsHandler(data, (e) => sizes_model_default.insert(e));
+    const res = await this.writeOperationsHandler(data, (e) => sizes_model_default.insert(e));
+    res("sizes_insert");
   }
   static async delete(sizes) {
     const data = zodParse_helper_default(size_schema_default.delete.array())(sizes);
-    return await this.writeOperationsHandler(data, (e) => sizes_model_default.delete(e));
+    const res = await this.writeOperationsHandler(
+      data,
+      (e) => sizes_model_default.delete(e),
+      (e) => {
+        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "eliminar" });
+      }
+    );
+    res("sizes_delete");
   }
 };
 var sizes_service_default = SizeService;
@@ -2256,8 +2433,10 @@ var SizeController = class {
   }
   static async addSizes(req, res, next) {
     try {
-      const data = await sizes_service_default.insert(req.body);
-      res.json({ data });
+      await sizes_service_default.insert(req.body);
+      res.json({
+        message: "Tama\xF1os agregados correctamente."
+      });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
         error.response(res);
@@ -2268,9 +2447,9 @@ var SizeController = class {
   }
   static async modifySizes(req, res, next) {
     try {
-      const data = await sizes_service_default.update(req.body);
+      await sizes_service_default.update(req.body);
       res.json({
-        data
+        message: "Tama\xF1os modificados correctamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -2282,8 +2461,10 @@ var SizeController = class {
   }
   static async removeSizes(req, res, next) {
     try {
-      const data = await sizes_service_default.delete(req.body.sizes);
-      res.json({ data });
+      await sizes_service_default.delete(req.body.sizes);
+      res.json({
+        message: "Tama\xF1os eliminados correctamente."
+      });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
         error.response(res);
@@ -2501,19 +2682,14 @@ var user_schema_default = userSchema;
 
 // src/service/userRegister.service.ts
 import bcrypt from "bcrypt";
-
-// src/constant/maxAccoutPerIP.constant.ts
-var maxAccountPerIp = 10;
-var maxAccoutPerIP_constant_default = maxAccountPerIp;
-
-// src/service/userRegister.service.ts
 var UserRegisterService = class {
   static async completeRegister(user_id) {
     const updateAffects = await users_model_default.updateUnconfirmedEmail({ user_id, email_confirmed: true });
     if (!updateAffects) {
       throw new errorHandler_utilts_default({
         message: "El email ya ha sido confirmado previamente.",
-        status: 409
+        status: 409,
+        code: "conflict_email_confirmed"
       });
     }
   }
@@ -2528,10 +2704,11 @@ var UserRegisterService = class {
     const [rawHeaders] = await users_model_default.insertByLimitIP({
       ...data,
       password: hash
-    }, maxAccoutPerIP_constant_default);
+    }, storeConfig_contant_default.maxAccountPerIp);
     const { insertId, affectedRows } = rawHeaders;
     if (affectedRows == 0) throw new errorHandler_utilts_default({
-      message: `Superaste el limite de ${maxAccoutPerIP_constant_default} por IP`,
+      message: `Superaste el limite de ${storeConfig_contant_default.maxAccountPerIp} por IP`,
+      code: "limit_account_per_ip",
       status: 429
     });
     return zodParse_helper_default(user_schema_default.formatUser)({
@@ -2556,10 +2733,20 @@ var UserAccountService = class {
     if (res === 0) {
       throw new errorHandler_utilts_default({
         status: 400,
-        message: "Hubo un inconveniente al actualizar la informacion. Por favor, int\xE9ntalo nuevamente m\xE1s tarde."
+        message: "Hubo un inconveniente al actualizar la informacion. Por favor, int\xE9ntalo nuevamente m\xE1s tarde.",
+        code: "user_update_info"
       });
     }
     return res;
+  }
+  static async getUserInfo(user_id) {
+    const [res] = await users_model_default.select({ user_id });
+    if (!res) throw new errorHandler_utilts_default({
+      status: 404,
+      message: "No se encontro ningun usuario.",
+      code: "user_not_found"
+    });
+    return zodParse_helper_default(user_schema_default.formatUser)(res);
   }
 };
 var userAccount_service_default = UserAccountService;
@@ -2569,12 +2756,20 @@ import bcrypt2 from "bcrypt";
 var UserAuthService = class {
   static async findUserByEmail(email = "") {
     const [user] = await users_model_default.select({ email });
-    if (!user) throw new errorHandler_utilts_default({ message: "El email no esta asociado a ningun usuario.", status: 422 });
+    if (!user) throw new errorHandler_utilts_default({
+      message: "El email no esta asociado a ningun usuario.",
+      code: "email_not_found",
+      status: 422
+    });
     return user;
   }
   static async verifyPassword(password, hash) {
     const compare = await bcrypt2.compare(password, hash);
-    if (!compare) throw new errorHandler_utilts_default({ message: "La contrase\xF1a ingresada es incorrecta.", status: 422 });
+    if (!compare) throw new errorHandler_utilts_default({
+      message: "La contrase\xF1a ingresada es incorrecta.",
+      code: "wrong_password",
+      status: 422
+    });
   }
   static async authenticar({ email, password }) {
     const user = await this.findUserByEmail(email);
@@ -2695,7 +2890,8 @@ var UserTokenService = class {
     if (ResultSetHeader.affectedRows == 0) {
       throw new errorHandler_utilts_default({
         status: 429,
-        message: `Se ha excedido el l\xEDmite de ${maxTokens} solicitudes de generaci\xF3n de tokens para este usuario.`
+        message: `Se ha excedido el l\xEDmite de ${maxTokens} solicitudes de generaci\xF3n de tokens para este usuario.`,
+        code: "limit_tokens_by_ip"
       });
     }
     return data.token;
@@ -2706,7 +2902,8 @@ var UserTokenService = class {
     if (!user) {
       throw new errorHandler_utilts_default({
         status: 404,
-        message: `El token que est\xE1s intentando utilizar ha expirado.`
+        message: `El token que est\xE1s intentando utilizar ha expirado o no existe.`,
+        code: "token_not_found"
       });
     }
     return user;
@@ -2814,6 +3011,21 @@ var UserAccountController = class {
       }
     }
   }
+  static async getLoginUserInfo(req, res, next) {
+    try {
+      const { user_id } = getSessionData_helper_default("user", req.session);
+      const data = await userAccount_service_default.getUserInfo(user_id);
+      res.json({
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
 };
 var userAccount_controller_default = UserAccountController;
 
@@ -2823,9 +3035,10 @@ var isUser = (req, res, next) => {
   if (user) {
     next();
   } else {
-    res.status(401).json({
+    new errorHandler_utilts_default({
+      status: 401,
       message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente."
-    });
+    }).response(res);
   }
 };
 var isUser_middleware_default = isUser;
@@ -2843,9 +3056,10 @@ var isCompleteUser = async (req, res, next) => {
     user.email_confirmed = true;
     next();
   } else {
-    res.status(401).json({
+    new errorHandler_utilts_default({
+      status: 401,
       message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n."
-    });
+    }).response(res);
   }
 };
 var isCompleteUser_middleware_default = isCompleteUser;
@@ -2855,6 +3069,7 @@ var userAccountRouter = express12.Router();
 userAccountRouter.post("/reset/password", userAccount_controller_default.sendPasswordReset);
 userAccountRouter.post("/reset/password/:token", userAccount_controller_default.passwordReset);
 userAccountRouter.post("/update/info", isCompleteUser_middleware_default, userAccount_controller_default.updateInfo);
+userAccountRouter.get("/", isCompleteUser_middleware_default, userAccount_controller_default.getLoginUserInfo);
 var userAccount_router_default = userAccountRouter;
 
 // src/router/userRegister.router.ts
@@ -2939,9 +3154,10 @@ var userRegister_controller_default = UserRegisterController;
 
 // src/middleware/isNotCompleteUser.middleware.ts
 var response = (res) => {
-  res.status(401).json({
-    message: "El email ya est\xE1 confirmado, no puedes continuar con esta operacion."
-  });
+  new errorHandler_utilts_default({
+    message: "El email ya est\xE1 confirmado, no puedes continuar con esta operacion.",
+    status: 401
+  }).response(res);
 };
 var isNotCompleteUser = async (req, res, next) => {
   const user = req.session.user;

@@ -1,7 +1,9 @@
 import { NextFunction, Request } from "express";
+import storeConfig from "../constant/storeConfig.contant";
 import getSessionData from "../helper/getSessionData.helper";
 import MercadoPagoService from "../service/mercadoPago.service";
-import OrdersService from "../service/orders.service";
+import UserPurchasesService from "../service/userPurchases.service";
+import UserPurchaseShippings from "../service/userPurchaseShippings.service";
 import ErrorHandler from "../utils/errorHandler.utilts";
 
 class MercadoPagoController {
@@ -20,14 +22,23 @@ class MercadoPagoController {
                 user_fk: user_id,
                 user_purchase_fk: user_purchase_id
             })
+
+            const total = await UserPurchaseShippings.calculateFreeShipping({
+                user_fk : user_id,
+                user_purchase_fk : user_purchase_id
+            })
             
             const { init_point, date_of_expiration, id } = await MercadoPagoService.createCheckout({
                 items: transform,
                 external_reference: user_purchase_id,
-                date_of_expiration : res.locals.expired_date
+                date_of_expiration : res.locals.expired_date,
+                shipments : {
+                    cost : 15000,
+                    free_shipping : total >= storeConfig.minFreeShipping
+                }
             })
 
-            await OrdersService.updateForUser({
+            await UserPurchasesService.updateForUser({
                 user_purchase_id,
                 preference_id: id,
                 user_fk: user_id
@@ -37,7 +48,8 @@ class MercadoPagoController {
                 data: {
                     init_point,
                     date_of_expiration,
-                }
+                },
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

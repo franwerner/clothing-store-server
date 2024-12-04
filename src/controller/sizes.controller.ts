@@ -10,7 +10,7 @@ class SizeController {
     ) {
         try {
             const data = await SizeService.get();
-            res.json({ data });
+            res.json({ data, });
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res);
@@ -22,13 +22,15 @@ class SizeController {
 
     static async addSizes(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<SizeSchema.Insert>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await SizeService.insert(req.body)
+            await SizeService.insert(req.body)
 
-            res.json({ data });
+            res.json({
+                message: "Tamaños agregados correctamente."
+            });
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res);
@@ -40,20 +42,19 @@ class SizeController {
 
     static async modifySizes(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<SizeSchema.Update>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await SizeService.update(req.body)
+            await SizeService.update(req.body)
 
             res.json({
-                data,
-
+                message: "Tamaños modificados correctamente."
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res);
-            }  else {
+            } else {
                 next()
             }
         }
@@ -61,13 +62,15 @@ class SizeController {
 
     static async removeSizes(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<SizeSchema.Delete>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await SizeService.delete(req.body.sizes)
+            await SizeService.delete(req.body.sizes)
 
-            res.json({ data })
+            res.json({
+                message: "Tamaños eliminados correctamente."
+            })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)

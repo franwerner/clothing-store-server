@@ -5,15 +5,17 @@ import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 class ProductsController {
 
-    static async getProductsPerCategory(
-        _: Request,
+    static async getByCategory(
+        req: Request<{category_id:string}>,
         res: APP.ResponseTemplate<ProductSchema.Base[]>,
         next: NextFunction
     ) {
         try {
-            const data = await ProductsService.get()
+            const {category_id = ""} = req.params
+            const data = await ProductsService.getByCategory(category_id)
             res.json({
-                data
+                data,
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -27,15 +29,16 @@ class ProductsController {
 
     static async updateByCategory(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductSchema.UpdateByCategory>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
 
-            const data = await ProductsService.updateByCategory(req.body)
+             await ProductsService.updateByCategory(req.body)
 
             res.json({
-                data
+                message :"Productos modificados correctamente.",
+                
             })
 
         } catch (error) {
@@ -50,13 +53,14 @@ class ProductsController {
 
     static async addProducts(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductSchema.Insert>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await ProductsService.insert(req.body)
+             await ProductsService.insert(req.body)
             res.json({
-                data
+                message : "Productos agregados correctamente.",
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -70,14 +74,15 @@ class ProductsController {
 
     static async modifyProducts(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductSchema.Update>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await ProductsService.update(req.body)
+           await ProductsService.update(req.body)
 
             res.json({
-                data
+                message : "Productos modificados correctamente.",
+                
             })
 
         } catch (error) {
@@ -92,13 +97,13 @@ class ProductsController {
 
     static async removeProducts(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductSchema.Delete>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await ProductsService.delete(req.body)
+            await ProductsService.delete(req.body)
             res.json({
-                data
+                message : "Productos eliminados correctamente.",
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

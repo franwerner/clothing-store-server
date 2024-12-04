@@ -1,6 +1,7 @@
 import { NextFunction, Request } from "express"
 import UsersModel from "../model/users.model"
 import isUser from "./isUser.middleware"
+import ErrorHandler from "../utils/errorHandler.utilts"
 
 /**
  * Este middleware es para aquellos usuarios que cumples con todos los requisitos para la interaccion con el sistema.
@@ -26,9 +27,10 @@ const isCompleteUser = async (
         user.email_confirmed = true
         next()
     } else {
-        res.status(401).json({
-            message: "Por favor, confirma tu dirección de correo electrónico para continuar con esta operación."
-        })
+        new ErrorHandler({
+            status : 401,
+            message : "Por favor, confirma tu dirección de correo electrónico para continuar con esta operación.",
+           }).response(res)
     }
 
 

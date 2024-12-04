@@ -1,32 +1,41 @@
+import { Response } from "express"
 
-interface ErrorHandlerProps {
+type ErrorHandlerData<T = any> = Array<{source:T,reason ?: string}>
+
+interface ErrorHandlerProps<T = any> {
     message?: string
     status?: number
-    data?: any
+    data?: ErrorHandlerData<T>
+    code?: string
 }
+
+
 
 class ErrorHandler extends Error {
     message: string
     name: string
     status: number
     data: any
+    code?: string
 
-    constructor({ message, status, data }: ErrorHandlerProps) {
+    constructor({ message, status, data, code }: ErrorHandlerProps) {
         super()
         this.message = message || ""
         this.name = "ErrorHandler",
-        this.status = status || 500
+        this.status = status && status >= 100 && status <= 599 ? status : 500
         this.data = data
+        this.code = `err_${code}`
     }
     static isInstanceOf(instance: any): instance is ErrorHandler {
         return instance instanceof ErrorHandler
     }
 
-    response<T extends APP.ResponseTemplate<any>>(res: T) {
+    response(res:Response) {
         res.status(this.status)
             .json({
-                message: this.message || undefined, //Si es undefined la propiedad no se incluira
+                message: this.message || undefined,
                 data: this.data,
+                code: this.code 
             })
     }
 }
@@ -34,5 +43,5 @@ class ErrorHandler extends Error {
 
 
 
-export type { ErrorHandlerProps }
+export type { ErrorHandlerProps,ErrorHandlerData}
 export default ErrorHandler

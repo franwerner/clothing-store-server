@@ -51,7 +51,8 @@ class ProductsPreviewService {
         if (res.length == 0) {
             throw new ErrorHandler({
                 message: "No se encontro ningun producto",
-                status: 404
+                status: 404,
+                code : "product_not_found"
             })
         }
         return res

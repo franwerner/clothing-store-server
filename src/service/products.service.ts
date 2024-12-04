@@ -1,40 +1,56 @@
 import zodParse from "../helper/zodParse.helper.js"
 import ProductsModel from "../model/products.model.js"
+import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
 import productSchema, { ProductSchema } from "../schema/product.schema.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ServiceUtils from "../utils/service.utils.js"
 
 class ProductsService extends ServiceUtils {
 
-    static async get() {
-        const products = await ProductsModel.select()
+    static async getByCategory(category_fk: DatabaseKeySchema) {
+        const products = await ProductsModel.select({ category_fk })
 
         if (products.length === 0) throw new ErrorHandler({
             message: "No se encontraron productos",
-            status: 404
+            status: 404,
+            code: "products_not_found"
         })
 
         return products
     }
 
     static async updateByCategory(products: Array<ProductSchema.UpdateByCategory>) {
-        const data = zodParse(productSchema.updateByCategory.array())(products)
-        return await this.writeOperationsHandler(data, (e) => ProductsModel.updateByCategory(e))
+        const data = zodParse(productSchema.updateByCategory.array().min(1))(products)
+        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.updateByCategory(e),
+            (e) => {
+                if (!e) throw this.genericMessage({ text: "el producto", action: "actualizar" })
+            }
+        )
+        res("products_update_by")
     }
 
     static async update(products: Array<ProductSchema.Update>) {
-        const data = zodParse(productSchema.update.array())(products)
-        return await this.writeOperationsHandler(data, (e) => ProductsModel.update(e))
+        const data = zodParse(productSchema.update.array().min(1))(products)
+        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.update(e), (e) => {
+            if (!e) throw this.genericMessage({ text: "el producto", action: "actualizar" })
+        })
+        res("products_update")
     }
 
     static async insert(products: Array<ProductSchema.Insert>) {
-        const data = zodParse(productSchema.insert.array())(products)
-        return await this.writeOperationsHandler(data, (e) => ProductsModel.insert(e))
+        const data = zodParse(productSchema.insert.array().min(1))(products)
+        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.insert(e))
+        res("products_insert")
     }
 
     static async delete(products: Array<ProductSchema.Delete>) {
-        const data = zodParse(productSchema.delete.array())(products)
-        return await this.writeOperationsHandler(data, (e) => ProductsModel.delete(e))
+        const data = zodParse(productSchema.delete.array().min(1))(products)
+        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.delete(e),
+            (e) => {
+                if (!e) throw this.genericMessage({ text: "el producto", action: "eliminar" })
+            }
+        )
+        res("products_delete")
     }
 }
 

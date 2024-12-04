@@ -7,7 +7,7 @@ const base = z.object({
     user_fk: databaseKeySchema,
     state: z.enum(["canceled", "pending", "completed"]).default("pending").optional(),
     note: z.string().nullable().default(null).optional(),
-    preference_id : z.string(),
+    preference_id : z.string().nullable().default(null),
     expire_at : z.string()
 })
 

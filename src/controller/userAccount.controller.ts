@@ -29,7 +29,8 @@ class UserAccountController {
                 token
             })
             res.json({
-                message: "Solicitud para reestablecer la contraseña enviada, revisa tu bandeja de entrada."
+                message: "Solicitud para reestablecer la contraseña enviada, revisa tu bandeja de entrada.",
+                
             })
 
         } catch (error) {
@@ -55,7 +56,8 @@ class UserAccountController {
             })
             await UserTokenService.markTokenAsUsed(token)
             res.json({
-                message: "Contraseña restablecida correctamente."
+                message: "Contraseña restablecida correctamente.",
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -78,9 +80,31 @@ class UserAccountController {
                 user_id: user.user_id
             })
             res.json({
-                message: "Información actualizada correctamente."
+                message: "Información actualizada correctamente.",
+                
             })
 
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            } else {
+                next()
+            }
+        }
+    }
+
+    static async getLoginUserInfo(
+        req: Request,
+        res: APP.ResponseTemplate,
+        next: NextFunction
+    ) {
+        try {
+            const {user_id} = getSessionData("user",req.session)
+            const data = await UserAccountService.getUserInfo(user_id)
+            res.json({
+                data,
+                
+            })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)

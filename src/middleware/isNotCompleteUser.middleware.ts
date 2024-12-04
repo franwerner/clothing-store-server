@@ -1,17 +1,20 @@
 import { NextFunction, Request, Response } from "express"
 import UsersModel from "../model/users.model.js"
 import isUser from "./isUser.middleware.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 const response = (res: Response) => {
-    res.status(401).json({
-        message: "El email ya está confirmado, no puedes continuar con esta operacion."
-    })
+
+    new ErrorHandler({
+        message: "El email ya está confirmado, no puedes continuar con esta operacion.",
+        status: 401
+    }).response(res)
 }
 
 const isNotCompleteUser = async (req: Request, res: Response, next: NextFunction) => {
     const user = req.session.user
 
-    if (!user) return isUser(req,res,next)
+    if (!user) return isUser(req, res, next)
 
     if (user.email_confirmed) return response(res)
 

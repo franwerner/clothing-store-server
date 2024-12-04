@@ -1,9 +1,11 @@
 import { Request, Response } from "express"
+import ErrorHandler from "../utils/errorHandler.utilts"
 
 const errorGlobal = (_: Request, res: Response) => {
-
-    res.status(500).json({
-        message: "Ocurrió un error inesperado en el servidor.",
-    })
+    new ErrorHandler({
+        status : 500,
+        message : "Ocurrió un error inesperado en el servidor.",
+        code : "err_internal"
+    }).response(res)
 }
 export default errorGlobal

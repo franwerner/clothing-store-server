@@ -1,9 +1,12 @@
 import { NextFunction, Request } from "express";
+import storeConfig from "../constant/storeConfig.contant";
 import getSessionData from "../helper/getSessionData.helper";
 import MercadoPagoService from "../service/mercadoPago.service";
 import OrdersService from "../service/orders.service";
 import UserPurchaseProductService from "../service/userPurchaseProducts.service";
-import userPurchasesService from "../service/userPurchases.service";
+import "../service/userPurchaseShippings.service";
+import UserPurchaseShippings from "../service/userPurchaseShippings.service";
+import { default as userPurchasesService, default as UserPurchasesService } from "../service/userPurchases.service";
 import ErrorHandler from "../utils/errorHandler.utilts";
 import getAdjustedUTCDate from "../utils/getAdjustedUTCDate.utils";
 class OrderController {
@@ -21,7 +24,7 @@ class OrderController {
                 order: {
                     ...order,
                     user_fk: user.user_id,
-                    expire_at : expire_date
+                    expire_at: expire_date
                 },
                 order_products,
             })
@@ -31,13 +34,23 @@ class OrderController {
                 user_purchase_fk: user_purchase_id
             })
 
+            const total = await UserPurchaseShippings.calculateFreeShipping({
+                user_fk: user.user_id,
+                user_purchase_fk: user_purchase_id
+            })
+
             const data = await MercadoPagoService.createCheckout({
                 items: transform,
                 external_reference: user_purchase_id,
-                date_of_expiration : expire_date
+                date_of_expiration: expire_date,
+                shipments: {
+                    cost: 15000,
+                    free_shipping: total >= storeConfig.minFreeShipping
+                }
+
             })
 
-            await OrdersService.updateForUser({
+            await UserPurchasesService.updateForUser({
                 user_purchase_id,
                 preference_id: data.id,
                 user_fk: user.user_id
@@ -48,8 +61,9 @@ class OrderController {
             res.status(201).json({
                 data: {
                     init_point,
-                    date_of_expiration
-                }
+                    date_of_expiration,
+                },
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -73,7 +87,8 @@ class OrderController {
                 user_purchase_id: purchase_id
             })
             res.json({
-                data
+                data,
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -95,6 +110,7 @@ class OrderController {
             const data = await UserPurchaseProductService.getForUser({ user_purchase_fk: purchase_id, user_fk: user_id })
             res.json({
                 data,
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

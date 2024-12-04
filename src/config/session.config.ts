@@ -8,7 +8,8 @@ const sessionConfig = session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 24 * 30, // 30 dias,
         secure: _env.NODE_ENV == "prod",
-        httpOnly: true
+        httpOnly: true,
+        sameSite : "lax",
     },
 })
 

@@ -1,31 +1,46 @@
 import zodParse from "../helper/zodParse.helper.js";
 import CategoriesModel from "../model/categories.model.js";
 import categorySchema, { CategorySchema } from "../schema/category.schema.js";
+import { DatabaseKeySchema } from "../schema/databaseKey.schema.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 import ServiceUtils from "../utils/service.utils.js";
 
 class CategoriesService extends ServiceUtils {
 
-    static async get() {
-        const categories = await CategoriesModel.select()
+    static async getByBrand(brand_fk: DatabaseKeySchema) {
+        const categories = await CategoriesModel.select({ brand_fk })
         if (categories.length === 0) throw new ErrorHandler({
             message: "No se encontraron categorias.",
-            status: 404
+            status: 404,
+            code: "categories_not_found"
         })
         return categories
     }
 
     static async update(categories: Array<CategorySchema.Update>) {
-        const data = zodParse(categorySchema.update.array())(categories)
-        return await this.writeOperationsHandler(data, (e) => CategoriesModel.update(e))
+        const data = zodParse(categorySchema.update.array().min(1))(categories);
+        const res = await this.writeOperationsHandler(data, (e) => CategoriesModel.update(e),
+            (e) => {
+                if (!e) throw this.genericMessage({ text: "la categoria", action: "actualizar" })
+            }
+        )
+        res("categories_update")
     }
     static async insert(categories: Array<CategorySchema.Insert>) {
-        const data = zodParse(categorySchema.insert.array())(categories)
-        return await this.writeOperationsHandler(data, (e) => CategoriesModel.insert(e))
+        const data = zodParse(categorySchema.insert.array().min(1))(categories)
+        const res = await this.writeOperationsHandler(data, (e) => CategoriesModel.insert(e))
+        res("categories_insert")
+
     }
     static async delete(categories: Array<CategorySchema.Delete>) {
-        const data = zodParse(categorySchema.delete.array())(categories)
-        return await this.writeOperationsHandler(data, (e) => CategoriesModel.delete(e))
+        const data = zodParse(categorySchema.delete.array().min(1))(categories)
+        const res = await this.writeOperationsHandler(data,
+            (e) => CategoriesModel.delete(e),
+            (e) => {
+                if (!e) throw this.genericMessage({ text: "la categoria", action: "eliminar" })
+            }
+        )
+        res("categories_delete")
     }
 
 }

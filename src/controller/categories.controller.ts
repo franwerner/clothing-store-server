@@ -1,23 +1,20 @@
 import { NextFunction, Request } from "express";
-import CategoriesModel from "../model/categories.model.js";
-import brandSchema, { BrandSchema } from "../schema/brand.schema.js";
-import categorySchema, { CategorySchema } from "../schema/category.schema.js";
+import { CategorySchema } from "../schema/category.schema.js";
 import CategoriesService from "../service/categories.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 
 class CategoriesController {
 
-    static async getCategoriesPerBrand(
-        req: Request,
+    static async getByBrand(
+        req: Request<{brand_id:string}>,
         res: APP.ResponseTemplate<CategorySchema.Base[]>,
-         next: NextFunction
-        ) {
+        next: NextFunction
+    ) {
         try {
             const { brand_id } = req.params
-            const data = await CategoriesModel.select({ brand_fk: brand_id })
-
+            const data = await CategoriesService.getByBrand(brand_id)
             res.json({
-                data
+                data,
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -32,16 +29,14 @@ class CategoriesController {
 
     static async addCategories(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<CategorySchema.Insert>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const categories = categorySchema.insert.array().parse(req.body)
-
-            const data = await CategoriesService.insert(categories)
+            await CategoriesService.insert(req.body)
 
             res.json({
-                data
+                message: "Categorias agregadas exitosamente."
             })
 
         } catch (error) {
@@ -56,16 +51,14 @@ class CategoriesController {
 
     static async modifyCategories(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<CategorySchema.Update>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const categories = categorySchema.update.array().parse(req.body)
-
-            const data = await CategoriesService.update(categories)
+            await CategoriesService.update(req.body)
 
             res.json({
-                data
+                message: "Categorias modificadas exitosamente."
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -79,16 +72,15 @@ class CategoriesController {
 
     static async removeCategories(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<BrandSchema.Delete>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
 
         try {
-            const categories = brandSchema.delete.array().parse(req.body)
-            const data = await CategoriesService.delete(categories)
+            await CategoriesService.delete(req.body)
 
             res.json({
-                data,
+                message: "Todas las categorias se removiero exitosamente.",
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

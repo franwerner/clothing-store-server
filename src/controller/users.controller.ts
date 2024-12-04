@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Request } from "express";
 import UserAuthService from "../service/userAuth.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 
@@ -11,19 +11,20 @@ class UsersController {
 
     static async login(
         req: Request<any, any, LoginBody>,
-        res: Response,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
 
+
         try {
             const { email, password } = req.body
-
             const user = await UserAuthService.authenticar({ email, password })
 
             req.session.user = user
 
             res.json({
-                data: user
+                data: user,
+                
             })
 
         } catch (error) {
@@ -35,18 +36,23 @@ class UsersController {
         }
     }
 
-    static async logout(req: Request, res: Response, next: NextFunction) {
+    static async logout(
+        req: Request,
+        res: APP.ResponseTemplate,
+        next: NextFunction
+    ) {
+
         req.session.destroy((err) => {
             if (err) {
                 next()
             } else {
                 res.json({
-                    message: "Deslogeo exitoso."
+                    message: "Deslogeo exitoso.",
                 })
             }
         })
     }
-   
+
 }
 
 

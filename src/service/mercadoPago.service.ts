@@ -1,5 +1,5 @@
 import { Payment, Preference, } from "mercadopago"
-import { Items } from "mercadopago/dist/clients/commonTypes"
+import { Items, Shipments } from "mercadopago/dist/clients/commonTypes"
 import sql from "../config/knex.config"
 import mercadoPagoConfig from "../config/mercadopago.config"
 import UserPurchaseProductsModel from "../model/userPurchaseProducts.model"
@@ -9,7 +9,11 @@ import ErrorHandler from "../utils/errorHandler.utilts"
 interface createCheckout {
     items: Array<Items>,
     external_reference: DatabaseKeySchema,
-    date_of_expiration: Date
+    date_of_expiration: Date,
+    shipments : {
+        cost : number,
+        free_shipping : boolean
+    }
 }
 
 const preferences = new Preference(mercadoPagoConfig)
@@ -23,7 +27,8 @@ class MercadoPagoService {
         } catch (error) {
              return new ErrorHandler({
                 message : "Pago no encontrado.",
-                status : 404
+                status : 404,
+                code : "payment_not_found"
              })
         }
     }
@@ -34,7 +39,8 @@ class MercadoPagoService {
         } catch (error) {
             return  new ErrorHandler({
                 message: "Preferencia no encontrada",
-                status: 404
+                status: 404,
+                code : "preference_not_found"
             })
         }
     }
@@ -42,7 +48,8 @@ class MercadoPagoService {
     static async createCheckout({
         items,
         external_reference,
-        date_of_expiration
+        date_of_expiration,
+        shipments
     }: createCheckout) {
         /**
          * Tiempo de expiracion 3 horas.
@@ -51,10 +58,14 @@ class MercadoPagoService {
 
         return await preferences.create({
             body: {
-                items: items,
+                items,
                 external_reference: external_reference.toString(),
                 expires: true,
                 date_of_expiration: this.toMercadoPagoFormat(date_of_expiration),
+                shipments : {
+                    ...shipments,
+                    mode : "not_specified"
+                }
             },
         })
     }
@@ -74,12 +85,13 @@ class MercadoPagoService {
         )
         if (data.length == 0) throw new ErrorHandler({
             status: 404,
-            message: "No se pueden generar productos para la preferencia, ya que no se encontraron productos asociados a la orden."
+            message: "No se pueden generar productos para la preferencia, ya que no se encontraron productos asociados a la orden.",
+            code : "products_not_found"
         })
         return data as unknown as Array<Items>
     }
 
-    static toMercadoPagoFormat(date: Date) {
+    private static toMercadoPagoFormat(date: Date) {
         const offset = "-04:00" //UTC -4 de mercadopago.
 
         date.setUTCHours(date.getUTCHours() - 4)
@@ -90,5 +102,4 @@ class MercadoPagoService {
         return `${datePart}T${timePart.slice(0, 8)}${offset}`;
     }
 }
-
 export default MercadoPagoService

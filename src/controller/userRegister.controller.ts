@@ -40,7 +40,8 @@ class UserRegisterController {
                 message: "Cuenta creada con éxito. Te hemos enviado un correo para confirmar tu correo electronico.",
                 data: {
                     created_id: account.user_id
-                }
+                },
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -65,7 +66,8 @@ class UserRegisterController {
                 user_fk: user_id
             })
             res.json({
-                message: "Re-envio exitoso, revisa tu bandeja de entrada."
+                message: "Re-envio exitoso, revisa tu bandeja de entrada.",
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -90,7 +92,8 @@ class UserRegisterController {
                 req.session.user.email_confirmed = true
             }
             res.json({
-                message: "Registro confirmado con exito!"
+                message: "Registro confirmado con exito!",
+                
             })
 
         } catch (error) {

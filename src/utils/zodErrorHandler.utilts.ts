@@ -1,11 +1,11 @@
 import { z, ZodError } from "zod";
 import ErrorHandler from "./errorHandler.utilts.js";
 
-function transformErrorToClient(zod_error:ZodError) {
-    return zod_error.issues.map(({ message, path }) => {
+function transformErrorToClient(zod_error: ZodError) {
+    return zod_error.issues.map(({ message, path, code }) => {
         return {
-            property: path.find(i => typeof i === "string"),
-            message,
+            source: path.find(i => typeof i === "string") || code,
+            reason: message,
         }
     })
 }
@@ -15,7 +15,8 @@ class ZodErrorHandler extends ErrorHandler {
     constructor(error: z.ZodError) {
         super({
             status: 400,
-            data : transformErrorToClient(error)
+            data: transformErrorToClient(error),
+            code: "zod_error"
         })
         this.zod_error = error
     }
@@ -24,7 +25,8 @@ class ZodErrorHandler extends ErrorHandler {
         return error instanceof ZodError
     }
 
-    
+
 }
 
 export default ZodErrorHandler
+

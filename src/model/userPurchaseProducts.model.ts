@@ -24,6 +24,20 @@ class UserPurchaseProductsModel extends ModelUtils {
         }
     }
 
+    static async selectForUser<T extends UserPurchaseProductKeys = UserPurchaseProductKeys>(
+        { user_fk, ...props }: UserPurchaseProductPartial & { user_fk: DatabaseKeySchema },
+        modify?: APP.ModifySQL<Pick<UserPurchaseProductRequired, T>>
+    ) {
+        return this.select<T>(props, (builder) => {
+            builder.whereExists(
+                sql("user_purchases")
+                    .where({ user_fk: user_fk, user_purchase_id: props.user_purchase_fk })
+            )
+            modify && builder.modify(modify)
+        })
+    }
+
+
     static async selectDetailed<T extends UserPurchaseProductKeys = UserPurchaseProductKeys>(
         props: UserPurchaseProductPartial = {},
         modify?: APP.ModifySQL<Pick<UserPurchaseProductRequired, T>>) {

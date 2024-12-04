@@ -1,6 +1,7 @@
 import { NextFunction, Request } from "express";
 import crypto from "crypto"
 import _env from "../constant/_env.constant";
+import ErrorHandler from "../utils/errorHandler.utilts";
 
 const validateMercadoPagoWebhook = (
     req: Request,
@@ -30,9 +31,10 @@ const validateMercadoPagoWebhook = (
     if (sha === hash) {
         next()
     } else {
-        res.status(401).json({
-            message: "No estas autorizado a realizar esta operacion"
-        })
+        new ErrorHandler({
+            message : "No estas autorizado a realizar esta operacion",
+            status : 401
+        }).response(res)
     }
 
 }

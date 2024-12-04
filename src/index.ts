@@ -25,6 +25,8 @@ import usersRouter from "./router/users.router.js"
 import UserTokenService from "./service/userToken.service.js"
 import isCompleteUser from "./middleware/isCompleteUser.middleware.js"
 
+
+
 const port = _env.BACKEND_PORT
 const app = express()
 app.use(express.json())

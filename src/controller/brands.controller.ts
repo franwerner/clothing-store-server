@@ -27,13 +27,13 @@ class BrandsController {
 
     static async addBrands(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<BrandSchema.Insert>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await BrandsService.insert(req.body)
+             await BrandsService.insert(req.body)
             res.json({
-                data: data
+                     message : "Todas las marcas agregadas modificas exitosamente."
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -47,14 +47,14 @@ class BrandsController {
 
     static async modifyBrands(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<BrandSchema.Update>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await BrandsService.update(req.body)
+            await BrandsService.update(req.body)
 
             res.json({
-                data
+                message : "Todas las marcas fueron modificas exitosamente."
             })
 
         } catch (error) {
@@ -69,13 +69,13 @@ class BrandsController {
 
     static async removeBrands(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<BrandSchema.Delete>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await BrandsService.delete(req.body)
+          await BrandsService.delete(req.body)
             res.json({
-                data
+                  message : "Todas las marcas fueron modificas exitosamente."
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

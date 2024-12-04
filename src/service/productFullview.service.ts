@@ -6,22 +6,24 @@ import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
 import { ProductColorSchema } from "../schema/productColor.schema.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 
-const handleEmptyResult = (isError: boolean, message: string) => {
-    if (isError) throw new ErrorHandler({ message, status: 404 })
-}
-
 class ProductFullViewService {
 
     static async getProduct(product_id: DatabaseKeySchema) {
         const [product] = await ProductsModel.selectExistsColors({ product_id, status: true })
-        handleEmptyResult(!product, "No se encontro ningun producto")
+        if(!product) throw new ErrorHandler({
+            message : "Product no encontrado.",
+            code : "product_not_found"
+        })
         return product
     }
 
 
     static async getProductColors(product_fk: DatabaseKeySchema) {
         const productColorModel = await ProductColorsModel.selectExistsSizes({ product_fk })
-        handleEmptyResult(productColorModel.length === 0, "No se encontro ningun color asociado al producto")
+        if(productColorModel.length === 0) throw new ErrorHandler({
+            message : "No se encontro ningun color asociado al producto",
+            code : "product_colors_not_found"
+        })
         return productColorModel
     }
 

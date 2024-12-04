@@ -4,11 +4,11 @@ import isAdmin from "../middleware/isAdmin.middleware.js"
 
 const productsRouter = express.Router()
 
-productsRouter.get("/category/:category_id", ProductsController.getProductsPerCategory)
+productsRouter.get("/category/:category_id", ProductsController.getByCategory)
 productsRouter.post("/", isAdmin, ProductsController.addProducts)
 productsRouter.patch("/", isAdmin, ProductsController.modifyProducts)
 productsRouter.delete("/", isAdmin, ProductsController.removeProducts)
-productsRouter.patch("/updateByCategory",ProductsController.updateByCategory)
+productsRouter.patch("/updateByCategory",isAdmin,ProductsController.updateByCategory)
 
 
 export default productsRouter

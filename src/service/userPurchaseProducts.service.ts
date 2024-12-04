@@ -10,7 +10,8 @@ class UserPurchaseProductService extends ServiceUtils {
         const res = await UserPurchaseProductsModel.selectDetailedForUser({ user_purchase_fk, user_fk })
         if (res.length == 0) throw new ErrorHandler({
             status: 404,
-            message: "Los detalles de la orden que intentas obtener no se encuentran disponibles."
+            message: "Los detalles de la orden que intentas obtener no se encuentran disponibles.",
+            code : "order_products_not_found"
         })
         return res
     }

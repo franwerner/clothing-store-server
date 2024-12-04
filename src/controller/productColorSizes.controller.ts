@@ -6,13 +6,14 @@ import ErrorHandler from "../utils/errorHandler.utilts.js"
 class ProductColorSizesController {
     static async setProductColorSizes(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorSizeSchema.Insert>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await ProductColorSizesService.insert(req.body)
+             await ProductColorSizesService.insert(req.body)
             res.json({
-                data
+                message : "Tamaños de los colores agregados exitosamente.",  
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -26,15 +27,15 @@ class ProductColorSizesController {
 
     static async updateByProductColor(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorSizeSchema.UpdateByProductColor>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
 
-            const data = await ProductColorSizesService.updateByProductColor(req.body)
+             await ProductColorSizesService.updateByProductColor(req.body)
 
             res.json({
-                data
+                message : "Tamaños de los colores modificado  exitosamente.",  
             })
            
         } catch (error) {
@@ -49,13 +50,14 @@ class ProductColorSizesController {
 
     static async modifyProductColorSizes(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorSizeSchema.Update>,
+        res: APP.ResponseTemplate<ProductColorSizeSchema.Update>,
         next: NextFunction
     ) {
         try {
-            const data = await ProductColorSizesService.update(req.body)
+            await ProductColorSizesService.update(req.body)
             res.json({
-                data
+                message : "Tamaños de los colores modificado  exitosamente.",  
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -69,13 +71,13 @@ class ProductColorSizesController {
 
     static async removeProductColorSizes(
         req: Request,
-        res: APP.ResponseTemplateWithWOR<ProductColorSizeSchema.Delete>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await ProductColorSizesService.delete(req.body)
+             await ProductColorSizesService.delete(req.body)
             res.json({
-                data
+                message : "Tamaños de los colores eliminados exitosamente.",  
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

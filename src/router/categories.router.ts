@@ -4,7 +4,7 @@ import isAdmin from "../middleware/isAdmin.middleware.js";
 
 const categoriesRouter = express.Router()
 
-categoriesRouter.get("/brand/:brand_id", CategoriesController.getCategoriesPerBrand)
+categoriesRouter.get("/brand/:brand_id", CategoriesController.getByBrand)
 categoriesRouter.post("/", isAdmin, CategoriesController.addCategories)
 categoriesRouter.patch("/", isAdmin, CategoriesController.modifyCategories)
 categoriesRouter.delete("/", isAdmin, CategoriesController.removeCategories)

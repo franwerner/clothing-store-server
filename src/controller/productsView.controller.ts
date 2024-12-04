@@ -34,7 +34,8 @@ class ProductsViewController {
             })
 
             res.json({
-                data
+                data,
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -59,7 +60,8 @@ class ProductsViewController {
             const data = await ProductFullViewService.main(product_id)
 
             res.json({
-                data
+                data,
+                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

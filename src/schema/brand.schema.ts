@@ -1,5 +1,6 @@
 import z from "zod"
 import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
+import zodParse from "../helper/zodParse.helper.js"
 
 
 const base = z.object({
@@ -22,7 +23,6 @@ declare namespace BrandSchema {
     type Update = z.infer<typeof update>
     type Delete = DatabaseKeySchema
 }
-
 
 const brandSchema = {
     base,
