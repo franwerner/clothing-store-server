@@ -1,5 +1,5 @@
 import { NextFunction, Request } from "express";
-import { SizeSchema } from "../schema/size.schema.js";
+import { SizeSchema } from "clothing-store-shared/schema";
 import SizeService from "../service/sizes.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 class SizeController {

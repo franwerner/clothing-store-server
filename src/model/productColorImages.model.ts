@@ -1,5 +1,5 @@
 import sql from "../config/knex.config.js"
-import { ProductColorImageSchema } from "../schema/productColorImage.schema.js"
+import { ProductColorImageSchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 

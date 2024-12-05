@@ -1,10 +1,9 @@
 import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config"
-import { UserPurchaseProductSchema } from "../schema/userPurchaseProduct.schema"
 import Exact from "../types/Exact.types"
 import ModelUtils from "../utils/model.utils"
 import { Knex } from "knex"
-import { DatabaseKeySchema } from "../schema/databaseKey.schema"
+import { DatabaseKeySchema,UserPurchaseProductSchema } from "clothing-store-shared/schema"
 
 type UserPurchaseProductKeys = keyof UserPurchaseProductSchema.Base
 type UserPurchaseProductPartial = Partial<UserPurchaseProductSchema.Base>

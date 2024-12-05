@@ -3,4 +3,6 @@ const storeConfig = {
     minFreeShipping : 90000,
 }
 
-export default storeConfig
+export {
+    storeConfig
+}

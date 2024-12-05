@@ -1,7 +1,6 @@
 import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
-import "../schema/category.schema.js"
-import { CategorySchema } from "../schema/category.schema.js"
+import { CategorySchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types.js"
 
 type CategoryKeys = keyof CategorySchema.Base

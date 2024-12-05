@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express"
+import { NextFunction, Request } from "express"
 import ProductFullViewService from "../service/productFullview.service.js"
 import ProductsPreviewService from "../service/productsPreview.service.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"

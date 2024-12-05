@@ -1,7 +1,6 @@
+import { ProductColorSizeSchema,productColorSizeSchema } from "clothing-store-shared/schema"
 import zodParse from "../helper/zodParse.helper.js"
 import ProductColorSizesModel from "../model/productColorSizes.model.js"
-import productColorSizeSchema, { ProductColorSizeSchema } from "../schema/productColorSize.schema.js"
-import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ServiceUtils from "../utils/service.utils.js"
 
 class ProductColorSizesService extends ServiceUtils {

@@ -1,6 +1,6 @@
 import zodParse from "../helper/zodParse.helper.js"
 import BrandsModel from "../model/brands.model.js"
-import brandSchema, { BrandSchema } from "../schema/brand.schema.js"
+import  { BrandSchema,brandSchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ServiceUtils from "../utils/service.utils.js"
 

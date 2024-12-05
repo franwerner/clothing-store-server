@@ -1,6 +1,6 @@
 import { NextFunction, Request } from "express"
 import getSessionData from "../helper/getSessionData.helper.js"
-import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
+import { DatabaseKeySchema } from "clothing-store-shared/schema"
 import emailService from "../service/email/index.js"
 import UserRegisterService from "../service/userRegister.service.js"
 import UserTokenService from "../service/userToken.service.js"

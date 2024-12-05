@@ -1,6 +1,6 @@
 import sql from "../config/knex.config";
 import UserPurchaseProductsModel from "../model/userPurchaseProducts.model";
-import { DatabaseKeySchema } from "../schema/databaseKey.schema";
+import { DatabaseKeySchema } from "clothing-store-shared/schema";
 import ErrorHandler from "../utils/errorHandler.utilts";
 
 class UserPurchaseShippings {

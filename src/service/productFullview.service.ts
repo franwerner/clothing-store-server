@@ -2,8 +2,7 @@ import ProductColorImagesModel from "../model/productColorImages.model.js"
 import ProductColorsModel from "../model/productColors.model.js"
 import ProductsModel from "../model/products.model.js"
 import ProductColorSizesModel from "../model/productColorSizes.model.js"
-import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
-import { ProductColorSchema } from "../schema/productColor.schema.js"
+import { ProductColorSchema,DatabaseKeySchema} from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 class ProductFullViewService {

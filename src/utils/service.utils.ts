@@ -25,7 +25,7 @@ class ServiceUtils {
         return (code: string) => {
             if (errors.length > 0) throw new ErrorHandler({
                 data: errors,
-                code: code,
+                code: `${code}_failed`,
                 status: 206
             })
         }

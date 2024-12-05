@@ -1,5 +1,4 @@
 import { NextFunction, Request } from "express"
-import { ProductColorImageSchema } from "../schema/productColorImage.schema.js"
 import ProductColorImagesService from "../service/productColorImages.service.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 

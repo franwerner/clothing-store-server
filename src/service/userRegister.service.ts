@@ -1,10 +1,10 @@
 import bcrypt from "bcrypt"
 import UsersModel from "../model/users.model.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
-import userSchema, { UserSchema } from "../schema/user.schema.js"
-import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
+import { DatabaseKeySchema, UserSchema, userSchema } from "clothing-store-shared/schema"
 import zodParse from "../helper/zodParse.helper.js"
-import storeConfig from "../constant/storeConfig.contant.js"
+import { storeConfig } from "../constant/storeConfig.contant.js"
+
 
 class UserRegisterService {
 

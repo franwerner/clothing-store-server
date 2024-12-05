@@ -24,7 +24,7 @@ class ErrorHandler extends Error {
         this.name = "ErrorHandler",
         this.status = status && status >= 100 && status <= 599 ? status : 500
         this.data = data
-        this.code = `err_${code}`
+        this.code = code
     }
     static isInstanceOf(instance: any): instance is ErrorHandler {
         return instance instanceof ErrorHandler

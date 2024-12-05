@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt"
 import UsersModel from "../model/users.model.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
-import userSchema from "../schema/user.schema.js"
+import {userSchema} from "clothing-store-shared/schema"
 import zodParse from "../helper/zodParse.helper.js"
 class UserAuthService {
 

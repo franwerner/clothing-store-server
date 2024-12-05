@@ -1,6 +1,5 @@
 import { z } from "zod"
-import databaseKeySchema, { DatabaseKeySchema } from "./databaseKey.schema.js"
-import databaseBooleanSchema from "./databaseBoolean.schema.js"
+import { databaseBooleanSchema, DatabaseKeySchema, databaseKeySchema } from "clothing-store-shared/schema"
 
 const requestTokenSchema = z.enum(["email_confirm", "password_reset_by_email"])
 

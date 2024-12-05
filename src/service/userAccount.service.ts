@@ -1,7 +1,6 @@
 import zodParse from "../helper/zodParse.helper"
 import UsersModel from "../model/users.model"
-import { DatabaseKeySchema } from "../schema/databaseKey.schema"
-import userSchema, { UserSchema } from "../schema/user.schema"
+import  { UserSchema,userSchema,DatabaseKeySchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import UserRegisterService from "./userRegister.service"
 

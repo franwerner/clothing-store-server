@@ -1,7 +1,6 @@
 import zodParse from "../helper/zodParse.helper.js"
 import ProductsModel from "../model/products.model.js"
-import { DatabaseKeySchema } from "../schema/databaseKey.schema.js"
-import productSchema, { ProductSchema } from "../schema/product.schema.js"
+import { DatabaseKeySchema, ProductSchema,productSchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ServiceUtils from "../utils/service.utils.js"
 

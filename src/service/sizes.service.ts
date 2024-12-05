@@ -1,6 +1,6 @@
 import zodParse from "../helper/zodParse.helper.js";
 import SizesModel from "../model/sizes.model.js";
-import sizeSchema, { SizeSchema } from "../schema/size.schema.js";
+import  { SizeSchema,sizeSchema } from "clothing-store-shared/schema";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 import ServiceUtils from "../utils/service.utils.js";
 

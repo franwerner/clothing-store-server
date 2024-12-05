@@ -5,7 +5,7 @@ import UserAccountService from "../service/userAccount.service.js";
 import UserAuthService from "../service/userAuth.service.js";
 import UserTokenService from "../service/userToken.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-import { UserSchema } from "../schema/user.schema.js";
+import { UserSchema } from "clothing-store-shared/schema";
 import getSessionData from "../helper/getSessionData.helper.js";
 
 class UserAccountController {

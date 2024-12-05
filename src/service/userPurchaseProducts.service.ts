@@ -1,5 +1,5 @@
 import UserPurchaseProductsModel from "../model/userPurchaseProducts.model"
-import { DatabaseKeySchema } from "../schema/databaseKey.schema"
+import { DatabaseKeySchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import ServiceUtils from "../utils/service.utils"
 

@@ -1,6 +1,6 @@
 import zodParse from "../helper/zodParse.helper.js"
 import ColorsModel from "../model/colors.model.js"
-import colorSchema, { ColorSchema } from "../schema/color.schema.js"
+import { ColorSchema,colorSchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ServiceUtils from "../utils/service.utils.js"
 

@@ -1,7 +1,7 @@
 import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
-import { UserSchema } from "../schema/user.schema.js"
+import { UserSchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types.js"
 
 type UserKeys = keyof UserSchema.Base

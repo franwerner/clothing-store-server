@@ -1,5 +1,5 @@
 import { NextFunction, Request } from "express";
-import { BrandSchema } from "../schema/brand.schema.js";
+import { BrandSchema } from "clothing-store-shared/schema";
 import BrandsService from "../service/brands.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 
@@ -31,9 +31,9 @@ class BrandsController {
         next: NextFunction
     ) {
         try {
-             await BrandsService.insert(req.body)
+            await BrandsService.insert(req.body)
             res.json({
-                     message : "Todas las marcas agregadas modificas exitosamente."
+                message: "Todas las marcas agregadas modificas exitosamente."
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -54,7 +54,7 @@ class BrandsController {
             await BrandsService.update(req.body)
 
             res.json({
-                message : "Todas las marcas fueron modificas exitosamente."
+                message: "Todas las marcas fueron modificas exitosamente."
             })
 
         } catch (error) {
@@ -73,9 +73,9 @@ class BrandsController {
         next: NextFunction
     ) {
         try {
-          await BrandsService.delete(req.body)
+            await BrandsService.delete(req.body)
             res.json({
-                  message : "Todas las marcas fueron modificas exitosamente."
+                message: "Todas las marcas fueron modificas exitosamente."
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

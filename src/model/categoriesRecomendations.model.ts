@@ -1,6 +1,5 @@
 import sql from "../config/knex.config.js"
-import { BrandSchema } from "../schema/brand.schema.js"
-import { CategorySchema } from "../schema/category.schema.js"
+import { CategorySchema,BrandSchema } from "clothing-store-shared/schema"
 import ModelUtils from "../utils/model.utils.js"
 
 

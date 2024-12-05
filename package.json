@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node  --watch dist/index.js",
     "build": "node build.js --watch",
-    "tunnel" : "ngrok.exe http 3000"
+    "tunnel": "ngrok.exe http 3000"
   },
   "keywords": [],
   "author": "",

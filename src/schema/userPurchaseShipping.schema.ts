@@ -1,6 +1,5 @@
 import { z } from "zod";
-import databaseBooleanSchema from "./databaseBoolean.schema";
-import databaseKeySchema from "./databaseKey.schema";
+import { databaseBooleanSchema, databaseKeySchema } from "clothing-store-shared/schema";
 
 const base = z.object({
     user_purchase_shipping_id: databaseKeySchema,

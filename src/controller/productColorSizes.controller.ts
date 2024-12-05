@@ -1,5 +1,5 @@
 import { NextFunction, Request } from "express"
-import { ProductColorSizeSchema } from "../schema/productColorSize.schema.js"
+import { ProductColorSizeSchema } from "clothing-store-shared/schema"
 import ProductColorSizesService from "../service/productColorSizes.service.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 

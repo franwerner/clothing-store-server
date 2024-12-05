@@ -1,6 +1,6 @@
 import zodParse from "../helper/zodParse.helper.js";
 import ProductColorsModel from "../model/productColors.model.js";
-import productColorSchema, { ProductColorSchema } from "../schema/productColor.schema.js";
+import { ProductColorSchema,productColorSchema } from "clothing-store-shared/schema";
 import ServiceUtils from "../utils/service.utils.js";
 
 class ProductColorsService extends ServiceUtils {

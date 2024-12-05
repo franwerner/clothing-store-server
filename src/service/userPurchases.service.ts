@@ -1,7 +1,6 @@
 import zodParse from "../helper/zodParse.helper"
 import UserPurchasesModel from "../model/userPurchases.model"
-import { DatabaseKeySchema } from "../schema/databaseKey.schema"
-import userPurchaseSchema, { UserPurchaseSchema } from "../schema/userPurchase.schema"
+import { UserPurchaseSchema,DatabaseKeySchema,userPurchaseSchema} from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts"
 
 class UserPurchasesService {
