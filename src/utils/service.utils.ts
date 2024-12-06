@@ -1,6 +1,5 @@
-import ErrorHandler, { ErrorHandlerData } from "./errorHandler.utilts.js"
-
-type WriteOperationsHandlerResults<T> = ErrorHandlerData<T>
+import ErrorHandler from "./errorHandler.utilts.js"
+import {ResponseDataWriteOperationsInError} from "clothing-store-shared/types"
 
 class ServiceUtils {
     static async writeOperationsHandler<T, U>(
@@ -8,7 +7,7 @@ class ServiceUtils {
         operation: (value: T) => Promise<U>,
         logic?: (response: U) => void
     ) {
-        const errors: WriteOperationsHandlerResults<T> = []
+        const errors: ResponseDataWriteOperationsInError<T> = []
 
         for (const e of input) {
             try {
@@ -25,7 +24,7 @@ class ServiceUtils {
         return (code: string) => {
             if (errors.length > 0) throw new ErrorHandler({
                 data: errors,
-                code: `${code}_failed`,
+                code: `${code}_write_failed`,
                 status: 206
             })
         }
@@ -35,7 +34,5 @@ class ServiceUtils {
     }
 }
 
-export {
-    type WriteOperationsHandlerResults
-}
+
 export default ServiceUtils

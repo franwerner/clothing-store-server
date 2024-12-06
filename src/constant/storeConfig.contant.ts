@@ -1,5 +1,5 @@
 const storeConfig = {
-    maxAccountPerIp : 10,
+    maxAccountPerIp : 300,
     minFreeShipping : 90000,
 }
 

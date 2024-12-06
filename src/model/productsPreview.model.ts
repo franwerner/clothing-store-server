@@ -39,7 +39,7 @@ const productsPreviewModel = async (querys: ProductPreviewFilters) => {
 
         brand_id && query.where("pb.brand_id", brand_id)
         category_id && query.where("pt.category_id", category_id)
-        search && query.whereRaw("p.product LIKE ?", [`%${search}%`]);
+        search && query.whereILike("p.product",`%${search}%`);
         price && query.whereBetween("p.price", price)
         color && query.whereIn("c.color_id", color)
         size && query.whereIn("pc.product_color_id", 

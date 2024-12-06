@@ -5,7 +5,6 @@ import { DatabaseKeySchema, UserSchema, userSchema } from "clothing-store-shared
 import zodParse from "../helper/zodParse.helper.js"
 import { storeConfig } from "../constant/storeConfig.contant.js"
 
-
 class UserRegisterService {
 
     static async completeRegister(user_id: DatabaseKeySchema) {
@@ -40,10 +39,12 @@ class UserRegisterService {
         const { insertId, affectedRows } = rawHeaders
 
         if (affectedRows == 0) throw new ErrorHandler({
-            message: `Superaste el limite de ${storeConfig.maxAccountPerIp} por IP`,
+            message: `Superaste el limite de ${storeConfig.maxAccountPerIp} cuentas por IP.`,
             code: "limit_account_per_ip",
             status: 429
         })
+
+       
         return zodParse(userSchema.formatUser)({
             ...data,
             user_id: insertId,
@@ -52,5 +53,6 @@ class UserRegisterService {
 
 
 }
+
 
 export default UserRegisterService

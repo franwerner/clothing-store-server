@@ -33,7 +33,7 @@ class BrandsController {
         try {
             await BrandsService.insert(req.body)
             res.json({
-                message: "Todas las marcas agregadas modificas exitosamente."
+                message: "Todas las marcas agregadas modificas exitosamente.",
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

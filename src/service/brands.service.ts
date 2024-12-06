@@ -9,7 +9,7 @@ class BrandsService extends ServiceUtils {
         const brands = await BrandsModel.select()
 
         if (brands.length === 0) throw new ErrorHandler({
-            message: "No se ninguna marca",
+            message: "No se econtro ninguna marca",
             status: 404,
             code: "brands_not_found"
         })

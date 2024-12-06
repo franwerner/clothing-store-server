@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express"
+import { NextFunction, Request } from "express"
 import ErrorHandler from "../utils/errorHandler.utilts"
 
 const isAdmin = (req: Request, res: APP.ResponseTemplate, next: NextFunction) => {
@@ -9,7 +9,7 @@ const isAdmin = (req: Request, res: APP.ResponseTemplate, next: NextFunction) =>
    else {
      new ErrorHandler({
       message : "No estas autorizado para continuar con esta operacion.",
-      status : 401
+      status : 401,
      }).response(res)
    }
 

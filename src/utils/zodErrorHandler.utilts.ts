@@ -1,10 +1,11 @@
 import { z, ZodError } from "zod";
 import ErrorHandler from "./errorHandler.utilts.js";
+import { ResponseDataZodInError } from "clothing-store-shared/types";
 
-function transformErrorToClient(zod_error: ZodError) {
+function transformErrorToClient(zod_error: ZodError): ResponseDataZodInError<any> {
     return zod_error.issues.map(({ message, path, code }) => {
         return {
-            source: path.find(i => typeof i === "string") || code,
+            source: path.length > 0 ? path : [code],
             reason: message,
         }
     })
@@ -16,7 +17,7 @@ class ZodErrorHandler extends ErrorHandler {
         super({
             status: 400,
             data: transformErrorToClient(error),
-            code: "zod_error"
+            code: "zod_err"
         })
         this.zod_error = error
     }
@@ -24,7 +25,6 @@ class ZodErrorHandler extends ErrorHandler {
     static isZodError(error: unknown): error is ZodError {
         return error instanceof ZodError
     }
-
 
 }
 

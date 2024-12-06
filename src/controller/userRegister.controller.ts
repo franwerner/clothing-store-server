@@ -7,10 +7,9 @@ import UserTokenService from "../service/userToken.service.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import tokenSettings from "../constant/tokenSettings.constant.js"
 
-
-const handlerRegisterToken = async ({ ip, email, user_fk }: { ip?: string, email: string, user_fk: DatabaseKeySchema }) => {
+const handlerRegisterToken = async ({ ip, email, user_fk }: { ip: string, email: string, user_fk: DatabaseKeySchema }) => {
     const token = await UserTokenService.createToken({
-        ip: ip || "",
+        ip: ip ,
         request: "email_confirm",
         user_fk: user_fk
     }, tokenSettings.email_confirm)
@@ -34,14 +33,11 @@ class UserRegisterController {
             await handlerRegisterToken({
                 email: account.email,
                 user_fk: account.user_id,
-                ip: req.body,
+                ip: account.ip,
             })
             res.json({
                 message: "Cuenta creada con éxito. Te hemos enviado un correo para confirmar tu correo electronico.",
-                data: {
-                    created_id: account.user_id
-                },
-                
+                data : account
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -67,7 +63,6 @@ class UserRegisterController {
             })
             res.json({
                 message: "Re-envio exitoso, revisa tu bandeja de entrada.",
-                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -93,9 +88,7 @@ class UserRegisterController {
             }
             res.json({
                 message: "Registro confirmado con exito!",
-                
             })
-
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)

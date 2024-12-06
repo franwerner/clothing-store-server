@@ -99,5 +99,4 @@ class UserPurchaseProductsModel extends ModelUtils {
         }
     }
 }
-
 export default UserPurchaseProductsModel

@@ -2,6 +2,7 @@ import transport from "../../config/nodemailer.config.js"
 import { EmailService } from "./index.js";
 
 const sendEmailConfirm = async ({to,token}:EmailService) => {
+    return
     const url = `http://localhost:3000/users/register/confirmation/${token}`
     return await transport.sendMail({
         from: "Olga Hat's <olgahats@noreply.com>", 
@@ -14,6 +15,5 @@ const sendEmailConfirm = async ({to,token}:EmailService) => {
         `,
     });
 }
-
 
 export default sendEmailConfirm

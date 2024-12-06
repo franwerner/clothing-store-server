@@ -3,7 +3,7 @@ import {rateLimit} from "express-rate-limit"
 
 const limiter = rateLimit({
      windowMs : 5 * 60 * 1000, //5 minutos 
-     limit : 150,
+     limit : 150 * 350,
      message : "Demasiadas solicitudes, por favor intenta de nuevo en 10 minutos."
 })
 

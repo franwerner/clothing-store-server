@@ -1,4 +1,4 @@
-import express, { Request } from "express"
+import express from "express"
 import corsConfig from "./config/cors.config.js"
 import "./config/dotenv.config.js"
 import "./config/mercadopago.config.js"
@@ -7,6 +7,7 @@ import sessionConfig from "./config/session.config.js"
 import _env from "./constant/_env.constant.js"
 import errorGlobal from "./middleware/errorGlobal.middleware.js"
 import isAdmin from "./middleware/isAdmin.middleware.js"
+import isCompleteUser from "./middleware/isCompleteUser.middleware.js"
 import brandsRouter from "./router/brands.router.js"
 import categoriesRouter from "./router/categories.router.js"
 import colorsRouter from "./router/colors.router.js"
@@ -23,7 +24,6 @@ import userAccountRouter from "./router/userAccount.router.js"
 import userRegisterRouter from "./router/userRegister.router.js"
 import usersRouter from "./router/users.router.js"
 import UserTokenService from "./service/userToken.service.js"
-import isCompleteUser from "./middleware/isCompleteUser.middleware.js"
 
 const port = _env.BACKEND_PORT
 const app = express()

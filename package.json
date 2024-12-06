@@ -23,7 +23,9 @@
     "mercadopago": "^2.0.15",
     "mysql2": "^3.11.3",
     "nodemailer": "^6.9.16",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "clothing-store-shared" : "file:../clothing-store-shared",
+    "my-utilities" : "file:../my-utilities"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
