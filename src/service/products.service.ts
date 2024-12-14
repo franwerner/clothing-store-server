@@ -12,7 +12,7 @@ class ProductsService extends ServiceUtils {
         if (products.length === 0) throw new ErrorHandler({
             message: "No se encontraron productos",
             status: 404,
-            code: "products_not_found"
+            code: "products_not_found",
         })
 
         return products

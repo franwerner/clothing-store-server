@@ -36,8 +36,8 @@ class DatabaseErrorHandler extends ErrorHandler {
     constructor(queryError: QueryError, messages: CustomSQLQueryErrorMessages = {}) {
         super({
             message: messages[queryError.code as SlqErrorKeys] || defaultMessage,
-            status: (sqlErrorMapping[queryError.code as SlqErrorKeys] || 500),
-            code : `SQL_${queryError.code}`
+            status: (sqlErrorMapping[queryError.code as SlqErrorKeys]),
+            code : `SQL_${queryError.code}`,
         })
         this.queryError = queryError
         this.name = "DatabaseErrorHandler"

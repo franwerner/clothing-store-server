@@ -1,8 +1,8 @@
 import crypto from "crypto";
 import zodParse from "../helper/zodParse.helper.js";
 import UserTokensModel from "../model/userTokens.model.js";
-import userTokenSchema, { UserTokenSchema } from "../schema/token.schema.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
+import { userTokenSchema, UserTokenSchema } from "clothing-store-shared/schema";
 
 interface TokenDate {
     timeUnit: "minute" | "hour" | "day",
@@ -14,7 +14,6 @@ interface CreateToken extends TokenDate {
 }
 
 interface Token { token: string, request: UserTokenSchema.RequestToken }
-
 
 class UserTokenService {
 
@@ -51,7 +50,7 @@ class UserTokenService {
         return data.token
     }
 
-    static async findActiveTokenByToken({ token, request }: Token) {
+    static async findActiveToken({ token, request }: Token) {
 
         const requestValidated = zodParse(userTokenSchema.requestTokenSchema)(request)
 
@@ -73,7 +72,7 @@ class UserTokenService {
 
     static async useToken(data: Token) {
 
-        const userToken = await this.findActiveTokenByToken(data)
+        const userToken = await this.findActiveToken(data)
         await this.markTokenAsUsed(data.token)
 
         return userToken.user_fk

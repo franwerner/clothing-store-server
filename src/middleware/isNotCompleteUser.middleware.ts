@@ -7,12 +7,13 @@ const response = (res: Response) => {
 
     new ErrorHandler({
         message: "El email ya está confirmado, no puedes continuar con esta operacion.",
+        code : "email_already_confirmed",
         status: 401
     }).response(res)
 }
 
 const isNotCompleteUser = async (req: Request, res: Response, next: NextFunction) => {
-    const user = req.session.user
+    const user = req.session.user_info
 
     if (!user) return isUser(req, res, next)
 

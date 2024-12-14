@@ -32,11 +32,8 @@ class OrdersService extends ServiceUtils {
                 const [result] = await UserPurchaseProductsModel.insert(i, tsx)
                 if (result.affectedRows == 0) throw new ErrorHandler({
                     status: 400,
-                    message : "Problemas con los productos de la orden.",
-                    data: [{
-                        source: i,
-                        reason: "El producto no se encuentra disponible para su compra."
-                    }],
+                    message: "Problemas con los productos de la orden.",
+                    data: i,
                     code: "product_unavailable"
                 });
                 return result.insertId
@@ -54,7 +51,7 @@ class OrdersService extends ServiceUtils {
         }
     }
 
-   
+
 }
 
 export default OrdersService

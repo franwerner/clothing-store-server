@@ -50,13 +50,13 @@ class ProductColorSizesController {
 
     static async modifyProductColorSizes(
         req: Request,
-        res: APP.ResponseTemplate<ProductColorSizeSchema.Update>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
             await ProductColorSizesService.update(req.body)
             res.json({
-                message : "Tamaños de los colores modificado  exitosamente.",  
+                message : "Tamaños de los colores modificado  exitosamente.",
                 
             })
         } catch (error) {

@@ -14,7 +14,7 @@ class MercadoPagoController {
         next: NextFunction
     ) {
         try {
-            const { user_id } = getSessionData("user", req.session)
+            const { user_id } = getSessionData("user_info", req.session)
 
             const { user_purchase_id = "" } = req.query
 

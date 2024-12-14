@@ -8,9 +8,9 @@ class UserAuthService {
     static async findUserByEmail(email: string = "") {
         const [user] = await UsersModel.select({ email })
         if (!user) throw new ErrorHandler({
-            message: "El email no esta asociado a ningun usuario.",
+            message: "El correo electrónico ingresado no está registrado en nuestro sistema.",
             code: "email_not_found",
-            status: 422
+            status: 422,
         })
         return user
     }
@@ -30,6 +30,5 @@ class UserAuthService {
     }
 
 }
-
 
 export default UserAuthService

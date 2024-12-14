@@ -8,13 +8,14 @@ import { storeConfig } from "../constant/storeConfig.contant.js"
 class UserRegisterService {
 
     static async completeRegister(user_id: DatabaseKeySchema) {
-        const updateAffects = await UsersModel.updateUnconfirmedEmail({ user_id, email_confirmed: true })
+        const data = zodParse(userSchema.update)({user_id,email_confirmed : true})
+        const updateAffects = await UsersModel.updateUnconfirmedEmail(data)
 
         if (!updateAffects) {
             throw new ErrorHandler({
-                message: "El email ya ha sido confirmado previamente.",
+                message: "El email ya se encuentra confirmado.",
                 status: 409,
-                code : "conflict_email_confirmed"
+                code : "email_already_confirmed"
             })
         }
     }
@@ -43,9 +44,8 @@ class UserRegisterService {
             code: "limit_account_per_ip",
             status: 429
         })
-
        
-        return zodParse(userSchema.formatUser)({
+        return userSchema.formatUser.parse({
             ...data,
             user_id: insertId,
         })

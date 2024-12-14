@@ -1,8 +1,7 @@
 const storeConfig = {
-    maxAccountPerIp : 300,
+    maxAccountPerIp : 10,
     minFreeShipping : 90000,
 }
-
 export {
     storeConfig
 }

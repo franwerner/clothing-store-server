@@ -17,7 +17,7 @@ class OrderController {
         next: NextFunction
     ) {
         try {
-            const user = getSessionData("user", req.session)
+            const user = getSessionData("user_info", req.session)
             const { order = {}, order_products = [] } = req.body
             const expire_date = getAdjustedUTCDate(+3)
             const { user_purchase_id } = await OrdersService.create({
@@ -81,7 +81,7 @@ class OrderController {
     ) {
         try {
             const { purchase_id = "" } = req.query
-            const { user_id } = getSessionData("user", req.session)
+            const { user_id } = getSessionData("user_info", req.session)
             const data = await userPurchasesService.getForUser({
                 user_fk: user_id,
                 user_purchase_id: purchase_id
@@ -105,7 +105,7 @@ class OrderController {
         next: NextFunction
     ) {
         try {
-            const { user_id } = getSessionData("user", req.session)
+            const { user_id } = getSessionData("user_info", req.session)
             const { purchase_id = "" } = req.query
             const data = await UserPurchaseProductService.getForUser({ user_purchase_fk: purchase_id, user_fk: user_id })
             res.json({

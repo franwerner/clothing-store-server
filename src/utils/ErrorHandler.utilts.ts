@@ -1,11 +1,10 @@
+import { ResponseToClient, ResponseToClientBase } from "clothing-store-shared/types"
 import { Response } from "express"
-import { ResponseToClient, ResponseDataInError } from "clothing-store-shared/types"
 
-type OnlyResponseToClientError<T = any> = Omit<ResponseToClient, "data"> & { data?: ResponseDataInError<T> }
 
-type ErrorHandlerProps<T = any> = {
+type ErrorHandlerProps = {
     status?: number
-} & OnlyResponseToClientError<T>
+} & ResponseToClientBase & { data?: any }
 
 class ErrorHandler extends Error {
     message: string
@@ -18,7 +17,7 @@ class ErrorHandler extends Error {
         super()
         this.message = message || ""
         this.name = "ErrorHandler",
-        this.status = status && status >= 100 && status <= 599 ? status : 500
+            this.status = status && status >= 100 && status <= 599 ? status : 500
         this.data = data
         this.code = code || "err"
     }
@@ -30,7 +29,7 @@ class ErrorHandler extends Error {
         res.status(this.status)
             .json({
                 message: this.message || undefined,
-                data: Array.isArray(this.data) ? this.data : [],
+                data: this.data,
                 code: this.code
             })
     }

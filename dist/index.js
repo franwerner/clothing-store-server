@@ -25,15 +25,37 @@ var mercadoPagoConfig = new MercadoPagoConfig({
 });
 var mercadopago_config_default = mercadoPagoConfig;
 
-// src/config/rate-limit.config.ts
+// src/rate-limiter/default.rate-limiter.ts
 import { rateLimit } from "express-rate-limit";
-var limiter = rateLimit({
+
+// src/utils/rateLimitHandler.utilts.ts
+var rateLimitHandler = (req, res) => {
+  const currentTime = /* @__PURE__ */ new Date();
+  const time = req.rateLimit?.resetTime || currentTime;
+  const resetTime = new Date(time);
+  const diffToSeconds = (resetTime.getTime() - currentTime.getTime()) / 1e3;
+  const minutes = Math.floor(diffToSeconds / 60);
+  const seconds = Math.floor(diffToSeconds % 60);
+  res.status(429).json({
+    message: `Para continuar con esta operacion deber esperar ${minutes}M ${seconds}S`,
+    code: "rate_limit",
+    data: {
+      seconds,
+      minutes,
+      date: resetTime
+    }
+  });
+};
+var rateLimitHandler_utilts_default = rateLimitHandler;
+
+// src/rate-limiter/default.rate-limiter.ts
+var defaultLimiter = rateLimit({
   windowMs: 5 * 60 * 1e3,
   //5 minutos 
   limit: 150 * 350,
-  message: "Demasiadas solicitudes, por favor intenta de nuevo en 10 minutos."
+  handler: rateLimitHandler_utilts_default
 });
-var rate_limit_config_default = limiter;
+var default_rate_limiter_default = defaultLimiter;
 
 // src/config/session.config.ts
 import session from "express-session";
@@ -71,7 +93,7 @@ var ErrorHandler = class _ErrorHandler extends Error {
   response(res) {
     res.status(this.status).json({
       message: this.message || void 0,
-      data: Array.isArray(this.data) ? this.data : [],
+      data: this.data,
       code: this.code
     });
   }
@@ -83,20 +105,21 @@ var errorGlobal = (_, res) => {
   new errorHandler_utilts_default({
     status: 500,
     message: "Ocurri\xF3 un error inesperado en el servidor.",
-    code: "err_nternal"
+    code: "err_internal"
   }).response(res);
 };
 var errorGlobal_middleware_default = errorGlobal;
 
 // src/middleware/isAdmin.middleware.ts
 var isAdmin = (req, res, next) => {
-  const user = req.session.user;
+  const user = req.session.user_info;
   if (user && user.permission == "admin") {
     next();
   } else {
     new errorHandler_utilts_default({
       message: "No estas autorizado para continuar con esta operacion.",
-      status: 401
+      status: 401,
+      code: "session_unauthorized"
     }).response(res);
   }
 };
@@ -151,7 +174,7 @@ var DatabaseErrorHandler = class _DatabaseErrorHandler extends errorHandler_util
   constructor(queryError, messages = {}) {
     super({
       message: messages[queryError.code] || defaultMessage,
-      status: sqlErrorMapping[queryError.code] || 500,
+      status: sqlErrorMapping[queryError.code],
       code: `SQL_${queryError.code}`
     });
     this.queryError = queryError;
@@ -171,8 +194,13 @@ var ModelUtils = class {
   static generateError(error, messages = {}) {
     if (databaseErrorHandler_utilts_default.isSqlError(error)) {
       return new databaseErrorHandler_utilts_default(error, messages);
+    } else {
+      throw new errorHandler_utilts_default({
+        code: "SQL_ERROR",
+        message: "Ocurrio un error desconocido en la base de datos.",
+        status: 500
+      });
     }
-    return error;
   }
 };
 var model_utils_default = ModelUtils;
@@ -237,13 +265,14 @@ var users_model_default = UsersModel;
 
 // src/middleware/isUser.middleware.ts
 var isUser = (req, res, next) => {
-  const user = req.session.user;
+  const user = req.session.user_info;
   if (user) {
     next();
   } else {
     new errorHandler_utilts_default({
       status: 401,
-      message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente."
+      message: "La sesi\xF3n ha expirado, por favor inicia sesi\xF3n nuevamente.",
+      code: "session_expired"
     }).response(res);
   }
 };
@@ -251,7 +280,7 @@ var isUser_middleware_default = isUser;
 
 // src/middleware/isCompleteUser.middleware.ts
 var isCompleteUser = async (req, res, next) => {
-  const user = req.session.user;
+  const user = req.session.user_info;
   if (!user) return isUser_middleware_default(req, res, next);
   if (user.email_confirmed) {
     return next();
@@ -264,7 +293,8 @@ var isCompleteUser = async (req, res, next) => {
   } else {
     new errorHandler_utilts_default({
       status: 401,
-      message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n."
+      message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n.",
+      code: "session_unauthorized"
     }).response(res);
   }
 };
@@ -300,10 +330,10 @@ var ZodErrorHandler = class extends errorHandler_utilts_default {
 var zodErrorHandler_utilts_default = ZodErrorHandler;
 
 // src/helper/zodParse.helper.ts
-var zodParse = (z3) => {
+var zodParse = (z2) => {
   return (data) => {
     try {
-      return z3.parse(data);
+      return z2.parse(data);
     } catch (error) {
       if (zodErrorHandler_utilts_default.isZodError(error)) {
         throw new zodErrorHandler_utilts_default(error);
@@ -815,10 +845,12 @@ import express4 from "express";
 // src/helper/getSessionData.helper.ts
 var getSessionData = (keys, session2) => {
   const data = session2[keys];
-  if (!data) throw new errorHandler_utilts_default({
-    status: 500,
-    message: "Problemas internos para encontrar la session."
-  });
+  if (!data) {
+    throw new errorHandler_utilts_default({
+      status: 500,
+      message: "Problemas internos para encontrar la session."
+    });
+  }
   return data;
 };
 var getSessionData_helper_default = getSessionData;
@@ -1049,7 +1081,7 @@ var userPurchaseShippings_service_default = UserPurchaseShippings;
 
 // src/constant/storeConfig.contant.ts
 var storeConfig = {
-  maxAccountPerIp: 300,
+  maxAccountPerIp: 10,
   minFreeShipping: 9e4
 };
 
@@ -1057,7 +1089,7 @@ var storeConfig = {
 var MercadoPagoController = class {
   static async checkout(req, res, next) {
     try {
-      const { user_id } = getSessionData_helper_default("user", req.session);
+      const { user_id } = getSessionData_helper_default("user_info", req.session);
       const { user_purchase_id = "" } = req.query;
       const transform = await mercadoPago_service_default.transformProductsToCheckoutItems({
         user_fk: user_id,
@@ -1165,10 +1197,7 @@ var OrdersService = class extends service_utils_default {
         if (result.affectedRows == 0) throw new errorHandler_utilts_default({
           status: 400,
           message: "Problemas con los productos de la orden.",
-          data: [{
-            source: i,
-            reason: "El producto no se encuentra disponible para su compra."
-          }],
+          data: i,
           code: "product_unavailable"
         });
         return result.insertId;
@@ -1212,7 +1241,7 @@ var getAdjustedUTCDate_utils_default = getAdjustedUTCDate;
 var OrderController = class {
   static async createOrder(req, res, next) {
     try {
-      const user = getSessionData_helper_default("user", req.session);
+      const user = getSessionData_helper_default("user_info", req.session);
       const { order = {}, order_products = [] } = req.body;
       const expire_date = getAdjustedUTCDate_utils_default(3);
       const { user_purchase_id } = await orders_service_default.create({
@@ -1263,7 +1292,7 @@ var OrderController = class {
   static async getOrder(req, res, next) {
     try {
       const { purchase_id = "" } = req.query;
-      const { user_id } = getSessionData_helper_default("user", req.session);
+      const { user_id } = getSessionData_helper_default("user_info", req.session);
       const data = await userPurchases_service_default.getForUser({
         user_fk: user_id,
         user_purchase_id: purchase_id
@@ -1281,7 +1310,7 @@ var OrderController = class {
   }
   static async getOrderDetails(req, res, next) {
     try {
-      const { user_id } = getSessionData_helper_default("user", req.session);
+      const { user_id } = getSessionData_helper_default("user_info", req.session);
       const { purchase_id = "" } = req.query;
       const data = await userPurchaseProducts_service_default.getForUser({ user_purchase_fk: purchase_id, user_fk: user_id });
       res.json({
@@ -2350,12 +2379,15 @@ var sizes_router_default = sizesRouter;
 // src/router/userAccount.router.ts
 import express12 from "express";
 
+// src/controller/userAccount.controller.ts
+import { userSchema as userSchema4 } from "clothing-store-shared/schema";
+
 // src/constant/tokenSettings.constant.ts
 var tokenSettings = {
-  email_confirm: { maxTokens: 10, timeUnit: "day", timeValue: 1 },
+  email_confirm: { maxTokens: 20, timeUnit: "day", timeValue: 1 },
   //1 DIA
   // email_update: { maxTokens: 10, timeUnit: "hour", timeValue: 3 }, // 1 HORAS
-  password_reset_by_email: { maxTokens: 10, timeUnit: "hour", timeValue: 3 }
+  password_reset_by_email: { maxTokens: 20, timeUnit: "hour", timeValue: 3 }
   // 3 HORAS
 };
 var tokenSettings_constant_default = tokenSettings;
@@ -2373,7 +2405,7 @@ var nodemailer_config_default = transport;
 
 // src/service/email/sendPasswordReset.email.ts
 var sendPasswordReset = async ({ to, token }) => {
-  const url = `http://localhost:3000/users/account/reset/password/${token}`;
+  const url = `${env_constant_default.FROTEND_DOMAIN}/token?token=${token}&token_request=password_reset_by_email&email=${to}`;
   return await nodemailer_config_default.sendMail({
     from: "Olga Hat's <olgahats@noreply.com>",
     to,
@@ -2389,8 +2421,7 @@ var sendPasswordReset_email_default = sendPasswordReset;
 
 // src/service/email/sendEmailConfirm.email.ts
 var sendEmailConfirm = async ({ to, token }) => {
-  return;
-  const url = `http://localhost:3000/users/register/confirmation/${token}`;
+  const url = `${env_constant_default.FROTEND_DOMAIN}/token?token=${token}&token_request=email_confirm`;
   return await nodemailer_config_default.sendMail({
     from: "Olga Hat's <olgahats@noreply.com>",
     to,
@@ -2419,12 +2450,13 @@ import bcrypt from "bcrypt";
 import { userSchema } from "clothing-store-shared/schema";
 var UserRegisterService = class {
   static async completeRegister(user_id) {
-    const updateAffects = await users_model_default.updateUnconfirmedEmail({ user_id, email_confirmed: true });
+    const data = zodParse_helper_default(userSchema.update)({ user_id, email_confirmed: true });
+    const updateAffects = await users_model_default.updateUnconfirmedEmail(data);
     if (!updateAffects) {
       throw new errorHandler_utilts_default({
-        message: "El email ya ha sido confirmado previamente.",
+        message: "El email ya se encuentra confirmado.",
         status: 409,
-        code: "conflict_email_confirmed"
+        code: "email_already_confirmed"
       });
     }
   }
@@ -2446,7 +2478,7 @@ var UserRegisterService = class {
       code: "limit_account_per_ip",
       status: 429
     });
-    return zodParse_helper_default(userSchema.formatUser)({
+    return userSchema.formatUser.parse({
       ...data,
       user_id: insertId
     });
@@ -2456,23 +2488,15 @@ var userRegister_service_default = UserRegisterService;
 
 // src/service/userAccount.service.ts
 var UserAccountService = class {
-  static async updateInfo(update2) {
-    const { password, phone, fullname, user_id } = zodParse_helper_default(userSchema2.update)(update2);
+  static async updateInfo(update) {
+    const { password, phone, fullname, user_id } = zodParse_helper_default(userSchema2.updateInfo)(update);
     const selectedInfo = {
       password: password && await userRegister_service_default.createPassword(password),
       phone,
       fullname,
       user_id
     };
-    const res = await users_model_default.update(selectedInfo);
-    if (res === 0) {
-      throw new errorHandler_utilts_default({
-        status: 400,
-        message: "Hubo un inconveniente al actualizar la informacion. Por favor, int\xE9ntalo nuevamente m\xE1s tarde.",
-        code: "user_update_info"
-      });
-    }
-    return res;
+    return await users_model_default.update(selectedInfo);
   }
   static async getUserInfo(user_id) {
     const [res] = await users_model_default.select({ user_id });
@@ -2493,7 +2517,7 @@ var UserAuthService = class {
   static async findUserByEmail(email = "") {
     const [user] = await users_model_default.select({ email });
     if (!user) throw new errorHandler_utilts_default({
-      message: "El email no esta asociado a ningun usuario.",
+      message: "El correo electr\xF3nico ingresado no est\xE1 registrado en nuestro sistema.",
       code: "email_not_found",
       status: 422
     });
@@ -2574,36 +2598,8 @@ var UserTokensModel = class extends model_utils_default {
 };
 var userTokens_model_default = UserTokensModel;
 
-// src/schema/token.schema.ts
-import { z as z2 } from "zod";
-import { databaseBooleanSchema, databaseKeySchema } from "clothing-store-shared/schema";
-var requestTokenSchema = z2.enum(["email_confirm", "password_reset_by_email"]);
-var base = z2.object({
-  user_token_id: databaseKeySchema,
-  user_fk: databaseKeySchema,
-  request: requestTokenSchema,
-  token: z2.string(),
-  ip: z2.string(),
-  expired_at: z2.string(),
-  used: databaseBooleanSchema.optional().default(false),
-  created_at: z2.string().optional()
-});
-var insert = base.omit({
-  user_token_id: true,
-  created_at: true,
-  used: true
-});
-var update = base.pick({ token: true, used: true });
-var userTokenSchema = {
-  base,
-  insert,
-  update,
-  delete: databaseKeySchema,
-  requestTokenSchema
-};
-var token_schema_default = userTokenSchema;
-
 // src/service/userToken.service.ts
+import { userTokenSchema } from "clothing-store-shared/schema";
 var UserTokenService = class {
   static createTokenDate({ timeUnit, timeValue }) {
     const date = /* @__PURE__ */ new Date();
@@ -2618,7 +2614,7 @@ var UserTokenService = class {
   }
   static async createToken(props, { maxTokens, ...tokenDate }) {
     const token = crypto2.randomUUID();
-    const data = zodParse_helper_default(token_schema_default.insert)({
+    const data = zodParse_helper_default(userTokenSchema.insert)({
       ...props,
       token,
       expired_at: this.createTokenDate(tokenDate)
@@ -2633,8 +2629,8 @@ var UserTokenService = class {
     }
     return data.token;
   }
-  static async findActiveTokenByToken({ token, request }) {
-    const requestValidated = zodParse_helper_default(token_schema_default.requestTokenSchema)(request);
+  static async findActiveToken({ token, request }) {
+    const requestValidated = zodParse_helper_default(userTokenSchema.requestTokenSchema)(request);
     const [user] = await userTokens_model_default.selectActiveToken({ token, request: requestValidated }, (builder) => builder.select("user_fk"));
     if (!user) {
       throw new errorHandler_utilts_default({
@@ -2649,7 +2645,7 @@ var UserTokenService = class {
     return await userTokens_model_default.update({ used: true, token });
   }
   static async useToken(data) {
-    const userToken = await this.findActiveTokenByToken(data);
+    const userToken = await this.findActiveToken(data);
     await this.markTokenAsUsed(data.token);
     return userToken.user_fk;
   }
@@ -2684,6 +2680,29 @@ var userToken_service_default = UserTokenService;
 
 // src/controller/userAccount.controller.ts
 var UserAccountController = class {
+  static async updateInfoAuth(req, res, next) {
+    try {
+      const password = req.body.password || "";
+      const { email } = getSessionData_helper_default("user_info", req.session);
+      await userAuth_service_default.authenticar({ email, password });
+      const edit_authorization = {
+        expired_at: Date.now() + 60 * 60 * 1e3,
+        //1 Hora,
+        isAuthorized: true
+      };
+      req.session.edit_authorization = edit_authorization;
+      res.json({
+        message: "Contrase\xF1a verificada con \xE9xito. Tienes una hora para actualizar tu informaci\xF3n antes de que caduque la autorizaci\xF3n.",
+        data: edit_authorization
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
   static async sendPasswordReset(req, res, next) {
     try {
       const { user_id, email } = await userAuth_service_default.findUserByEmail(req.body.email);
@@ -2713,9 +2732,9 @@ var UserAccountController = class {
   static async passwordReset(req, res, next) {
     try {
       const token = req.params.token;
-      const user = await userToken_service_default.findActiveTokenByToken({ request: "password_reset_by_email", token });
+      const { user_fk } = await userToken_service_default.findActiveToken({ request: "password_reset_by_email", token });
       await userAccount_service_default.updateInfo({
-        user_id: user.user_fk,
+        user_id: user_fk,
         password: req.body.password
       });
       await userToken_service_default.markTokenAsUsed(token);
@@ -2732,13 +2751,16 @@ var UserAccountController = class {
   }
   static async updateInfo(req, res, next) {
     try {
-      const user = getSessionData_helper_default("user", req.session);
+      const user = getSessionData_helper_default("user_info", req.session);
       await userAccount_service_default.updateInfo({
         ...req.body,
         user_id: user.user_id
       });
+      const userParse = zodParse_helper_default(userSchema4.formatUser)({ ...user, ...req.body, create_at: new Date(user.create_at || "") });
+      req.session.user_info = userParse;
       res.json({
-        message: "Informaci\xF3n actualizada correctamente."
+        message: "Informaci\xF3n actualizada correctamente.",
+        data: userParse
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -2750,10 +2772,14 @@ var UserAccountController = class {
   }
   static async getLoginUserInfo(req, res, next) {
     try {
-      const { user_id } = getSessionData_helper_default("user", req.session);
-      const data = await userAccount_service_default.getUserInfo(user_id);
+      const { user_id } = getSessionData_helper_default("user_info", req.session);
+      const edit_authorization = req.session.edit_authorization;
+      const user_info = await userAccount_service_default.getUserInfo(user_id);
       res.json({
-        data
+        data: {
+          edit_authorization,
+          user_info
+        }
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -2766,11 +2792,35 @@ var UserAccountController = class {
 };
 var userAccount_controller_default = UserAccountController;
 
+// src/rate-limiter/token.rate-limiter.ts
+import { rateLimit as rateLimit2 } from "express-rate-limit";
+var tokenRateLimiter = rateLimit2({
+  windowMs: 1 * 60 * 1e3,
+  limit: 20,
+  handler: rateLimitHandler_utilts_default
+});
+var token_rate_limiter_default = tokenRateLimiter;
+
+// src/middleware/isAuthorizedToUpdateInfo.middleware.ts
+var isAuthorizedToUpdateInfo = (req, res, next) => {
+  const edit_authorization = req.session.edit_authorization;
+  if (!edit_authorization || Date.now() > edit_authorization.expired_at || !edit_authorization.isAuthorized) new errorHandler_utilts_default({
+    code: "not_edit_authorized",
+    message: "No estas autorizado para editar la informacion de la cuenta.",
+    status: 401
+  }).response(res);
+  else {
+    next();
+  }
+};
+var isAuthorizedToUpdateInfo_middleware_default = isAuthorizedToUpdateInfo;
+
 // src/router/userAccount.router.ts
 var userAccountRouter = express12.Router();
-userAccountRouter.post("/reset/password", userAccount_controller_default.sendPasswordReset);
+userAccountRouter.post("/reset/password", token_rate_limiter_default, userAccount_controller_default.sendPasswordReset);
 userAccountRouter.post("/reset/password/:token", userAccount_controller_default.passwordReset);
-userAccountRouter.post("/update/info", isCompleteUser_middleware_default, userAccount_controller_default.updateInfo);
+userAccountRouter.post("/update/info/auth", isCompleteUser_middleware_default, userAccount_controller_default.updateInfoAuth);
+userAccountRouter.post("/update/info", [isCompleteUser_middleware_default, isAuthorizedToUpdateInfo_middleware_default], userAccount_controller_default.updateInfo);
 userAccountRouter.get("/", isUser_middleware_default, userAccount_controller_default.getLoginUserInfo);
 var userAccount_router_default = userAccountRouter;
 
@@ -2793,11 +2843,11 @@ var UserRegisterController = class {
         ...req.body,
         ip: req.ip
       });
-      req.session.user = account;
+      req.session.user_info = account;
       await handlerRegisterToken({
         email: account.email,
         user_fk: account.user_id,
-        ip: account.ip
+        ip: req.ip
       });
       res.json({
         message: "Cuenta creada con \xE9xito. Te hemos enviado un correo para confirmar tu correo electronico.",
@@ -2813,9 +2863,9 @@ var UserRegisterController = class {
   }
   static async sendRegisterToken(req, res, next) {
     try {
-      const { user_id, email } = getSessionData_helper_default("user", req.session);
+      const { user_id, email } = getSessionData_helper_default("user_info", req.session);
       await handlerRegisterToken({
-        ip: req.body,
+        ip: req.ip,
         email,
         user_fk: user_id
       });
@@ -2835,8 +2885,8 @@ var UserRegisterController = class {
       const { token } = req.params;
       const userID = await userToken_service_default.useToken({ request: "email_confirm", token });
       await userRegister_service_default.completeRegister(userID);
-      if (req.session.user) {
-        req.session.user.email_confirmed = true;
+      if (req.session.user_info) {
+        req.session.user_info.email_confirmed = true;
       }
       res.json({
         message: "Registro confirmado con exito!"
@@ -2856,11 +2906,12 @@ var userRegister_controller_default = UserRegisterController;
 var response = (res) => {
   new errorHandler_utilts_default({
     message: "El email ya est\xE1 confirmado, no puedes continuar con esta operacion.",
+    code: "email_already_confirmed",
     status: 401
   }).response(res);
 };
 var isNotCompleteUser = async (req, res, next) => {
-  const user = req.session.user;
+  const user = req.session.user_info;
   if (!user) return isUser_middleware_default(req, res, next);
   if (user.email_confirmed) return response(res);
   const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
@@ -2878,7 +2929,7 @@ var isNotCompleteUser_middleware_default = isNotCompleteUser;
 var userRegisterRouter = express13.Router();
 userRegisterRouter.post("/", userRegister_controller_default.register);
 userRegisterRouter.get("/confirmation/:token", userRegister_controller_default.confirmRegistration);
-userRegisterRouter.get("/send/token", isNotCompleteUser_middleware_default, userRegister_controller_default.sendRegisterToken);
+userRegisterRouter.get("/send/token", token_rate_limiter_default, isNotCompleteUser_middleware_default, userRegister_controller_default.sendRegisterToken);
 var userRegister_router_default = userRegisterRouter;
 
 // src/router/users.router.ts
@@ -2890,9 +2941,10 @@ var UsersController = class {
     try {
       const { email, password } = req.body;
       const user = await userAuth_service_default.authenticar({ email, password });
-      req.session.user = user;
+      req.session.user_info = user;
       res.json({
-        data: user
+        data: user,
+        message: "\xA1Inicio de sesi\xF3n exitoso! Bienvenido de nuevo."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -2908,7 +2960,7 @@ var UsersController = class {
         next();
       } else {
         res.json({
-          message: "Deslogeo exitoso."
+          message: "\xA1Cierre de sesi\xF3n exitoso! Hasta pronto."
         });
       }
     });
@@ -2919,7 +2971,7 @@ var users_controller_default = UsersController;
 // src/router/users.router.ts
 var usersRouter = express14.Router();
 usersRouter.post("/login", users_controller_default.login);
-usersRouter.get("/logout", isUser_middleware_default, users_controller_default.logout);
+usersRouter.get("/logout", users_controller_default.logout);
 var users_router_default = usersRouter;
 
 // src/index.ts
@@ -2928,7 +2980,7 @@ var app = express15();
 app.use(express15.json());
 app.use(session_config_default);
 app.use(cors_config_default);
-app.use(rate_limit_config_default);
+app.use(default_rate_limiter_default);
 app.use("/categories", categories_router_default);
 app.use("/products", products_router_default);
 app.use("/products/recomendations", productsRecomendations_router_default);

@@ -1,8 +1,7 @@
+import { UserSchema } from "clothing-store-shared/schema"
 import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
-import { UserSchema } from "clothing-store-shared/schema"
-import Exact from "../types/Exact.types.js"
 
 type UserKeys = keyof UserSchema.Base
 type UserPartial = Partial<UserSchema.Base>
@@ -24,8 +23,8 @@ class UsersModel extends ModelUtils {
         }
     }
 
-    static async update<T extends UserSchema.Update>(
-        { user_id, ...props }: Exact<T, UserSchema.Update>,
+    static async update(
+        { user_id, ...props }: UserSchema.Update,
         modify?: APP.ModifySQL
     ) {
         try {
@@ -39,14 +38,14 @@ class UsersModel extends ModelUtils {
         }
     }
 
-    static updateUnconfirmedEmail<T extends UserSchema.Update>(props: Exact<T, UserSchema.Update>) {
+    static updateUnconfirmedEmail(props: UserSchema.Update) {
         return this.update(props, (builder) => {
             builder.where("email_confirmed", false)
         })
     }
 
-    static async insertByLimitIP<T extends UserSchema.Insert>(
-        user: Exact<T, UserSchema.Insert>,
+    static async insertByLimitIP(
+        user: UserSchema.Insert,
         ip_limit = 0
     ) {
         const { email, fullname, ip, password, phone, permission } = user

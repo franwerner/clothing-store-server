@@ -1,8 +1,8 @@
 import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config.js"
-import { UserTokenSchema } from "../schema/token.schema.js"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
+import { UserTokenSchema } from "clothing-store-shared/schema"
 
 type UserTokenKeys = keyof UserTokenSchema.Base
 type UserTokenPartial = Partial<UserTokenSchema.Base>

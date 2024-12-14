@@ -5,7 +5,7 @@ const errorGlobal = (_: Request, res: Response) => {
     new ErrorHandler({
         status : 500,
         message : "Ocurrió un error inesperado en el servidor.",
-        code : "err_nternal"
+        code : "err_internal"
     }).response(res)
 }
 export default errorGlobal

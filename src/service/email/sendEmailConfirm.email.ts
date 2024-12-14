@@ -1,9 +1,9 @@
 import transport from "../../config/nodemailer.config.js"
+import _env from "../../constant/_env.constant.js";
 import { EmailService } from "./index.js";
 
 const sendEmailConfirm = async ({to,token}:EmailService) => {
-    return
-    const url = `http://localhost:3000/users/register/confirmation/${token}`
+    const url = `${_env.FROTEND_DOMAIN}/token?token=${token}&token_request=email_confirm`
     return await transport.sendMail({
         from: "Olga Hat's <olgahats@noreply.com>", 
         to,

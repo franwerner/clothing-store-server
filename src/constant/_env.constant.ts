@@ -21,4 +21,9 @@ interface ENV {
 
 const _env =  process.env as unknown as ENV
 
+/** 
+ * Importante agregar valors por defecto en una destructuracion.
+ * 
+*/
+
 export default _env

@@ -12,7 +12,7 @@ const isCompleteUser = async (
     next: NextFunction
 ) => {
 
-    const user = req.session.user
+    const user = req.session.user_info
 
     if (!user) return isUser(req, res, next)
 
@@ -28,9 +28,10 @@ const isCompleteUser = async (
         next()
     } else {
         new ErrorHandler({
-            status : 401,
-            message : "Por favor, confirma tu dirección de correo electrónico para continuar con esta operación.",
-           }).response(res)
+            status: 401,
+            message: "Por favor, confirma tu dirección de correo electrónico para continuar con esta operación.",
+            code: "session_unauthorized"
+        }).response(res)
     }
 
 
