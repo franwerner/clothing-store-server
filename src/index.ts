@@ -32,19 +32,6 @@ app.use(sessionConfig)
 app.use(corsConfig)
 app.use(limiter)
 
-// app.use("/", (req: Request, res, next) => {
-//     req.session.user = {
-//         permission: "admin",
-//         fullname : "fsdada",
-//         user_id: 37,
-//         email: "ifrank4444@gmail.com",
-//         ip : "123",
-//         phone : null,
-//         email_confirmed : true
-//     }
-//     next()
-// })
-
 app.use("/categories", categoriesRouter)
 app.use("/products", productsRouter)
 app.use("/products/recomendations", productRecomendationsRouter)

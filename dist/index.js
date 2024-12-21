@@ -3,15 +3,7 @@ import express15 from "express";
 
 // src/config/cors.config.ts
 import cors from "cors";
-
-// src/constant/_env.constant.ts
-var _env = process.env;
-var env_constant_default = _env;
-
-// src/config/cors.config.ts
-var corsConfig = cors({
-  origin: env_constant_default.FROTEND_DOMAIN
-});
+var corsConfig = cors();
 var cors_config_default = corsConfig;
 
 // src/config/dotenv.config.ts
@@ -20,6 +12,12 @@ var dotenvConfig = dotenv.config({ path: ".env.local" });
 
 // src/config/mercadopago.config.ts
 import { MercadoPagoConfig } from "mercadopago";
+
+// src/constant/_env.constant.ts
+var _env = process.env;
+var env_constant_default = _env;
+
+// src/config/mercadopago.config.ts
 var mercadoPagoConfig = new MercadoPagoConfig({
   accessToken: env_constant_default.MP_ACCESS_TOKEN
 });
