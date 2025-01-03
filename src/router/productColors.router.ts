@@ -7,5 +7,4 @@ productColorsRouter.post("/", ProductColorsController.setProductColors)
 productColorsRouter.delete("/", ProductColorsController.removeProductColors)
 productColorsRouter.patch("/", ProductColorsController.modifyProductColors)
 
-
 export default productColorsRouter

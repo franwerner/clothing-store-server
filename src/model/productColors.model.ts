@@ -32,6 +32,7 @@ class ProductColorsModel extends ModelUtils {
         }
     }
 
+
     static async update<T extends ProductColorSchema.Insert>({ product_color_id, ...productColor }: Exact<T, ProductColorSchema.Update>) {
         try {
             return await sql("product_colors")

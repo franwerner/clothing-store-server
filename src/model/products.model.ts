@@ -1,13 +1,11 @@
 import sql from "../config/knex.config.js"
-import { ProductSchema } from "clothing-store-shared/schema"
+import { DatabaseKeySchema, ProductSchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
-
 
 type ProductKeys = keyof ProductSchema.Base
 type ProductPartial = Partial<ProductSchema.Base>
 type ProductRequerid = Required<ProductSchema.Base>
-
 
 class ProductsModel extends ModelUtils {
 
@@ -19,12 +17,13 @@ class ProductsModel extends ModelUtils {
             const query = sql<Pick<ProductRequerid, T>>("products as p")
                 .where(props)
             modify && query.modify(modify)
+            console.log(query.toQuery())
             return await query
         } catch (error) {
             throw this.generateError(error)
         }
     }
-
+ 
     static selectExistsColors<T extends ProductKeys = ProductKeys>(
         props?: ProductPartial,
         modify?: APP.ModifySQL<Pick<ProductRequerid, T>>
@@ -58,12 +57,12 @@ class ProductsModel extends ModelUtils {
     }
 
     static async updateByCategory<T extends ProductSchema.UpdateByCategory>(
-        {category_fk,...props}:Exact<T,ProductSchema.UpdateByCategory>
+        { category_fk, ...props }: Exact<T, ProductSchema.UpdateByCategory>
     ) {
         try {
             return await sql("products")
-            .where({category_fk})
-            .update(props)
+                .where({ category_fk })
+                .update(props)
         } catch (error) {
             throw this.generateError(error)
         }

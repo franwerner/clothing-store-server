@@ -23,38 +23,6 @@ var mercadoPagoConfig = new MercadoPagoConfig({
 });
 var mercadopago_config_default = mercadoPagoConfig;
 
-// src/rate-limiter/default.rate-limiter.ts
-import { rateLimit } from "express-rate-limit";
-
-// src/utils/rateLimitHandler.utilts.ts
-var rateLimitHandler = (req, res) => {
-  const currentTime = /* @__PURE__ */ new Date();
-  const time = req.rateLimit?.resetTime || currentTime;
-  const resetTime = new Date(time);
-  const diffToSeconds = (resetTime.getTime() - currentTime.getTime()) / 1e3;
-  const minutes = Math.floor(diffToSeconds / 60);
-  const seconds = Math.floor(diffToSeconds % 60);
-  res.status(429).json({
-    message: `Para continuar con esta operacion deber esperar ${minutes}M ${seconds}S`,
-    code: "rate_limit",
-    data: {
-      seconds,
-      minutes,
-      date: resetTime
-    }
-  });
-};
-var rateLimitHandler_utilts_default = rateLimitHandler;
-
-// src/rate-limiter/default.rate-limiter.ts
-var defaultLimiter = rateLimit({
-  windowMs: 5 * 60 * 1e3,
-  //5 minutos 
-  limit: 150 * 350,
-  handler: rateLimitHandler_utilts_default
-});
-var default_rate_limiter_default = defaultLimiter;
-
 // src/config/session.config.ts
 import session from "express-session";
 var sessionConfig = session({
@@ -191,7 +159,7 @@ var databaseErrorHandler_utilts_default = DatabaseErrorHandler;
 var ModelUtils = class {
   static generateError(error, messages = {}) {
     if (databaseErrorHandler_utilts_default.isSqlError(error)) {
-      return new databaseErrorHandler_utilts_default(error, messages);
+      throw new databaseErrorHandler_utilts_default(error, messages);
     } else {
       throw new errorHandler_utilts_default({
         code: "SQL_ERROR",
@@ -298,6 +266,38 @@ var isCompleteUser = async (req, res, next) => {
 };
 var isCompleteUser_middleware_default = isCompleteUser;
 
+// src/rate-limiter/default.rate-limiter.ts
+import { rateLimit } from "express-rate-limit";
+
+// src/utils/rateLimitHandler.utilts.ts
+var rateLimitHandler = (req, res) => {
+  const currentTime = /* @__PURE__ */ new Date();
+  const time = req.rateLimit?.resetTime || currentTime;
+  const resetTime = new Date(time);
+  const diffToSeconds = (resetTime.getTime() - currentTime.getTime()) / 1e3;
+  const minutes = Math.floor(diffToSeconds / 60);
+  const seconds = Math.floor(diffToSeconds % 60);
+  res.status(429).json({
+    message: `Para continuar con esta operacion deber esperar ${minutes}M ${seconds}S`,
+    code: "rate_limit",
+    data: {
+      seconds,
+      minutes,
+      date: resetTime
+    }
+  });
+};
+var rateLimitHandler_utilts_default = rateLimitHandler;
+
+// src/rate-limiter/default.rate-limiter.ts
+var defaultLimiter = rateLimit({
+  windowMs: 5 * 60 * 1e3,
+  //5 minutos 
+  limit: 150 * 350,
+  handler: rateLimitHandler_utilts_default
+});
+var default_rate_limiter_default = defaultLimiter;
+
 // src/router/brands.router.ts
 import express from "express";
 
@@ -387,12 +387,14 @@ import { brandSchema } from "clothing-store-shared/schema";
 
 // src/utils/service.utils.ts
 var ServiceUtils = class {
-  static async writeOperationsHandler(input, operation, logic) {
+  static async writeOperationsHandler(input, operation) {
     const errors = [];
     for (const e of input) {
       try {
-        const res = await operation(e);
-        logic && logic(res);
+        const r = await operation(e);
+        if (!r) throw new errorHandler_utilts_default({
+          message: "Al parece hubo un error al intentar realizar la operaci\xF3n, ya que no se modifico nada."
+        });
       } catch (error) {
         errors.push({
           source: e,
@@ -407,9 +409,6 @@ var ServiceUtils = class {
         status: 206
       });
     };
-  }
-  static genericMessage({ text, action }) {
-    return `Al parecer ${text} que intentas ${action} no existe.`;
   }
 };
 var service_utils_default = ServiceUtils;
@@ -429,10 +428,7 @@ var BrandsService = class extends service_utils_default {
     const data = zodParse_helper_default(brandSchema.update.array().min(1))(brands);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => brands_model_default.update(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "la marca", action: "actualizar" });
-      }
+      (e) => brands_model_default.update(e)
     );
     res("brands_update");
   }
@@ -445,10 +441,7 @@ var BrandsService = class extends service_utils_default {
     const data = zodParse_helper_default(brandSchema.delete.array().min(1))(brands);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => brands_model_default.delete(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "la marca", action: "eliminar" });
-      }
+      (e) => brands_model_default.delete(e)
     );
     res("brands_delete");
   }
@@ -584,10 +577,7 @@ var CategoriesService = class extends service_utils_default {
     const data = zodParse_helper_default(categorySchema.update.array().min(1))(categories);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => categories_model_default.update(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "la categoria", action: "actualizar" });
-      }
+      (e) => categories_model_default.update(e)
     );
     res("categories_update");
   }
@@ -600,10 +590,7 @@ var CategoriesService = class extends service_utils_default {
     const data = zodParse_helper_default(categorySchema.delete.array().min(1))(categories);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => categories_model_default.delete(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "la categoria", action: "eliminar" });
-      }
+      (e) => categories_model_default.delete(e)
     );
     res("categories_delete");
   }
@@ -742,10 +729,7 @@ var ColorsService = class extends service_utils_default {
     const data = zodParse_helper_default(colorSchema.delete.array().min(1))(colors);
     const res = await this.writeOperationsHandler(
       data,
-      (color) => colors_model_default.delete(color),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el color", action: "eliminar" });
-      }
+      (color) => colors_model_default.delete(color)
     );
     res("colors_delete");
   }
@@ -758,10 +742,7 @@ var ColorsService = class extends service_utils_default {
     const data = zodParse_helper_default(colorSchema.update.array().min(1))(colors);
     const res = await this.writeOperationsHandler(
       data,
-      (color) => colors_model_default.update(color),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el color", action: "actualizar" });
-      }
+      (color) => colors_model_default.update(color)
     );
     res("colors_update");
   }
@@ -1379,10 +1360,7 @@ var ProductColorImagesService = class extends service_utils_default {
     const data = zodParse_helper_default(productColorImageSchema.update.array().min(1))(productColorImages);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => productColorImages_model_default.update(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "la imagen del color", action: "actualizar" });
-      }
+      (e) => productColorImages_model_default.update(e)
     );
     res("product_color_images_update");
   }
@@ -1390,10 +1368,7 @@ var ProductColorImagesService = class extends service_utils_default {
     const data = zodParse_helper_default(productColorImageSchema.delete.array().min(1))(productColorImages);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => productColorImages_model_default.delete(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "la imagen del color", action: "eliminar" });
-      }
+      (e) => productColorImages_model_default.delete(e)
     );
     res("product_color_images_delete");
   }
@@ -1462,6 +1437,9 @@ var ProductColorImages_router_default = productColorImagesRouter;
 // src/router/productColors.router.ts
 import express6 from "express";
 
+// src/service/productColors.service.ts
+import { productColorSchema } from "clothing-store-shared/schema";
+
 // src/model/productColors.model.ts
 var ProductColorsModel = class extends model_utils_default {
   static async select(props = {}, modify) {
@@ -1512,28 +1490,15 @@ var ProductColorsModel = class extends model_utils_default {
 var productColors_model_default = ProductColorsModel;
 
 // src/service/productColors.service.ts
-import { productColorSchema } from "clothing-store-shared/schema";
 var ProductColorsService = class extends service_utils_default {
   static async update(productColors) {
     const data = zodParse_helper_default(productColorSchema.update.array().min(1))(productColors);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => productColors_model_default.update(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el color", action: "actualizar" });
-      }
-    );
+    const res = await this.writeOperationsHandler(data, (e) => productColors_model_default.update(e));
     res("product_colors_update");
   }
   static async delete(productColors) {
     const data = zodParse_helper_default(productColorSchema.delete.array().min(1))(productColors);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => productColors_model_default.delete(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el color", action: "eliminar" });
-      }
-    );
+    const res = await this.writeOperationsHandler(data, (e) => productColors_model_default.delete(e));
     res("product_colors_delete");
   }
   static async insert(productColors) {
@@ -1663,10 +1628,7 @@ var ProductColorSizesService = class extends service_utils_default {
     const data = zodParse_helper_default(productColorSizeSchema.update.array().min(1))(sizes);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => productColorSizes_model_default.update(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "actualizar" });
-      }
+      (e) => productColorSizes_model_default.update(e)
     );
     res("product_color_sizes_update");
   }
@@ -1674,10 +1636,7 @@ var ProductColorSizesService = class extends service_utils_default {
     const data = zodParse_helper_default(productColorSizeSchema.updateByProductColor.array().min(1))(productColors);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => productColorSizes_model_default.updatetByProductColor(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "actualizar" });
-      }
+      (e) => productColorSizes_model_default.updatetByProductColor(e)
     );
     res("product_color_sizes_update_by");
   }
@@ -1685,10 +1644,7 @@ var ProductColorSizesService = class extends service_utils_default {
     const data = zodParse_helper_default(productColorSizeSchema.delete.array().min(1))(sizes);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => productColorSizes_model_default.delete(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "eliminar" });
-      }
+      (e) => productColorSizes_model_default.delete(e)
     );
     res("product_color_sizes_delete");
   }
@@ -1773,6 +1729,7 @@ var ProductsModel = class extends model_utils_default {
     try {
       const query = knex_config_default("products as p").where(props);
       modify && query.modify(modify);
+      console.log(query.toQuery());
       return await query;
     } catch (error) {
       throw this.generateError(error);
@@ -1833,18 +1790,13 @@ var ProductsService = class extends service_utils_default {
     const data = zodParse_helper_default(productSchema.updateByCategory.array().min(1))(products);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => products_model_default.updateByCategory(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el producto", action: "actualizar" });
-      }
+      (e) => products_model_default.updateByCategory(e)
     );
     res("products_update_by");
   }
   static async update(products) {
     const data = zodParse_helper_default(productSchema.update.array().min(1))(products);
-    const res = await this.writeOperationsHandler(data, (e) => products_model_default.update(e), (e) => {
-      if (!e) throw this.genericMessage({ text: "el producto", action: "actualizar" });
-    });
+    const res = await this.writeOperationsHandler(data, (e) => products_model_default.update(e));
     res("products_update");
   }
   static async insert(products) {
@@ -1856,10 +1808,7 @@ var ProductsService = class extends service_utils_default {
     const data = zodParse_helper_default(productSchema.delete.array().min(1))(products);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => products_model_default.delete(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el producto", action: "eliminar" });
-      }
+      (e) => products_model_default.delete(e)
     );
     res("products_delete");
   }
@@ -2077,52 +2026,89 @@ var ProductFullViewService = class {
 var productFullview_service_default = ProductFullViewService;
 
 // src/model/productsPreview.model.ts
-var productsPreviewModel = async (querys) => {
-  try {
-    const { color, price, search, size, brand_id, category_id } = querys;
-    const subQueryForOneImagePerProductColor = knex_config_default("product_color_images as pci").select(
-      "pci.*",
-      knex_config_default.raw("ROW_NUMBER() OVER (PARTITION BY pci.product_color_fk) AS row_num")
-    );
-    const query = knex_config_default("brands as pb").select(
-      "p.product_id",
-      "p.product",
-      "p.discount",
-      "p.price",
-      "pt.category",
-      "pb.brand",
-      "pci.url",
-      "c.color"
-    ).innerJoin("categories as pt", "pt.brand_fk", "pb.brand_id").innerJoin("products as p", "p.category_fk", "pt.category_id").innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").leftJoin(subQueryForOneImagePerProductColor.as("pci"), (pci) => {
-      pci.on("pci.product_color_fk", "=", "pc.product_color_id");
-      pci.andOn("pci.row_num", "=", 1);
-    }).where("p.status", true);
-    brand_id && query.where("pb.brand_id", brand_id);
-    category_id && query.where("pt.category_id", category_id);
-    search && query.whereILike("p.product", `%${search}%`);
-    price && query.whereBetween("p.price", price);
-    color && query.whereIn("c.color_id", color);
-    size && query.whereIn(
-      "pc.product_color_id",
-      knex_config_default("product_color_sizes").select("product_color_fk").whereIn("size_fk", size)
-    );
-    return await query;
-  } catch (error) {
-    throw model_utils_default.generateError(error);
+var getOrderProduct = (orderKey) => {
+  if (orderKey === "name") {
+    return "p.product";
+  } else if (orderKey === "price") {
+    return "p.price";
+  } else if (orderKey === "offers") {
+    return "p.discount";
+  } else if (orderKey === "newest") {
+    return "p.create_at";
   }
 };
-var productsPreview_model_default = productsPreviewModel;
-
-// src/utils/toNumber.utilts.ts
-var toNumber = (value) => {
-  const number = Number(value);
-  if (typeof number === "number" && !isNaN(number)) {
-    return number;
-  } else {
-    return 0;
+var ProductPreviewModel = class extends model_utils_default {
+  static async getProducts(filters, order) {
+    try {
+      const { color, price, search, size, brand, category } = filters;
+      const orderField = getOrderProduct(order.orderKey);
+      const defaultOrder = ["asc", "desc"].includes(order.order) ? order.order : "asc";
+      const [min, max] = price || [];
+      const subQueryForOneImagePerProductColor = knex_config_default("product_color_images as pci").select(
+        "pci.*",
+        knex_config_default.raw("ROW_NUMBER() OVER (PARTITION BY pci.product_color_fk) AS row_num")
+      );
+      const query = knex_config_default("brands as pb").select(
+        "p.product",
+        "p.discount",
+        "p.price",
+        "pt.category",
+        "pb.brand",
+        "pci.url",
+        "c.color",
+        "pc.product_color_id",
+        "p.product_id"
+      ).innerJoin("categories as pt", "pt.brand_fk", "pb.brand_id").innerJoin("products as p", "p.category_fk", "pt.category_id").innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").leftJoin(subQueryForOneImagePerProductColor.as("pci"), (pci) => {
+        pci.on("pci.product_color_fk", "=", "pc.product_color_id");
+        pci.andOn("pci.row_num", "=", 1);
+      }).where("p.status", true);
+      orderField && query.orderBy(orderField, defaultOrder);
+      brand && query.where("pb.brand", brand);
+      category && query.where("pt.category", category);
+      search && query.whereILike("p.product", `%${search}%`);
+      min && query.where("p.price", ">=", min);
+      max && query.where("p.price", "<=", max);
+      color && query.whereIn("c.color_id", color);
+      size && query.whereIn(
+        "pc.product_color_id",
+        knex_config_default("product_color_sizes").select("product_color_fk").whereIn("size_fk", size)
+      );
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async getProductColors(productsIDs, sizeIDs) {
+    try {
+      const query = knex_config_default("products as p").select(
+        "c.color_id",
+        "c.color",
+        "c.hexadecimal"
+      ).count("* as quantity").innerJoin("product_colors as pc", "p.product_id", "pc.product_fk").innerJoin("colors as c", "c.color_id", "pc.color_fk").groupBy("c.color_id");
+      productsIDs && productsIDs.length > 0 && query.whereIn("p.product_id", productsIDs);
+      sizeIDs && sizeIDs.length > 0 && query.whereIn("pc.product_color_id", function() {
+        this.select("product_color_fk").from("product_color_sizes").whereIn("size_fk", sizeIDs);
+      });
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async getProductSizes(productsIDs, colorIDs) {
+    try {
+      const query = knex_config_default("products as p").select(
+        "s.size_id",
+        "s.size"
+      ).count("* as quantity").innerJoin("product_colors as pc", "p.product_id", "pc.product_fk").innerJoin("product_color_sizes as pcs", "pc.product_color_id", "pcs.product_color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk").groupBy("s.size");
+      productsIDs && productsIDs.length > 0 && query.whereIn("p.product_id", productsIDs);
+      colorIDs && colorIDs.length > 0 && query.whereIn("pc.color_fk", colorIDs);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
   }
 };
-var toNumber_utilts_default = toNumber;
+var productsPreview_model_default = ProductPreviewModel;
 
 // src/service/productsPreview.service.ts
 var ProductsPreviewService = class {
@@ -2133,15 +2119,14 @@ var ProductsPreviewService = class {
       const current = filterProperties[k];
       if (current) {
         if (k === "price") {
-          const [_min, _max] = current.split("-");
-          const min = toNumber_utilts_default(_min);
-          const toNumberMax = toNumber_utilts_default(_max);
-          const max = !toNumberMax ? 1e10 : toNumberMax;
-          const op = (prop) => Math[prop](min, max).toString();
-          res[k] = [
-            op("min"),
-            op("max")
-          ];
+          const [min, max] = current.split("-");
+          if (min !== "0" || max !== "0") {
+            if (Number(min) > Number(max)) {
+              res[k] = [min];
+            } else {
+              res[k] = [min, max];
+            }
+          }
         } else if (k == "color" || k == "size") {
           const split = current.split("-").filter(Boolean);
           res[k] = split;
@@ -2152,8 +2137,8 @@ var ProductsPreviewService = class {
     }
     return res;
   }
-  static async getProductPreview(filterParams) {
-    const res = await productsPreview_model_default(filterParams);
+  static async getProductPreview(filterParams, order) {
+    const res = await productsPreview_model_default.getProducts(filterParams, order);
     if (res.length == 0) {
       throw new errorHandler_utilts_default({
         message: "No se encontro ningun producto",
@@ -2163,9 +2148,33 @@ var ProductsPreviewService = class {
     }
     return res;
   }
-  static async main(filterProperties) {
+  static async getProductColors(productsIDs, sizeIDs) {
+    const res = await productsPreview_model_default.getProductColors(productsIDs, sizeIDs);
+    if (res.length === 0) throw new errorHandler_utilts_default({
+      code: "product_colors_not_found",
+      status: 404,
+      message: "No se encontraron colores asociados a los productos."
+    });
+    return res;
+  }
+  static async getProductSizes(productsIDs, colorIDs) {
+    const res = await productsPreview_model_default.getProductSizes(productsIDs, colorIDs);
+    if (res.length === 0) throw new errorHandler_utilts_default({
+      code: "product_color_sizes_not_found",
+      message: "No se encontraron tama\xF1os asociados a los productos.",
+      status: 404
+    });
+    return res;
+  }
+  static async main(filterProperties, order) {
     const filterParams = this.generateProductPreviewFilters(filterProperties);
-    return await this.getProductPreview(filterParams);
+    const products = await this.getProductPreview(filterParams, order);
+    const productIDs = [...new Set(products.map(({ product_id }) => product_id))];
+    return {
+      products,
+      colors: await this.getProductColors(productIDs, filterParams.size),
+      sizes: await this.getProductSizes(productIDs, filterParams.color)
+    };
   }
 };
 var productsPreview_service_default = ProductsPreviewService;
@@ -2174,15 +2183,18 @@ var productsPreview_service_default = ProductsPreviewService;
 var ProductsViewController = class {
   static async getProductsPreview(req, res, next) {
     try {
-      const { brand_id, category_id } = req.params;
-      const { color, price, search, size } = req.query;
+      const { brand, category } = req.params;
+      const { color, price, search, size, order, orderKey } = req.query;
       const data = await productsPreview_service_default.main({
-        brand_id,
-        category_id,
+        brand,
+        category,
         color,
         price,
         search,
         size
+      }, {
+        orderKey,
+        order
       });
       res.json({
         data
@@ -2216,8 +2228,8 @@ var productsView_controller_default = ProductsViewController;
 // src/router/productsView.router.ts
 var productsViewRouter = express10.Router();
 productsViewRouter.get("/preview", productsView_controller_default.getProductsPreview);
-productsViewRouter.get("/preview/:brand_id", productsView_controller_default.getProductsPreview);
-productsViewRouter.get("/preview/:brand_id/:category_id", productsView_controller_default.getProductsPreview);
+productsViewRouter.get("/preview/:brand", productsView_controller_default.getProductsPreview);
+productsViewRouter.get("/preview/:brand/:category", productsView_controller_default.getProductsPreview);
 productsViewRouter.get("/fullview/:product_id", productsView_controller_default.getProductFullView);
 var productsView_router_default = productsViewRouter;
 
@@ -2281,10 +2293,7 @@ var SizeService = class extends service_utils_default {
     const data = zodParse_helper_default(sizeSchema.update.array())(sizes);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => sizes_model_default.update(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "actualizar" });
-      }
+      (e) => sizes_model_default.update(e)
     );
     res("sizes_update");
   }
@@ -2297,10 +2306,7 @@ var SizeService = class extends service_utils_default {
     const data = zodParse_helper_default(sizeSchema.delete.array())(sizes);
     const res = await this.writeOperationsHandler(
       data,
-      (e) => sizes_model_default.delete(e),
-      (e) => {
-        if (!e) throw this.genericMessage({ text: "el tama\xF1o", action: "eliminar" });
-      }
+      (e) => sizes_model_default.delete(e)
     );
     res("sizes_delete");
   }
@@ -2972,6 +2978,246 @@ usersRouter.post("/login", users_controller_default.login);
 usersRouter.get("/logout", users_controller_default.logout);
 var users_router_default = usersRouter;
 
+// src/router/shopcart.router.ts
+import { Router as Router2 } from "express";
+
+// src/model/shopcart.model.ts
+var ShopcartModel = class extends model_utils_default {
+  static async selectDetailsProducts({ color_fk, product_fk, size_fk }) {
+    try {
+      return await knex_config_default("products as p").select(
+        "p.product",
+        "p.discount",
+        "p.price",
+        "c.color",
+        "s.size",
+        "pci.url"
+      ).innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id").leftJoin("product_color_images as pci", "pci.product_color_fk", "pc.product_color_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk").where({
+        "p.product_id": product_fk,
+        "pc.color_fk": color_fk,
+        "pcs.size_fk": size_fk,
+        "p.status": true,
+        "pcs.stock": true
+      });
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async checkProductAvailability({ color_fk, product_fk, size_fk }) {
+    try {
+      return await knex_config_default("products as p").select(1).innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id").where({
+        "p.product_id": product_fk,
+        "pc.color_fk": color_fk,
+        "pcs.size_fk": size_fk,
+        "p.status": true,
+        "pcs.stock": true
+      });
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+};
+var shopcart_model_default = ShopcartModel;
+
+// src/service/shopcart.service.ts
+import { isNumber } from "my-utilities";
+import { shopcartProductSchema } from "clothing-store-shared/schema";
+var ShopcartService = class {
+  static async getDetailProduct(product) {
+    const parseProduct = zodParse_helper_default(shopcartProductSchema.baseOutShopcartProduct)(product);
+    const [details] = await shopcart_model_default.selectDetailsProducts(parseProduct);
+    if (!details) {
+      throw new errorHandler_utilts_default({
+        status: 404,
+        message: "El producto no se encuentra disponible.",
+        code: "product_not_available",
+        data: product
+      });
+    }
+    return {
+      ...product,
+      ...details,
+      id: crypto.randomUUID()
+    };
+  }
+  static async addProducts(products, newProducts) {
+    const cloneProducts = structuredClone(products);
+    const isArrayNewProducts = Array.isArray(newProducts) ? newProducts : [];
+    const recentProductsChanges = [];
+    for (const product of isArrayNewProducts) {
+      const { color_fk, product_fk, quantity, size_fk } = product;
+      const repeated = cloneProducts.find((i) => i.color_fk == color_fk && i.product_fk == product_fk && i.size_fk == size_fk);
+      if (repeated) {
+        repeated.quantity += quantity;
+        recentProductsChanges.push(repeated);
+      } else {
+        const details = await this.getDetailProduct(product);
+        cloneProducts.push(details);
+        recentProductsChanges.push(details);
+      }
+    }
+    return {
+      products: cloneProducts,
+      recentProductsChanges
+    };
+  }
+  static createShopcart(shopcart) {
+    if (!shopcart || shopcart.expired_at < Date.now()) {
+      return {
+        products: [],
+        expired_at: Date.now() + 1e3 * 60 * 60 * 3
+        //3 hours,
+      };
+    } else {
+      return shopcart;
+    }
+  }
+  static async updateQuantity(products, product) {
+    if (product.quantity <= 0 || !isNumber(product.quantity)) throw new errorHandler_utilts_default({
+      code: "invalid_product_quantity",
+      status: 400,
+      message: "La cantidad ingresada debe ser mayor o igual a 1"
+    });
+    return products.map((i) => {
+      if (i.id === product.id) {
+        return {
+          ...i,
+          quantity: product.quantity
+        };
+      }
+      return i;
+    });
+  }
+  static removeProduct(shopcart, product_id) {
+    return shopcart.filter((i) => i.id !== product_id);
+  }
+  static groupProducts(products) {
+    const groupedProducts = [];
+    for (const product of products) {
+      const { color_fk, product_fk, size_fk } = product;
+      const isEqual = groupedProducts.find((i) => i.color_fk == color_fk && product_fk == i.product_fk && i.size_fk == size_fk);
+      if (!isEqual) {
+        groupedProducts.push({ ...product });
+      } else {
+        isEqual.quantity += product.quantity;
+      }
+    }
+    return groupedProducts;
+  }
+};
+var shopcart_service_default = ShopcartService;
+
+// src/controller/shopcart.controller.ts
+var ShopcartController = class {
+  static async getShopcart(req, res, next) {
+    try {
+      const data = getSessionData_helper_default("shopcart", req.session);
+      res.json({
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async addProducts(req, res, next) {
+    try {
+      const shopcart = getSessionData_helper_default("shopcart", req.session);
+      const {
+        recentProductsChanges,
+        products
+      } = await shopcart_service_default.addProducts(shopcart.products, req.body.products);
+      shopcart.products = products;
+      res.json({
+        message: "Productos agregados al carrito correctamente.",
+        data: recentProductsChanges
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async updateProductQuantity(req, res, next) {
+    try {
+      const product = req.body.product;
+      const shopcart = getSessionData_helper_default("shopcart", req.session);
+      shopcart.products = await shopcart_service_default.updateQuantity(shopcart.products, product);
+      res.json({
+        message: "Cantidad del producto cambianda exitosamente.",
+        data: shopcart.products.find((i) => i.id === product.id)
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async removeProduct(req, res, next) {
+    try {
+      const shopcart = getSessionData_helper_default("shopcart", req.session);
+      shopcart.products = shopcart_service_default.removeProduct(shopcart.products, req.body.product_id);
+      res.json({
+        message: "Producto borrado del carrito exitosamente."
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+};
+var shopcart_controller_default = ShopcartController;
+
+// src/middleware/isExitsShopcart.middleware.ts
+var isExitsShopcart = async (req, res, next) => {
+  const shopcart = req.session?.shopcart;
+  if (!shopcart) {
+    new errorHandler_utilts_default({
+      status: 404,
+      code: "unavailable_shopcart",
+      message: "No hay un carrito de compras creado"
+    }).response(res);
+  } else if (shopcart.expired_at < Date.now()) {
+    shopcart.products = [];
+    new errorHandler_utilts_default({
+      status: 404,
+      code: "expired_shopcart",
+      message: "El carrito de compras se encuentra expirado."
+    }).response(res);
+  } else {
+    next();
+  }
+};
+var isExitsShopcart_middleware_default = isExitsShopcart;
+
+// src/middleware/createShopcart.middleware.ts
+var createShopcartMiddleware = (req, _, next) => {
+  const shopcart = req.session.shopcart;
+  if (!shopcart || Date.now() > shopcart.expired_at) {
+    req.session.shopcart = shopcart_service_default.createShopcart(shopcart);
+  }
+  next();
+};
+var createShopcart_middleware_default = createShopcartMiddleware;
+
+// src/router/shopcart.router.ts
+var shopcartRouter = Router2();
+shopcartRouter.get("/", isExitsShopcart_middleware_default, shopcart_controller_default.getShopcart);
+shopcartRouter.post("/", createShopcart_middleware_default, shopcart_controller_default.addProducts);
+shopcartRouter.delete("/", isExitsShopcart_middleware_default, shopcart_controller_default.removeProduct);
+shopcartRouter.patch("/", isExitsShopcart_middleware_default, shopcart_controller_default.updateProductQuantity);
+var shopcart_router_default = shopcartRouter;
+
 // src/index.ts
 var port = env_constant_default.BACKEND_PORT;
 var app = express15();
@@ -2994,6 +3240,7 @@ app.use("/users/register", userRegister_router_default);
 app.use("/users/account", userAccount_router_default);
 app.use("/mercadopago", isCompleteUser_middleware_default, mercadoPago_router_default);
 app.use("/orders", isCompleteUser_middleware_default, order_router_default);
+app.use("/shopcart", shopcart_router_default);
 app.use(errorGlobal_middleware_default);
 userToken_service_default.cleanExpiredTokens({ cleaning_hour: 15, cleaning_minute: 0 });
 app.listen(port, () => console.log("SERVER START"));

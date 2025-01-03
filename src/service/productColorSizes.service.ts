@@ -2,6 +2,7 @@ import { ProductColorSizeSchema,productColorSizeSchema } from "clothing-store-sh
 import zodParse from "../helper/zodParse.helper.js"
 import ProductColorSizesModel from "../model/productColorSizes.model.js"
 import ServiceUtils from "../utils/service.utils.js"
+import ErrorHandler from "../utils/errorHandler.utilts.js"
 
 class ProductColorSizesService extends ServiceUtils {
 
@@ -15,22 +16,16 @@ class ProductColorSizesService extends ServiceUtils {
         const data = zodParse(productColorSizeSchema.update.array().min(1))(sizes)
         const res =  await this.writeOperationsHandler(data, 
             (e) => ProductColorSizesModel.update(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el tamaño", action: "actualizar" })
-
-            }
         )
         res("product_color_sizes_update")
     }
 
+ 
     
     static async updateByProductColor(productColors: Array<ProductColorSizeSchema.UpdateByProductColor>) {
         const data = zodParse(productColorSizeSchema.updateByProductColor.array().min(1))(productColors)
         const res =  await this.writeOperationsHandler(data,
             (e) => ProductColorSizesModel.updatetByProductColor(e),
-            (e) => {
-                    if (!e) throw this.genericMessage({ text: "el tamaño", action: "actualizar" })
-            }
         )
         res("product_color_sizes_update_by")
     }
@@ -39,9 +34,6 @@ class ProductColorSizesService extends ServiceUtils {
         const data = zodParse(productColorSizeSchema.delete.array().min(1))(sizes)
         const res =  await this.writeOperationsHandler(data, 
             (e) => ProductColorSizesModel.delete(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el tamaño", action: "eliminar" })
-            }
         )
         res("product_color_sizes_delete")
     }

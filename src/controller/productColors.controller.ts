@@ -10,11 +10,11 @@ class ProductColorsController {
     ) {
 
         try {
-           await ProductColorsService.insert(req.body)
+            await ProductColorsService.insert(req.body)
 
             res.json({
-                message : "Colores de los productos agregados correctamente.",
-                
+                message: "Colores de los productos agregados correctamente.",
+
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -26,7 +26,6 @@ class ProductColorsController {
         }
     }
 
- 
 
     static async modifyProductColors(
         req: Request,
@@ -34,10 +33,10 @@ class ProductColorsController {
         next: NextFunction
     ) {
         try {
-           await ProductColorsService.update(req.body)
+            await ProductColorsService.update(req.body)
             res.json({
-                message : "Colores de los productos modificados correctamente.",
-                
+                message: "Colores de los productos modificados correctamente.",
+
             })
 
         } catch (error) {
@@ -58,8 +57,8 @@ class ProductColorsController {
         try {
             await ProductColorsService.delete(req.body)
             res.json({
-                message : "Colores de los productos eliminados correctamente.",
-                
+                message: "Colores de los productos eliminados correctamente.",
+
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

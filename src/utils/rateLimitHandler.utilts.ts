@@ -1,8 +1,8 @@
-import { Request, Response } from "express"
+import { Request } from "express"
 
 const rateLimitHandler = (
     req: Request,
-    res: Response
+    res: APP.ResponseTemplate
 ) => {
     const currentTime = new Date()
     const time = req.rateLimit?.resetTime || currentTime

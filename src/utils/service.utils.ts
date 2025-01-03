@@ -5,14 +5,15 @@ class ServiceUtils {
     static async writeOperationsHandler<T, U>(
         input: T[],
         operation: (value: T) => Promise<U>,
-        logic?: (response: U) => void
     ) {
         const errors: ResponseDataWriteOperationsInError<T> = []
 
         for (const e of input) {
             try {
-                const res = await operation(e)
-                logic && logic(res)
+               const r = await operation(e)
+               if(!r) throw new ErrorHandler({
+                     message: "Al parece hubo un error al intentar realizar la operación, ya que no se modifico nada.",
+               })
             } catch (error) {
                 errors.push({
                     source: e,
@@ -28,9 +29,6 @@ class ServiceUtils {
                 status: 206
             })
         }
-    }
-    static  genericMessage({text,action}:{text:string,action:"eliminar" | "actualizar"}){
-      return `Al parecer ${text} que intentas ${action} no existe.`
     }
 }
 

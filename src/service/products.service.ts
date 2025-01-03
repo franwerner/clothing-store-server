@@ -21,18 +21,13 @@ class ProductsService extends ServiceUtils {
     static async updateByCategory(products: Array<ProductSchema.UpdateByCategory>) {
         const data = zodParse(productSchema.updateByCategory.array().min(1))(products)
         const res = await this.writeOperationsHandler(data, (e) => ProductsModel.updateByCategory(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el producto", action: "actualizar" })
-            }
         )
         res("products_update_by")
     }
 
     static async update(products: Array<ProductSchema.Update>) {
         const data = zodParse(productSchema.update.array().min(1))(products)
-        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.update(e), (e) => {
-            if (!e) throw this.genericMessage({ text: "el producto", action: "actualizar" })
-        })
+        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.update(e))
         res("products_update")
     }
 
@@ -45,9 +40,6 @@ class ProductsService extends ServiceUtils {
     static async delete(products: Array<ProductSchema.Delete>) {
         const data = zodParse(productSchema.delete.array().min(1))(products)
         const res = await this.writeOperationsHandler(data, (e) => ProductsModel.delete(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el producto", action: "eliminar" })
-            }
         )
         res("products_delete")
     }

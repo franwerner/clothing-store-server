@@ -20,9 +20,6 @@ class BrandsService extends ServiceUtils {
         const data = zodParse(brandSchema.update.array().min(1))(brands)
         const res = await this.writeOperationsHandler(data,
             (e) => BrandsModel.update(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "la marca", action: "actualizar" })
-            }
         )
         res("brands_update")
     }
@@ -35,9 +32,7 @@ class BrandsService extends ServiceUtils {
         const data = zodParse(brandSchema.delete.array().min(1))(brands)
         const res = await this.writeOperationsHandler(data,
             (e) => BrandsModel.delete(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "la marca", action: "eliminar" })
-            }
+         
         )
         res("brands_delete")
     }

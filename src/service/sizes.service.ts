@@ -20,9 +20,6 @@ class SizeService extends ServiceUtils {
     static async update(sizes: Array<SizeSchema.Update>) {
         const data = zodParse(sizeSchema.update.array())(sizes)
         const res = await this.writeOperationsHandler(data, (e) => SizesModel.update(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el tamaño", action: "actualizar" })
-            }
         )
         res("sizes_update")
     }
@@ -36,9 +33,6 @@ class SizeService extends ServiceUtils {
     static async delete(sizes: Array<SizeSchema.Delete>) {
         const data = zodParse(sizeSchema.delete.array())(sizes)
         const res = await this.writeOperationsHandler(data, (e) => SizesModel.delete(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el tamaño", action: "eliminar" })
-            }
         )
         res("sizes_delete")
     }

@@ -23,9 +23,6 @@ class ColorsService extends ServiceUtils {
         const data = zodParse(colorSchema.delete.array().min(1))(colors)
         const res = await this.writeOperationsHandler(data,
             (color) => ColorsModel.delete(color),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el color", action: "eliminar" })
-            }
         )
         res("colors_delete")
     }
@@ -37,9 +34,6 @@ class ColorsService extends ServiceUtils {
     static async update(colors: ColorSchema.Update[]) {
         const data = zodParse(colorSchema.update.array().min(1))(colors)
         const res = await this.writeOperationsHandler(data, (color) => ColorsModel.update(color),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el color", action: "actualizar" })
-            }
         )
         res("colors_update")
     }

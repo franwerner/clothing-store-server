@@ -1,30 +1,21 @@
+import { ProductColorSchema, productColorSchema } from "clothing-store-shared/schema";
 import zodParse from "../helper/zodParse.helper.js";
 import ProductColorsModel from "../model/productColors.model.js";
-import { ProductColorSchema,productColorSchema } from "clothing-store-shared/schema";
 import ServiceUtils from "../utils/service.utils.js";
 
 class ProductColorsService extends ServiceUtils {
 
     static async update(productColors: Array<ProductColorSchema.Update>) {
         const data = zodParse(productColorSchema.update.array().min(1))(productColors);
-        const res =  await this.writeOperationsHandler(data, 
-            (e) => ProductColorsModel.update(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el color", action: "actualizar" })
-            }
-        )
+        const res =  await this.writeOperationsHandler(data,(e) => ProductColorsModel.update(e))
 
         res("product_colors_update")
     }
 
+ 
     static async delete(productColors: Array<ProductColorSchema.Delete>) {
         const data = zodParse(productColorSchema.delete.array().min(1))(productColors);
-        const res =  await this.writeOperationsHandler(data, 
-            (e) => ProductColorsModel.delete(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "el color", action: "eliminar" })
-            }
-        )
+        const res =  await this.writeOperationsHandler(data,(e) => ProductColorsModel.delete(e))
         res("product_colors_delete")
     }
     

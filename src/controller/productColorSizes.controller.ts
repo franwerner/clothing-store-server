@@ -1,5 +1,4 @@
 import { NextFunction, Request } from "express"
-import { ProductColorSizeSchema } from "clothing-store-shared/schema"
 import ProductColorSizesService from "../service/productColorSizes.service.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 
@@ -10,15 +9,15 @@ class ProductColorSizesController {
         next: NextFunction
     ) {
         try {
-             await ProductColorSizesService.insert(req.body)
+            await ProductColorSizesService.insert(req.body)
             res.json({
-                message : "Tamaños de los colores agregados exitosamente.",  
-                
+                message: "Tamaños de los colores agregados exitosamente.",
+
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            } 
+            }
             else {
                 next()
             }
@@ -32,12 +31,12 @@ class ProductColorSizesController {
     ) {
         try {
 
-             await ProductColorSizesService.updateByProductColor(req.body)
+            await ProductColorSizesService.updateByProductColor(req.body)
 
             res.json({
-                message : "Tamaños de los colores modificado  exitosamente.",  
+                message: "Tamaños de los colores modificado  exitosamente.",
             })
-           
+
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
@@ -56,13 +55,13 @@ class ProductColorSizesController {
         try {
             await ProductColorSizesService.update(req.body)
             res.json({
-                message : "Tamaños de los colores modificado  exitosamente.",
-                
+                message: "Tamaños de los colores modificado  exitosamente.",
+
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            } 
+            }
             else {
                 next()
             }
@@ -75,14 +74,14 @@ class ProductColorSizesController {
         next: NextFunction
     ) {
         try {
-             await ProductColorSizesService.delete(req.body)
+            await ProductColorSizesService.delete(req.body)
             res.json({
-                message : "Tamaños de los colores eliminados exitosamente.",  
+                message: "Tamaños de los colores eliminados exitosamente.",
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
-            } 
+            }
             else {
                 next()
             }

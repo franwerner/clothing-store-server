@@ -1,8 +1,8 @@
 import session from "express-session";
 import { Knex } from "knex";
 import { Locals, Response } from "express";
-import { UserSchema } from "clothing-store-shared/schema";
-import { EditAuth, ResponseToClient } from "clothing-store-shared/types";
+import { UserPurchaseProductSchema, UserSchema } from "clothing-store-shared/schema";
+import { EditAuth, ProductInShopcart, ResponseToClient, Shopcart } from "clothing-store-shared/types";
 import { RateLimitInfo } from "express-rate-limit";
 declare global {
     namespace APP {
@@ -21,6 +21,7 @@ declare module 'express-session' {
     interface SessionData {
         edit_authorization: EditAuth
         user_info: UserSchema.FormatUser,
+        shopcart: Shopcart
     }
 }
 

@@ -4,6 +4,11 @@ import { CategorySchema, DatabaseKeySchema, categorySchema } from "clothing-stor
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 import ServiceUtils from "../utils/service.utils.js";
 
+/**
+ * Reglas a implementar:
+ * Cada categoria creada debe contener un nombre unico por marca.
+ * Lo mismo con las creacion de productos, deben tener un nomber unico por cada categoria.
+ */
 class CategoriesService extends ServiceUtils {
 
     static async getByBrand(brand_fk: DatabaseKeySchema) {
@@ -19,9 +24,6 @@ class CategoriesService extends ServiceUtils {
     static async update(categories: Array<CategorySchema.Update>) {
         const data = zodParse(categorySchema.update.array().min(1))(categories);
         const res = await this.writeOperationsHandler(data, (e) => CategoriesModel.update(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "la categoria", action: "actualizar" })
-            }
         )
         res("categories_update")
     }
@@ -35,9 +37,6 @@ class CategoriesService extends ServiceUtils {
         const data = zodParse(categorySchema.delete.array().min(1))(categories)
         const res = await this.writeOperationsHandler(data,
             (e) => CategoriesModel.delete(e),
-            (e) => {
-                if (!e) throw this.genericMessage({ text: "la categoria", action: "eliminar" })
-            }
         )
         res("categories_delete")
     }

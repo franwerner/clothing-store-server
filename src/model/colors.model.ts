@@ -3,7 +3,6 @@ import { ColorSchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
-
 type ColorKeys = keyof ColorSchema.Base
 type ColorPartial = Partial<ColorSchema.Base>
 type ColorRequerid = Required<ColorSchema.Base>
@@ -31,6 +30,7 @@ class ColorsModel extends ModelUtils {
         }
     }
 
+
     static async update<T extends ColorSchema.Update>({ color_id, ...color }: Exact<T, ColorSchema.Update>) {
         try {
             return await sql("colors")
@@ -57,5 +57,3 @@ class ColorsModel extends ModelUtils {
 }
 
 export default ColorsModel
-
-

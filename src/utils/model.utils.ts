@@ -5,7 +5,7 @@ abstract class ModelUtils {
 
     static generateError(error: unknown, messages: CustomSQLQueryErrorMessages = {}) {
         if (DatabaseErrorHandler.isSqlError(error)) {
-            return new DatabaseErrorHandler(error, messages)
+            throw new DatabaseErrorHandler(error, messages)
         }
         else {
             throw new ErrorHandler({

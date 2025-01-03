@@ -35,6 +35,7 @@ class SizesModel extends ModelUtils {
         }
     }
 
+   
     static async update<T extends SizeSchema.Update>({ size_id, ...size }: Exact<T,SizeSchema.Update>) {
         try {
             return await sql("sizes")
