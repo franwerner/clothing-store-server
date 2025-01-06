@@ -1,9 +1,9 @@
+import { UserSchema } from "clothing-store-shared/schema";
+import { EditAuth, ResponseToClient, Shopcart } from "clothing-store-shared/types";
+import { Locals, Response } from "express";
+import { RateLimitInfo } from "express-rate-limit";
 import session from "express-session";
 import { Knex } from "knex";
-import { Locals, Response } from "express";
-import { UserPurchaseProductSchema, UserSchema } from "clothing-store-shared/schema";
-import { EditAuth, ProductInShopcart, ResponseToClient, Shopcart } from "clothing-store-shared/types";
-import { RateLimitInfo } from "express-rate-limit";
 declare global {
     namespace APP {
         type SessionGlobal = session.Session & Partial<session.SessionData>

@@ -4,13 +4,12 @@ import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
 
-type ProductColorImageKeys = keyof ProductColorImageSchema.Base
 type ProductColorImagePartial = Partial<ProductColorImageSchema.Base>
 class ProductColorImagesModel extends ModelUtils {
 
-    static async select<T extends ProductColorImageKeys = ProductColorImageKeys>(props: ProductColorImagePartial = {}, modify?: APP.ModifySQL<Pick<ProductColorImagePartial, T>>) {
+    static async select(props: ProductColorImagePartial = {}, modify?: APP.ModifySQL) {
         try {
-            const query = sql<Pick<ProductColorImagePartial, T>>("product_color_images ")
+            const query = sql("product_color_images ")
                 .where(props)
             modify && query.modify(modify)
             return await query

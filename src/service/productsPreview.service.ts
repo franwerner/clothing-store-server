@@ -1,8 +1,6 @@
-import { DatabaseKeySchema } from "clothing-store-shared/schema"
 import { OrderProducts } from "clothing-store-shared/types"
 import ProductPreviewModel from "../model/productsPreview.model.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
-import { number } from "zod"
 
 interface ProductPreviewFilters {
     color?: string[],
@@ -14,8 +12,12 @@ interface ProductPreviewFilters {
 }
 
 interface ProductPreviewOrder {
-    order: "asc" | "desc",
-    orderKey: OrderProducts
+    sortDirection: "asc" | "desc",
+    sortField: OrderProducts
+}
+
+interface ProductPreviewPagination {
+    offset: string
 }
 
 type FilterProperties = { [K in keyof ProductPreviewFilters]?: string }
@@ -50,8 +52,20 @@ class ProductsPreviewService {
         return res
     }
 
-    static async getProductPreview(filterParams: ProductPreviewFilters, order: ProductPreviewOrder) {
-        const res = await ProductPreviewModel.getProducts(filterParams, order)
+    static async getProductPreview({
+        filters,
+        order,
+        pagination
+    }: {
+        filters: ProductPreviewFilters
+        order: ProductPreviewOrder
+        pagination: ProductPreviewPagination
+    }) {
+        const res = await ProductPreviewModel.selectProducts({
+            filters,
+            order,
+            pagination
+        })
         if (res.length == 0) {
             throw new ErrorHandler({
                 message: "No se encontro ningun producto",
@@ -62,8 +76,8 @@ class ProductsPreviewService {
         return res
     }
 
-    static async getProductColors(productsIDs: Array<DatabaseKeySchema>, sizeIDs?: Array<DatabaseKeySchema>) {
-        const res = await ProductPreviewModel.getProductColors(productsIDs, sizeIDs)
+    static async getProductColors(filter: Omit<ProductPreviewFilters, "color">) {
+        const res = await ProductPreviewModel.selectProductColors(filter)
         if (res.length === 0) throw new ErrorHandler({
             code: "product_colors_not_found",
             status: 404,
@@ -72,8 +86,8 @@ class ProductsPreviewService {
         return res
     }
 
-    static async getProductSizes(productsIDs: Array<DatabaseKeySchema>, colorIDs?: Array<DatabaseKeySchema>) {
-        const res = await ProductPreviewModel.getProductSizes(productsIDs, colorIDs)
+    static async getProductSizes(filter: Omit<ProductPreviewFilters, "size">) {
+        const res = await ProductPreviewModel.selectProductSizes(filter)
         if (res.length === 0) throw new ErrorHandler({
             code: "product_color_sizes_not_found",
             message: "No se encontraron tamaños asociados a los productos.",
@@ -82,21 +96,7 @@ class ProductsPreviewService {
         return res
     }
 
-    static async main(filterProperties: FilterProperties, order: ProductPreviewOrder) {
-        const filterParams = this.generateProductPreviewFilters(filterProperties)
-        const products = await this.getProductPreview(filterParams, order)
-        /**
-         * Se tienen que filtrar primero en base a toda la logica del producto en si para obtener los color y tamaños,
-         * Esto nos ayuda a ahorra logica con respecto a la obtencion de los colores y tamaños, ya que unicamente les estariamos pasandos las IDs obtenidas.
-         */
-        const productIDs = [...new Set(products.map(({ product_id }) => product_id))]
-        return {
-            products,
-            colors: await this.getProductColors(productIDs, filterParams.size),
-            sizes: await this.getProductSizes(productIDs, filterParams.color)
-        }
-    }
 }
 
-export type { ProductPreviewFilters, ProductPreviewOrder }
+export type { ProductPreviewFilters, ProductPreviewOrder, ProductPreviewPagination }
 export default ProductsPreviewService

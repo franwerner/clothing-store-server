@@ -1,14 +1,13 @@
 import { NextFunction, Request } from "express";
+import { storeConfig } from "../constant/storeConfig.contant";
 import getSessionData from "../helper/getSessionData.helper";
 import MercadoPagoService from "../service/mercadoPago.service";
 import OrdersService from "../service/orders.service";
 import UserPurchaseProductService from "../service/userPurchaseProducts.service";
+import UserPurchasesService from "../service/userPurchases.service";
 import "../service/userPurchaseShippings.service";
 import UserPurchaseShippings from "../service/userPurchaseShippings.service";
-import { default as userPurchasesService, default as UserPurchasesService } from "../service/userPurchases.service";
 import ErrorHandler from "../utils/errorHandler.utilts";
-import getAdjustedUTCDate from "../utils/getAdjustedUTCDate.utils";
-import { storeConfig } from "../constant/storeConfig.contant";
 class OrderController {
 
     static async createOrder(
@@ -18,15 +17,16 @@ class OrderController {
     ) {
         try {
             const user = getSessionData("user_info", req.session)
-            const { order = {}, order_products = [] } = req.body
-            const expire_date = getAdjustedUTCDate(+3)
+            const { products, expired_at } = getSessionData("shopcart", req.session)
+            const expired_date = new Date(expired_at)
+            const { order = {} } = req.body
             const { user_purchase_id } = await OrdersService.create({
                 order: {
                     ...order,
                     user_fk: user.user_id,
-                    expire_at: expire_date
+                    expire_at: expired_date
                 },
-                order_products,
+                order_products: products,
             })
 
             const transform = await MercadoPagoService.transformProductsToCheckoutItems({
@@ -42,7 +42,7 @@ class OrderController {
             const data = await MercadoPagoService.createCheckout({
                 items: transform,
                 external_reference: user_purchase_id,
-                date_of_expiration: expire_date,
+                date_of_expiration: expired_date,
                 shipments: {
                     cost: 15000,
                     free_shipping: total >= storeConfig.minFreeShipping
@@ -63,7 +63,7 @@ class OrderController {
                     init_point,
                     date_of_expiration,
                 },
-                
+
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -82,13 +82,12 @@ class OrderController {
         try {
             const { purchase_id = "" } = req.query
             const { user_id } = getSessionData("user_info", req.session)
-            const data = await userPurchasesService.getForUser({
+            const data = await UserPurchasesService.getForUser({
                 user_fk: user_id,
                 user_purchase_id: purchase_id
             })
             res.json({
                 data,
-                
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -110,7 +109,7 @@ class OrderController {
             const data = await UserPurchaseProductService.getForUser({ user_purchase_fk: purchase_id, user_fk: user_id })
             res.json({
                 data,
-                
+
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

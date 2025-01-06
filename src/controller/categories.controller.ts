@@ -9,7 +9,7 @@ class CategoriesController {
 
     static async getByBrand(
         req: Request<{brand_id:string}>,
-        res: APP.ResponseTemplate<CategorySchema.Base[]>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {

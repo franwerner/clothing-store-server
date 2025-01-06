@@ -1,18 +1,14 @@
+import { CategorySchema, categorySchema } from "clothing-store-shared/schema";
 import zodParse from "../helper/zodParse.helper.js";
 import CategoriesModel from "../model/categories.model.js";
-import { CategorySchema, DatabaseKeySchema, categorySchema } from "clothing-store-shared/schema";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 import ServiceUtils from "../utils/service.utils.js";
 
-/**
- * Reglas a implementar:
- * Cada categoria creada debe contener un nombre unico por marca.
- * Lo mismo con las creacion de productos, deben tener un nomber unico por cada categoria.
- */
+
 class CategoriesService extends ServiceUtils {
 
-    static async getByBrand(brand_fk: DatabaseKeySchema) {
-        const categories = await CategoriesModel.select({ brand_fk })
+    static async getByBrand(brand: string) {
+        const categories = await CategoriesModel.selectWithBrand({ brand }, (builder) => builder.select("c.category_id", "c.category"))
         if (categories.length === 0) throw new ErrorHandler({
             message: "No se encontraron categorias.",
             status: 404,

@@ -9,7 +9,7 @@ interface ProductDetails {
     price: number
     color: string
     size: string
-    url: string | null
+    url: string 
 }
 
 class ShopcartModel extends ModelUtils {

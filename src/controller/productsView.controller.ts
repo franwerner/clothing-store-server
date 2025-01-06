@@ -2,46 +2,77 @@ import { NextFunction, Request } from "express"
 import ProductFullViewService from "../service/productFullview.service.js"
 import ProductsPreviewService from "../service/productsPreview.service.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
-import { OrderProducts } from "clothing-store-shared/types"
 
-type Params = {
-    brand: string,
-    category: string
-}
-type Query = {
-    color: string
-    price: string,
-    search: string,
-    size: string,
-    order: "asc" | "desc"
-    orderKey: OrderProducts
-    limit: string
-    offset: string
-
-}
 class ProductsViewController {
 
     static async getProductsPreview
-        (req: Request<Params, any, any, Query>,
+        (
+            req: Request,
             res: APP.ResponseTemplate,
             next: NextFunction
         ) {
         try {
             const { brand, category } = req.params
-            const { color, price, search, size, order, orderKey } = req.query
+            const { color, price, search, size, sortDirection, sortField, offset } = req.query as Record<string, any>
+            const filterParams = ProductsPreviewService
+                .generateProductPreviewFilters({
+                    brand,
+                    category,
+                    color,
+                    price,
+                    search,
+                    size,
+                })
+            const data = await ProductsPreviewService.getProductPreview({
+                filters: filterParams,
+                order: { sortDirection, sortField },
+                pagination: { offset }
+            })
+            res.json({
+                data
+            })
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else {
+                next()
+            }
+        }
+    }
 
-            const data = await ProductsPreviewService.main({
-                brand,
-                category,
-                color,
-                price,
-                search,
-                size,
-            }, {
-                orderKey,
-                order
+    static async getProductColorsPreview(
+        req: Request,
+        res: APP.ResponseTemplate,
+        next: NextFunction
+    ) {
+        try {
+            const { price, search, size, brand, category } = req.query as Record<string, any>
+            const filterParams = ProductsPreviewService.generateProductPreviewFilters({ brand, category, price, search, size })
+            const data = await ProductsPreviewService.getProductColors(filterParams)
+
+            res.json({
+                data
             })
 
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            }
+            else {
+                next()
+            }
+        }
+    }
+    static async getProductSizesPreview(
+        req: Request,
+        res: APP.ResponseTemplate,
+        next: NextFunction
+    ) {
+        try {
+            const { price, search, color, brand, category } = req.query as Record<string, any>
+            const filterParams = ProductsPreviewService.generateProductPreviewFilters({ brand, category, price, search, color })
+            const data = await ProductsPreviewService.getProductSizes(filterParams)
             res.json({
                 data
             })
@@ -61,8 +92,8 @@ class ProductsViewController {
         next: NextFunction
     ) {
         try {
-            const { product_id } = req.params
-            const data = await ProductFullViewService.main(product_id)
+            const { product, brand, category } = req.params
+            const data = await ProductFullViewService.main({ brand, category, product })
             res.json({
                 data,
             })

@@ -3,15 +3,13 @@ import ModelUtils from "../utils/model.utils.js"
 import { CategorySchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types.js"
 
-type CategoryKeys = keyof CategorySchema.Base
 type CategoryPartial = Partial<CategorySchema.Base>
-type CategoryRequired = Required<CategorySchema.Base>
 
 class CategoriesModel extends ModelUtils {
 
-    static async select<T extends CategoryKeys = CategoryKeys>(props: CategoryPartial = {}, modify?: APP.ModifySQL<Pick<CategoryRequired, T>>) {
+    static async select(props: CategoryPartial = {}, modify?: APP.ModifySQL) {
         try {
-            const query = sql<Pick<CategoryRequired, T>>("categories as c")
+            const query = sql("categories as c")
                 .where(props)
             modify && query.modify(modify)
             return await query
@@ -20,13 +18,21 @@ class CategoriesModel extends ModelUtils {
         }
     }
 
+    static async selectWithBrand({brand,...props}: CategoryPartial & { brand?: string } = {}, modify?: APP.ModifySQL<any>) {
+        return this.select(props, (builder) => {
+            builder.innerJoin("brands as b", "c.brand_fk", "b.brand_id")
+                .where("b.brand", brand)
+            modify && modify(builder)
+        })
+    }
+
     static async insert<T extends CategorySchema.Insert>(props: Exact<T, CategorySchema.Insert>) {
         try {
             return await sql("categories")
                 .insert(props)
         } catch (error) {
-            throw this.generateError(error,{
-                "ER_NO_REFERENCED_ROW_2" : "La marca que intentas referenciar con la categoria no existe."
+            throw this.generateError(error, {
+                "ER_NO_REFERENCED_ROW_2": "La marca que intentas referenciar con la categoria no existe."
             })
         }
     }
@@ -37,8 +43,8 @@ class CategoriesModel extends ModelUtils {
                 .update(category)
                 .where("category_id", category_id)
         } catch (error) {
-            throw this.generateError(error,{
-                "ER_NO_REFERENCED_ROW_2" : "La marca que intentas referenciar con la categoria no existe."
+            throw this.generateError(error, {
+                "ER_NO_REFERENCED_ROW_2": "La marca que intentas referenciar con la categoria no existe."
             })
         }
     }

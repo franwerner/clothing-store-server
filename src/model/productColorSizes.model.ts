@@ -4,18 +4,16 @@ import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
 
-type ProductColorSizeKeys = keyof ProductColorSizeSchema.Base
 type ProductColorSizePartial = Partial<ProductColorSizeSchema.Base>
-type ProductColorSizeRequired = Required<ProductColorSizeSchema.Base>
 
 class ProductColorSizesModel extends ModelUtils {
 
-    static async select<T extends ProductColorSizeKeys = ProductColorSizeKeys>(
+    static async select(
         props: ProductColorSizePartial = {},
-        modify?: APP.ModifySQL<Pick<ProductColorSizeRequired, T>>
+        modify?: APP.ModifySQL
     ) {
         try {
-            const query = sql<Pick<ProductColorSizeRequired, T>>("product_color_sizes as pcs")
+            const query = sql("product_color_sizes as pcs")
                 .where(props)
             modify && query.modify(modify)
             return await query
@@ -24,11 +22,11 @@ class ProductColorSizesModel extends ModelUtils {
         }
     }
 
-    static selectJoinSize<T extends ProductColorSizeKeys = ProductColorSizeKeys>(
+    static selectJoinSize(
         props?: ProductColorSizePartial,
-        modify?: APP.ModifySQL<Pick<ProductColorSizeRequired, T>>
+        modify?: APP.ModifySQL
     ) {
-        return this.select<T>(props, (builder) => {
+        return this.select(props, (builder) => {
             modify && builder.modify(modify)
             builder.leftJoin("sizes as s", "s.size_id", "pcs.size_fk")
         })

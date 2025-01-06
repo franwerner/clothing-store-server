@@ -4,17 +4,15 @@ import Exact from "../types/Exact.types"
 import ModelUtils from "../utils/model.utils"
 
 
-type UserPurchaseKeys = keyof UserPurchaseSchema.Base
 type UserPurchasePartial = Partial<UserPurchaseSchema.Base>
-type UserPurchaseRequired = Required<UserPurchaseSchema.Base>
 
 class UserPurchasesModel extends ModelUtils {
 
-    static async select<T extends UserPurchaseKeys = UserPurchaseKeys>(
+    static async select(
         props: UserPurchasePartial = {},
-        modify?: APP.ModifySQL<Pick<UserPurchaseRequired, T>>) {
+        modify?: APP.ModifySQL) {
         try {
-            const query = sql<Pick<UserPurchaseRequired, T>>("user_purchases as up")
+            const query = sql("user_purchases as up")
                 .where(props)
             modify && query.modify(modify)
             return await query

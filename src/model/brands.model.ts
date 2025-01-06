@@ -3,15 +3,13 @@ import { BrandSchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
-type BrandKeys = keyof BrandSchema.Base
 type BrandPartial = Partial<BrandSchema.Base>
-type BrandRequired = Required<BrandSchema.Base>
 
 class BrandsModel extends ModelUtils {
 
-    static async select<T extends BrandKeys = BrandKeys>(props: BrandPartial = {}) {
+    static async select(props: BrandPartial = {}) {
         try {
-            const query = sql<Pick<BrandRequired, T>>("brands as b")
+            const query = sql("brands as b")
                 .where(props)
             return await query
         } catch (error) {

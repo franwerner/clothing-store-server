@@ -3,13 +3,11 @@ import { ColorSchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
-type ColorKeys = keyof ColorSchema.Base
 type ColorPartial = Partial<ColorSchema.Base>
-type ColorRequerid = Required<ColorSchema.Base>
 class ColorsModel extends ModelUtils {
-    static async select<T extends ColorKeys = ColorKeys>(props: ColorPartial = {}, modify?: APP.ModifySQL<Pick<ColorRequerid, T>>) {
+    static async select(props: ColorPartial = {}, modify?: APP.ModifySQL) {
         try {
-            const query = sql<Pick<ColorRequerid, T>>("colors")
+            const query = sql("colors")
                 .where(props)
             modify && query.modify(modify)
             return await query

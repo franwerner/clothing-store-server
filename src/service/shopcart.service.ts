@@ -13,16 +13,17 @@ class ShopcartService {
         if (!details) {
             throw new ErrorHandler({
                 status: 404,
-                message: "El producto no se encuentra disponible.",
+                message: "El producto no se encuentra disponible o no contiene stock.",
                 code: "product_not_available",
                 data: product
             })
         }
-        return {
+        return zodParse(shopcartProductSchema.baseInShopcartProduct)({
             ...product,
             ...details,
+            url: "", //Cambiar esto es solo para prubeas, la url siempre contendra un string.
             id: crypto.randomUUID()
-        }
+        })
     }
 
     static async addProducts(products: Array<ShopcartProductSchema.BaseInShopcart>, newProducts: Array<ShopcartProductSchema.BaseOutShopcart>) {
@@ -51,7 +52,7 @@ class ShopcartService {
     }
 
     static createShopcart(shopcart?: Shopcart) {
-        if (!shopcart || shopcart.expired_at < Date.now()) {
+        if (!shopcart || (shopcart.expired_at || 0) < Date.now()) {
             return {
                 products: [],
                 expired_at: Date.now() + (1000 * 60 * 60 * 3) //3 hours,
@@ -78,8 +79,8 @@ class ShopcartService {
         })
     }
 
-    static removeProduct(shopcart: Array<ShopcartProductSchema.BaseInShopcart>, product_id: string) {
-        return shopcart.filter(i => i.id !== product_id)
+    static removeProduct(shopcart: Array<ShopcartProductSchema.BaseInShopcart>, id: string) {
+        return shopcart.filter(i => i.id !== id)
     }
 
     static groupProducts(products: Array<ShopcartProductSchema.BaseInShopcart>) {

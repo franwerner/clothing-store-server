@@ -3,18 +3,16 @@ import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
 
-type UserKeys = keyof UserSchema.Base
 type UserPartial = Partial<UserSchema.Base>
-type UserRequired = Required<UserSchema.Base>
 
 class UsersModel extends ModelUtils {
 
-    static async select<T extends UserKeys = UserKeys>(
+    static async select(
         props: UserPartial = {},
-        modify?: APP.ModifySQL<Pick<UserRequired, T>>
+        modify?: APP.ModifySQL
     ) {
         try {
-            const query = sql<Pick<UserRequired, T>>("users")
+            const query = sql("users")
                 .where(props)
             modify && query.modify(modify)
             return await query

@@ -1,39 +1,39 @@
+import { ProductSchema } from "clothing-store-shared/schema"
 import sql from "../config/knex.config.js"
-import { DatabaseKeySchema, ProductSchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
-type ProductKeys = keyof ProductSchema.Base
 type ProductPartial = Partial<ProductSchema.Base>
-type ProductRequerid = Required<ProductSchema.Base>
 
 class ProductsModel extends ModelUtils {
 
-    static async select<T extends ProductKeys = ProductKeys>(
+    static async select(
         props: ProductPartial = {},
-        modify?: APP.ModifySQL<Pick<ProductRequerid, T>>
+        modify?: APP.ModifySQL
     ) {
         try {
-            const query = sql<Pick<ProductRequerid, T>>("products as p")
+            const query = sql("products as p")
                 .where(props)
             modify && query.modify(modify)
-            console.log(query.toQuery())
             return await query
         } catch (error) {
             throw this.generateError(error)
         }
     }
- 
-    static selectExistsColors<T extends ProductKeys = ProductKeys>(
-        props?: ProductPartial,
-        modify?: APP.ModifySQL<Pick<ProductRequerid, T>>
+
+    static selectByBrandAndCategory(
+        { brand, category, ...props }: ProductPartial & { brand: string, category: string },
+        modify?: APP.ModifySQL
     ) {
-        return this.select<T>(props, (builder) => {
+        return this.select(props, (builder) => {
             modify && builder.modify(modify)
-            builder.whereExists(
-                sql("product_colors as pc")
-                    .whereRaw("pc.product_fk = p.product_id")
-            )
+            builder.where("p.category_fk",
+                sql("brands as b")
+                    .select("c.category_id")
+                    .innerJoin("categories as c", "c.brand_fk", "b.brand_id")
+                    .where("b.brand", brand)
+                    .where("c.category", category)
+                    .limit(1))
         })
     }
 

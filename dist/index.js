@@ -76,6 +76,38 @@ var errorGlobal = (_, res) => {
 };
 var errorGlobal_middleware_default = errorGlobal;
 
+// src/rate-limiter/default.rate-limiter.ts
+import { rateLimit } from "express-rate-limit";
+
+// src/utils/rateLimitHandler.utilts.ts
+var rateLimitHandler = (req, res) => {
+  const currentTime = /* @__PURE__ */ new Date();
+  const time = req.rateLimit?.resetTime || currentTime;
+  const resetTime = new Date(time);
+  const diffToSeconds = (resetTime.getTime() - currentTime.getTime()) / 1e3;
+  const minutes = Math.floor(diffToSeconds / 60);
+  const seconds = Math.floor(diffToSeconds % 60);
+  res.status(429).json({
+    message: `Para continuar con esta operacion deber esperar ${minutes}M ${seconds}S`,
+    code: "rate_limit",
+    data: {
+      seconds,
+      minutes,
+      date: resetTime
+    }
+  });
+};
+var rateLimitHandler_utilts_default = rateLimitHandler;
+
+// src/rate-limiter/default.rate-limiter.ts
+var defaultLimiter = rateLimit({
+  windowMs: 5 * 60 * 1e3,
+  //5 minutos 
+  limit: 150,
+  handler: rateLimitHandler_utilts_default
+});
+var default_rate_limiter_default = defaultLimiter;
+
 // src/middleware/isAdmin.middleware.ts
 var isAdmin = (req, res, next) => {
   const user = req.session.user_info;
@@ -158,6 +190,7 @@ var databaseErrorHandler_utilts_default = DatabaseErrorHandler;
 // src/utils/model.utils.ts
 var ModelUtils = class {
   static generateError(error, messages = {}) {
+    console.log(error);
     if (databaseErrorHandler_utilts_default.isSqlError(error)) {
       throw new databaseErrorHandler_utilts_default(error, messages);
     } else {
@@ -265,38 +298,6 @@ var isCompleteUser = async (req, res, next) => {
   }
 };
 var isCompleteUser_middleware_default = isCompleteUser;
-
-// src/rate-limiter/default.rate-limiter.ts
-import { rateLimit } from "express-rate-limit";
-
-// src/utils/rateLimitHandler.utilts.ts
-var rateLimitHandler = (req, res) => {
-  const currentTime = /* @__PURE__ */ new Date();
-  const time = req.rateLimit?.resetTime || currentTime;
-  const resetTime = new Date(time);
-  const diffToSeconds = (resetTime.getTime() - currentTime.getTime()) / 1e3;
-  const minutes = Math.floor(diffToSeconds / 60);
-  const seconds = Math.floor(diffToSeconds % 60);
-  res.status(429).json({
-    message: `Para continuar con esta operacion deber esperar ${minutes}M ${seconds}S`,
-    code: "rate_limit",
-    data: {
-      seconds,
-      minutes,
-      date: resetTime
-    }
-  });
-};
-var rateLimitHandler_utilts_default = rateLimitHandler;
-
-// src/rate-limiter/default.rate-limiter.ts
-var defaultLimiter = rateLimit({
-  windowMs: 5 * 60 * 1e3,
-  //5 minutos 
-  limit: 150 * 350,
-  handler: rateLimitHandler_utilts_default
-});
-var default_rate_limiter_default = defaultLimiter;
 
 // src/router/brands.router.ts
 import express from "express";
@@ -520,6 +521,9 @@ var brands_router_default = brandsRouter;
 // src/router/categories.router.ts
 import express2 from "express";
 
+// src/service/categories.service.ts
+import { categorySchema } from "clothing-store-shared/schema";
+
 // src/model/categories.model.ts
 var CategoriesModel = class extends model_utils_default {
   static async select(props = {}, modify) {
@@ -530,6 +534,12 @@ var CategoriesModel = class extends model_utils_default {
     } catch (error) {
       throw this.generateError(error);
     }
+  }
+  static async selectWithBrand({ brand, ...props } = {}, modify) {
+    return this.select(props, (builder) => {
+      builder.innerJoin("brands as b", "c.brand_fk", "b.brand_id").where("b.brand", brand);
+      modify && modify(builder);
+    });
   }
   static async insert(props) {
     try {
@@ -562,10 +572,9 @@ var CategoriesModel = class extends model_utils_default {
 var categories_model_default = CategoriesModel;
 
 // src/service/categories.service.ts
-import { categorySchema } from "clothing-store-shared/schema";
 var CategoriesService = class extends service_utils_default {
-  static async getByBrand(brand_fk) {
-    const categories = await categories_model_default.select({ brand_fk });
+  static async getByBrand(brand) {
+    const categories = await categories_model_default.selectWithBrand({ brand }, (builder) => builder.select("c.category_id", "c.category"));
     if (categories.length === 0) throw new errorHandler_utilts_default({
       message: "No se encontraron categorias.",
       status: 404,
@@ -871,11 +880,11 @@ var UserPurchaseProductsModel = class extends model_utils_default {
     });
   }
   static async insert(props, tsx = knex_config_default) {
-    const { color_fk, product_fk, size_fk, user_purchase_fk, quantity } = props;
+    const { color_fk, product_fk, size_fk, user_purchase_fk, quantity, price, discount = 0 } = props;
     try {
       const query = tsx.raw(`
                 INSERT INTO user_purchase_products (product_fk,user_purchase_fk,color_fk,size_fk,quantity,price,discount)
-                SELECT ?,?,?,?,?,p.price,p.discount FROM
+                SELECT ?,?,?,?,?,?,? FROM
                 products p
                 INNER JOIN product_colors pc ON pc.product_fk = p.product_id 
                 INNER JOIN product_color_sizes pcs ON pcs.product_color_fk = pc.product_color_id  
@@ -890,6 +899,8 @@ var UserPurchaseProductsModel = class extends model_utils_default {
         color_fk,
         size_fk,
         quantity,
+        price,
+        discount,
         product_fk,
         color_fk,
         size_fk
@@ -1208,28 +1219,21 @@ var UserPurchaseProductService = class extends service_utils_default {
 };
 var userPurchaseProducts_service_default = UserPurchaseProductService;
 
-// src/utils/getAdjustedUTCDate.utils.ts
-var getAdjustedUTCDate = (UTC) => {
-  const date = /* @__PURE__ */ new Date();
-  date.setUTCHours(date.getUTCHours() + UTC);
-  return date;
-};
-var getAdjustedUTCDate_utils_default = getAdjustedUTCDate;
-
 // src/controller/order.controller.ts
 var OrderController = class {
   static async createOrder(req, res, next) {
     try {
       const user = getSessionData_helper_default("user_info", req.session);
-      const { order = {}, order_products = [] } = req.body;
-      const expire_date = getAdjustedUTCDate_utils_default(3);
+      const { products, expired_at } = getSessionData_helper_default("shopcart", req.session);
+      const expired_date = new Date(expired_at);
+      const { order = {} } = req.body;
       const { user_purchase_id } = await orders_service_default.create({
         order: {
           ...order,
           user_fk: user.user_id,
-          expire_at: expire_date
+          expire_at: expired_date
         },
-        order_products
+        order_products: products
       });
       const transform = await mercadoPago_service_default.transformProductsToCheckoutItems({
         user_fk: user.user_id,
@@ -1242,7 +1246,7 @@ var OrderController = class {
       const data = await mercadoPago_service_default.createCheckout({
         items: transform,
         external_reference: user_purchase_id,
-        date_of_expiration: expire_date,
+        date_of_expiration: expired_date,
         shipments: {
           cost: 15e3,
           free_shipping: total >= storeConfig.minFreeShipping
@@ -1306,9 +1310,31 @@ var OrderController = class {
 };
 var order_controller_default = OrderController;
 
+// src/middleware/isExitsShopcart.middleware.ts
+var isExitsShopcart = async (req, res, next) => {
+  const shopcart = req.session?.shopcart;
+  if (!shopcart) {
+    new errorHandler_utilts_default({
+      status: 404,
+      code: "unavailable_shopcart",
+      message: "No hay un carrito de compras creado"
+    }).response(res);
+  } else if (shopcart.expired_at < Date.now()) {
+    shopcart.products = [];
+    new errorHandler_utilts_default({
+      status: 404,
+      code: "expired_shopcart",
+      message: "El carrito de compras se encuentra expirado."
+    }).response(res);
+  } else {
+    next();
+  }
+};
+var isExitsShopcart_middleware_default = isExitsShopcart;
+
 // src/router/order.router.ts
 var orderRouter = Router();
-orderRouter.post("/", order_controller_default.createOrder);
+orderRouter.post("/", isExitsShopcart_middleware_default, order_controller_default.createOrder);
 orderRouter.get("/", order_controller_default.getOrder);
 orderRouter.get("/details", order_controller_default.getOrderDetails);
 var order_router_default = orderRouter;
@@ -1729,17 +1755,17 @@ var ProductsModel = class extends model_utils_default {
     try {
       const query = knex_config_default("products as p").where(props);
       modify && query.modify(modify);
-      console.log(query.toQuery());
       return await query;
     } catch (error) {
       throw this.generateError(error);
     }
   }
-  static selectExistsColors(props, modify) {
+  static selectByBrandAndCategory({ brand, category, ...props }, modify) {
     return this.select(props, (builder) => {
       modify && builder.modify(modify);
-      builder.whereExists(
-        knex_config_default("product_colors as pc").whereRaw("pc.product_fk = p.product_id")
+      builder.where(
+        "p.category_fk",
+        knex_config_default("brands as b").select("c.category_id").innerJoin("categories as c", "c.brand_fk", "b.brand_id").where("b.brand", brand).where("c.category", category).limit(1)
       );
     });
   }
@@ -1975,46 +2001,57 @@ import express10 from "express";
 
 // src/service/productFullview.service.ts
 var ProductFullViewService = class {
-  static async getProduct(product_id) {
-    const [product] = await products_model_default.selectExistsColors({ product_id, status: true });
-    if (!product) throw new errorHandler_utilts_default({
-      message: "Product no encontrado.",
-      code: "product_not_found"
+  static async getProduct({ brand, category, product }) {
+    const [p] = await products_model_default.selectByBrandAndCategory(
+      { brand, category, product, status: true },
+      (builder) => builder.select("product_id", "product", "discount", "price", "create_at")
+    );
+    if (!p) throw new errorHandler_utilts_default({
+      message: "Producto no encontrado.",
+      code: "product_not_found",
+      status: 404
     });
-    return product;
+    return p;
   }
   static async getProductColors(product_fk) {
-    const productColorModel = await productColors_model_default.selectExistsSizes({ product_fk });
+    const productColorModel = await productColors_model_default.selectExistsSizes(
+      { product_fk },
+      (builder) => builder.select("color", "color_id", "product_color_id", "hexadecimal")
+    );
     if (productColorModel.length === 0) throw new errorHandler_utilts_default({
       message: "No se encontro ningun color asociado al producto",
-      code: "product_colors_not_found"
+      code: "product_colors_not_found",
+      status: 404
     });
     return productColorModel;
   }
   static async getProductColorSize(product_color_fk) {
-    const color_sizes = await productColorSizes_model_default.selectJoinSize({ product_color_fk });
-    return [color_sizes];
+    const color_sizes = await productColorSizes_model_default.selectJoinSize(
+      { product_color_fk },
+      (builder) => builder.select("size", "stock", "product_color_size_id", "size_id")
+    );
+    return color_sizes;
   }
   static async getProductColorImage(product_color_fk) {
-    const color_images = await productColorImages_model_default.select({ product_color_fk });
+    const color_images = await productColorImages_model_default.select({ product_color_fk }, (builder) => builder.select("url", "product_color_image_id"));
     return color_images;
   }
   static async groupByColor(colors) {
     return await Promise.all(
       colors.map(async (i) => {
         const product_color_id = i.product_color_id;
-        const color_images = await this.getProductColorImage(product_color_id);
-        const color_sizes = await this.getProductColorSize(product_color_id);
+        const images = await this.getProductColorImage(product_color_id);
+        const sizes = await this.getProductColorSize(product_color_id);
         return {
           color: i,
-          color_images,
-          color_sizes
+          images,
+          sizes
         };
       })
     );
   }
-  static async main(product_id) {
-    const product = await this.getProduct(product_id);
+  static async main(props) {
+    const product = await this.getProduct(props);
     const colors = await this.getProductColors(product.product_id);
     const groupByColor = await this.groupByColor(colors);
     return {
@@ -2038,11 +2075,16 @@ var getOrderProduct = (orderKey) => {
   }
 };
 var ProductPreviewModel = class extends model_utils_default {
-  static async getProducts(filters, order) {
+  static async selectProducts({
+    filters,
+    order,
+    pagination
+  }) {
     try {
       const { color, price, search, size, brand, category } = filters;
-      const orderField = getOrderProduct(order.orderKey);
-      const defaultOrder = ["asc", "desc"].includes(order.order) ? order.order : "asc";
+      const { offset } = pagination;
+      const orderField = getOrderProduct(order.sortField);
+      const defaultOrder = ["asc", "desc"].includes(order.sortDirection) ? order.sortDirection : "asc";
       const [min, max] = price || [];
       const subQueryForOneImagePerProductColor = knex_config_default("product_color_images as pci").select(
         "pci.*",
@@ -2052,19 +2094,22 @@ var ProductPreviewModel = class extends model_utils_default {
         "p.product",
         "p.discount",
         "p.price",
-        "pt.category",
+        "ct.category",
         "pb.brand",
         "pci.url",
         "c.color",
         "pc.product_color_id",
         "p.product_id"
-      ).innerJoin("categories as pt", "pt.brand_fk", "pb.brand_id").innerJoin("products as p", "p.category_fk", "pt.category_id").innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").leftJoin(subQueryForOneImagePerProductColor.as("pci"), (pci) => {
+      ).innerJoin("categories as ct", "ct.brand_fk", "pb.brand_id").innerJoin("products as p", "p.category_fk", "ct.category_id").innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").leftJoin(subQueryForOneImagePerProductColor.as("pci"), (pci) => {
         pci.on("pci.product_color_fk", "=", "pc.product_color_id");
         pci.andOn("pci.row_num", "=", 1);
-      }).where("p.status", true);
+      }).limit(15).where("p.status", true).whereExists(
+        knex_config_default("product_color_sizes as pcs").select(1).whereRaw("pcs.product_color_fk = pc.product_color_id")
+      );
+      offset && query.offset(Number(offset));
       orderField && query.orderBy(orderField, defaultOrder);
       brand && query.where("pb.brand", brand);
-      category && query.where("pt.category", category);
+      category && query.where("ct.category", category);
       search && query.whereILike("p.product", `%${search}%`);
       min && query.where("p.price", ">=", min);
       max && query.where("p.price", "<=", max);
@@ -2078,30 +2123,34 @@ var ProductPreviewModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
-  static async getProductColors(productsIDs, sizeIDs) {
+  static selectProductsPreviewDetailBase(filters) {
+    const { price, brand, category, search } = filters;
+    const [min, max] = price || [];
+    const query = knex_config_default("brands as b").count("* as quantity").innerJoin("categories as ct", "ct.brand_fk", "b.brand_id").innerJoin("products as p", "p.category_fk", "ct.category_id").innerJoin("product_colors as pc", "p.product_id", "pc.product_fk").where("p.status", true);
+    min && query.where("p.price", ">=", min);
+    max && query.where("p.price", "<=", max);
+    brand && query.where("b.brand", brand);
+    category && query.where("ct.category", category);
+    search && query.whereILike("p.product", `%${search}%`);
+    return query;
+  }
+  static async selectProductColors({ size, ...filters }) {
     try {
-      const query = knex_config_default("products as p").select(
-        "c.color_id",
-        "c.color",
-        "c.hexadecimal"
-      ).count("* as quantity").innerJoin("product_colors as pc", "p.product_id", "pc.product_fk").innerJoin("colors as c", "c.color_id", "pc.color_fk").groupBy("c.color_id");
-      productsIDs && productsIDs.length > 0 && query.whereIn("p.product_id", productsIDs);
-      sizeIDs && sizeIDs.length > 0 && query.whereIn("pc.product_color_id", function() {
-        this.select("product_color_fk").from("product_color_sizes").whereIn("size_fk", sizeIDs);
+      const query = this.selectProductsPreviewDetailBase(filters).innerJoin("colors as c", "c.color_id", "pc.color_fk").select("c.color_id", "c.color", "c.hexadecimal").groupBy("c.color_id").whereExists(
+        knex_config_default("product_color_sizes as pcs").select(1).whereRaw("pcs.product_color_fk = pc.product_color_id")
+      );
+      size && size.length > 0 && query.whereIn("pc.product_color_id", (builder) => {
+        builder.select("product_color_fk").from("product_color_sizes").whereIn("size_fk", size);
       });
       return await query;
     } catch (error) {
       throw this.generateError(error);
     }
   }
-  static async getProductSizes(productsIDs, colorIDs) {
+  static async selectProductSizes({ color, ...filters }) {
     try {
-      const query = knex_config_default("products as p").select(
-        "s.size_id",
-        "s.size"
-      ).count("* as quantity").innerJoin("product_colors as pc", "p.product_id", "pc.product_fk").innerJoin("product_color_sizes as pcs", "pc.product_color_id", "pcs.product_color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk").groupBy("s.size");
-      productsIDs && productsIDs.length > 0 && query.whereIn("p.product_id", productsIDs);
-      colorIDs && colorIDs.length > 0 && query.whereIn("pc.color_fk", colorIDs);
+      const query = this.selectProductsPreviewDetailBase(filters).select("s.size_id", "s.size").groupBy("s.size_id").innerJoin("product_color_sizes as pcs", "pc.product_color_id", "pcs.product_color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk");
+      color && query.whereIn("pc.color_fk", color);
       return await query;
     } catch (error) {
       throw this.generateError(error);
@@ -2137,8 +2186,16 @@ var ProductsPreviewService = class {
     }
     return res;
   }
-  static async getProductPreview(filterParams, order) {
-    const res = await productsPreview_model_default.getProducts(filterParams, order);
+  static async getProductPreview({
+    filters,
+    order,
+    pagination
+  }) {
+    const res = await productsPreview_model_default.selectProducts({
+      filters,
+      order,
+      pagination
+    });
     if (res.length == 0) {
       throw new errorHandler_utilts_default({
         message: "No se encontro ningun producto",
@@ -2148,8 +2205,8 @@ var ProductsPreviewService = class {
     }
     return res;
   }
-  static async getProductColors(productsIDs, sizeIDs) {
-    const res = await productsPreview_model_default.getProductColors(productsIDs, sizeIDs);
+  static async getProductColors(filter) {
+    const res = await productsPreview_model_default.selectProductColors(filter);
     if (res.length === 0) throw new errorHandler_utilts_default({
       code: "product_colors_not_found",
       status: 404,
@@ -2157,24 +2214,14 @@ var ProductsPreviewService = class {
     });
     return res;
   }
-  static async getProductSizes(productsIDs, colorIDs) {
-    const res = await productsPreview_model_default.getProductSizes(productsIDs, colorIDs);
+  static async getProductSizes(filter) {
+    const res = await productsPreview_model_default.selectProductSizes(filter);
     if (res.length === 0) throw new errorHandler_utilts_default({
       code: "product_color_sizes_not_found",
       message: "No se encontraron tama\xF1os asociados a los productos.",
       status: 404
     });
     return res;
-  }
-  static async main(filterProperties, order) {
-    const filterParams = this.generateProductPreviewFilters(filterProperties);
-    const products = await this.getProductPreview(filterParams, order);
-    const productIDs = [...new Set(products.map(({ product_id }) => product_id))];
-    return {
-      products,
-      colors: await this.getProductColors(productIDs, filterParams.size),
-      sizes: await this.getProductSizes(productIDs, filterParams.color)
-    };
   }
 };
 var productsPreview_service_default = ProductsPreviewService;
@@ -2184,18 +2231,52 @@ var ProductsViewController = class {
   static async getProductsPreview(req, res, next) {
     try {
       const { brand, category } = req.params;
-      const { color, price, search, size, order, orderKey } = req.query;
-      const data = await productsPreview_service_default.main({
+      const { color, price, search, size, sortDirection, sortField, offset } = req.query;
+      const filterParams = productsPreview_service_default.generateProductPreviewFilters({
         brand,
         category,
         color,
         price,
         search,
         size
-      }, {
-        orderKey,
-        order
       });
+      const data = await productsPreview_service_default.getProductPreview({
+        filters: filterParams,
+        order: { sortDirection, sortField },
+        pagination: { offset }
+      });
+      res.json({
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async getProductColorsPreview(req, res, next) {
+    try {
+      const { price, search, size, brand, category } = req.query;
+      const filterParams = productsPreview_service_default.generateProductPreviewFilters({ brand, category, price, search, size });
+      const data = await productsPreview_service_default.getProductColors(filterParams);
+      res.json({
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async getProductSizesPreview(req, res, next) {
+    try {
+      const { price, search, color, brand, category } = req.query;
+      const filterParams = productsPreview_service_default.generateProductPreviewFilters({ brand, category, price, search, color });
+      const data = await productsPreview_service_default.getProductSizes(filterParams);
       res.json({
         data
       });
@@ -2209,8 +2290,8 @@ var ProductsViewController = class {
   }
   static async getProductFullView(req, res, next) {
     try {
-      const { product_id } = req.params;
-      const data = await productFullview_service_default.main(product_id);
+      const { product, brand, category } = req.params;
+      const data = await productFullview_service_default.main({ brand, category, product });
       res.json({
         data
       });
@@ -2227,11 +2308,236 @@ var productsView_controller_default = ProductsViewController;
 
 // src/router/productsView.router.ts
 var productsViewRouter = express10.Router();
+productsViewRouter.get("/preview/colors", productsView_controller_default.getProductColorsPreview);
+productsViewRouter.get("/preview/sizes", productsView_controller_default.getProductSizesPreview);
 productsViewRouter.get("/preview", productsView_controller_default.getProductsPreview);
 productsViewRouter.get("/preview/:brand", productsView_controller_default.getProductsPreview);
 productsViewRouter.get("/preview/:brand/:category", productsView_controller_default.getProductsPreview);
-productsViewRouter.get("/fullview/:product_id", productsView_controller_default.getProductFullView);
+productsViewRouter.get("/fullview/:brand/:category/:product", productsView_controller_default.getProductFullView);
 var productsView_router_default = productsViewRouter;
+
+// src/router/shopcart.router.ts
+import { Router as Router2 } from "express";
+
+// src/model/shopcart.model.ts
+var ShopcartModel = class extends model_utils_default {
+  static async selectDetailsProducts({ color_fk, product_fk, size_fk }) {
+    try {
+      return await knex_config_default("products as p").select(
+        "p.product",
+        "p.discount",
+        "p.price",
+        "c.color",
+        "s.size",
+        "pci.url"
+      ).innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id").leftJoin("product_color_images as pci", "pci.product_color_fk", "pc.product_color_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk").where({
+        "p.product_id": product_fk,
+        "pc.color_fk": color_fk,
+        "pcs.size_fk": size_fk,
+        "p.status": true,
+        "pcs.stock": true
+      });
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async checkProductAvailability({ color_fk, product_fk, size_fk }) {
+    try {
+      return await knex_config_default("products as p").select(1).innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id").where({
+        "p.product_id": product_fk,
+        "pc.color_fk": color_fk,
+        "pcs.size_fk": size_fk,
+        "p.status": true,
+        "pcs.stock": true
+      });
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+};
+var shopcart_model_default = ShopcartModel;
+
+// src/service/shopcart.service.ts
+import { isNumber } from "my-utilities";
+import { shopcartProductSchema } from "clothing-store-shared/schema";
+var ShopcartService = class {
+  static async getDetailProduct(product) {
+    const parseProduct = zodParse_helper_default(shopcartProductSchema.baseOutShopcartProduct)(product);
+    const [details] = await shopcart_model_default.selectDetailsProducts(parseProduct);
+    if (!details) {
+      throw new errorHandler_utilts_default({
+        status: 404,
+        message: "El producto no se encuentra disponible o no contiene stock.",
+        code: "product_not_available",
+        data: product
+      });
+    }
+    return zodParse_helper_default(shopcartProductSchema.baseInShopcartProduct)({
+      ...product,
+      ...details,
+      url: "",
+      //Cambiar esto es solo para prubeas, la url siempre contendra un string.
+      id: crypto.randomUUID()
+    });
+  }
+  static async addProducts(products, newProducts) {
+    const cloneProducts = structuredClone(products);
+    const isArrayNewProducts = Array.isArray(newProducts) ? newProducts : [];
+    const recentProductsChanges = [];
+    for (const product of isArrayNewProducts) {
+      const { color_fk, product_fk, quantity, size_fk } = product;
+      const repeated = cloneProducts.find((i) => i.color_fk == color_fk && i.product_fk == product_fk && i.size_fk == size_fk);
+      if (repeated) {
+        repeated.quantity += quantity;
+        recentProductsChanges.push(repeated);
+      } else {
+        const details = await this.getDetailProduct(product);
+        cloneProducts.push(details);
+        recentProductsChanges.push(details);
+      }
+    }
+    return {
+      products: cloneProducts,
+      recentProductsChanges
+    };
+  }
+  static createShopcart(shopcart) {
+    if (!shopcart || (shopcart.expired_at || 0) < Date.now()) {
+      return {
+        products: [],
+        expired_at: Date.now() + 1e3 * 60 * 60 * 3
+        //3 hours,
+      };
+    } else {
+      return shopcart;
+    }
+  }
+  static async updateQuantity(products, product) {
+    if (product.quantity <= 0 || !isNumber(product.quantity)) throw new errorHandler_utilts_default({
+      code: "invalid_product_quantity",
+      status: 400,
+      message: "La cantidad ingresada debe ser mayor o igual a 1"
+    });
+    return products.map((i) => {
+      if (i.id === product.id) {
+        return {
+          ...i,
+          quantity: product.quantity
+        };
+      }
+      return i;
+    });
+  }
+  static removeProduct(shopcart, id) {
+    return shopcart.filter((i) => i.id !== id);
+  }
+  static groupProducts(products) {
+    const groupedProducts = [];
+    for (const product of products) {
+      const { color_fk, product_fk, size_fk } = product;
+      const isEqual = groupedProducts.find((i) => i.color_fk == color_fk && product_fk == i.product_fk && i.size_fk == size_fk);
+      if (!isEqual) {
+        groupedProducts.push({ ...product });
+      } else {
+        isEqual.quantity += product.quantity;
+      }
+    }
+    return groupedProducts;
+  }
+};
+var shopcart_service_default = ShopcartService;
+
+// src/controller/shopcart.controller.ts
+var ShopcartController = class {
+  static async getShopcart(req, res, next) {
+    try {
+      const data = getSessionData_helper_default("shopcart", req.session);
+      res.json({
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async addProducts(req, res, next) {
+    try {
+      const shopcart = getSessionData_helper_default("shopcart", req.session);
+      const {
+        recentProductsChanges,
+        products
+      } = await shopcart_service_default.addProducts(shopcart.products, req.body.products);
+      shopcart.products = products;
+      res.json({
+        message: "Productos agregados al carrito correctamente.",
+        data: recentProductsChanges
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async updateProductQuantity(req, res, next) {
+    try {
+      const product = req.body.product;
+      const shopcart = getSessionData_helper_default("shopcart", req.session);
+      shopcart.products = await shopcart_service_default.updateQuantity(shopcart.products, product);
+      res.json({
+        message: "Cantidad del producto cambianda exitosamente.",
+        data: shopcart.products.find((i) => i.id === product.id)
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async removeProduct(req, res, next) {
+    try {
+      const shopcart = getSessionData_helper_default("shopcart", req.session);
+      shopcart.products = shopcart_service_default.removeProduct(shopcart.products, req.body.id);
+      if (shopcart.products.length == 0) {
+        req.session.shopcart = void 0;
+      }
+      res.json({
+        message: "Producto borrado del carrito exitosamente."
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+};
+var shopcart_controller_default = ShopcartController;
+
+// src/middleware/createShopcart.middleware.ts
+var createShopcartMiddleware = (req, _, next) => {
+  const shopcart = req.session.shopcart;
+  if (!shopcart || Date.now() > shopcart.expired_at) {
+    req.session.shopcart = shopcart_service_default.createShopcart(shopcart);
+  }
+  next();
+};
+var createShopcart_middleware_default = createShopcartMiddleware;
+
+// src/router/shopcart.router.ts
+var shopcartRouter = Router2();
+shopcartRouter.get("/", isExitsShopcart_middleware_default, shopcart_controller_default.getShopcart);
+shopcartRouter.post("/", createShopcart_middleware_default, shopcart_controller_default.addProducts);
+shopcartRouter.delete("/", isExitsShopcart_middleware_default, shopcart_controller_default.removeProduct);
+shopcartRouter.patch("/", isExitsShopcart_middleware_default, shopcart_controller_default.updateProductQuantity);
+var shopcart_router_default = shopcartRouter;
 
 // src/router/sizes.router.ts
 import express11 from "express";
@@ -2978,245 +3284,26 @@ usersRouter.post("/login", users_controller_default.login);
 usersRouter.get("/logout", users_controller_default.logout);
 var users_router_default = usersRouter;
 
-// src/router/shopcart.router.ts
-import { Router as Router2 } from "express";
-
-// src/model/shopcart.model.ts
-var ShopcartModel = class extends model_utils_default {
-  static async selectDetailsProducts({ color_fk, product_fk, size_fk }) {
-    try {
-      return await knex_config_default("products as p").select(
-        "p.product",
-        "p.discount",
-        "p.price",
-        "c.color",
-        "s.size",
-        "pci.url"
-      ).innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id").leftJoin("product_color_images as pci", "pci.product_color_fk", "pc.product_color_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk").where({
-        "p.product_id": product_fk,
-        "pc.color_fk": color_fk,
-        "pcs.size_fk": size_fk,
-        "p.status": true,
-        "pcs.stock": true
-      });
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
-  static async checkProductAvailability({ color_fk, product_fk, size_fk }) {
-    try {
-      return await knex_config_default("products as p").select(1).innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id").where({
-        "p.product_id": product_fk,
-        "pc.color_fk": color_fk,
-        "pcs.size_fk": size_fk,
-        "p.status": true,
-        "pcs.stock": true
-      });
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
+// src/router/index.ts
+var createRouters = (app2) => {
+  app2.use("/categories", categories_router_default);
+  app2.use("/products", products_router_default);
+  app2.use("/products/recomendations", productsRecomendations_router_default);
+  app2.use("/products/view", productsView_router_default);
+  app2.use("/products/colors", isAdmin_middleware_default, productColors_router_default);
+  app2.use("/products/colors/sizes", isAdmin_middleware_default, ProductColorSizes_router_default);
+  app2.use("/products/colors/images", isAdmin_middleware_default, ProductColorImages_router_default);
+  app2.use("/brands", brands_router_default);
+  app2.use("/sizes", sizes_router_default);
+  app2.use("/colors", colors_router_default);
+  app2.use("/users", users_router_default);
+  app2.use("/users/register", userRegister_router_default);
+  app2.use("/users/account", userAccount_router_default);
+  app2.use("/mercadopago", isCompleteUser_middleware_default, mercadoPago_router_default);
+  app2.use("/orders", isCompleteUser_middleware_default, order_router_default);
+  app2.use("/shopcart", shopcart_router_default);
 };
-var shopcart_model_default = ShopcartModel;
-
-// src/service/shopcart.service.ts
-import { isNumber } from "my-utilities";
-import { shopcartProductSchema } from "clothing-store-shared/schema";
-var ShopcartService = class {
-  static async getDetailProduct(product) {
-    const parseProduct = zodParse_helper_default(shopcartProductSchema.baseOutShopcartProduct)(product);
-    const [details] = await shopcart_model_default.selectDetailsProducts(parseProduct);
-    if (!details) {
-      throw new errorHandler_utilts_default({
-        status: 404,
-        message: "El producto no se encuentra disponible.",
-        code: "product_not_available",
-        data: product
-      });
-    }
-    return {
-      ...product,
-      ...details,
-      id: crypto.randomUUID()
-    };
-  }
-  static async addProducts(products, newProducts) {
-    const cloneProducts = structuredClone(products);
-    const isArrayNewProducts = Array.isArray(newProducts) ? newProducts : [];
-    const recentProductsChanges = [];
-    for (const product of isArrayNewProducts) {
-      const { color_fk, product_fk, quantity, size_fk } = product;
-      const repeated = cloneProducts.find((i) => i.color_fk == color_fk && i.product_fk == product_fk && i.size_fk == size_fk);
-      if (repeated) {
-        repeated.quantity += quantity;
-        recentProductsChanges.push(repeated);
-      } else {
-        const details = await this.getDetailProduct(product);
-        cloneProducts.push(details);
-        recentProductsChanges.push(details);
-      }
-    }
-    return {
-      products: cloneProducts,
-      recentProductsChanges
-    };
-  }
-  static createShopcart(shopcart) {
-    if (!shopcart || shopcart.expired_at < Date.now()) {
-      return {
-        products: [],
-        expired_at: Date.now() + 1e3 * 60 * 60 * 3
-        //3 hours,
-      };
-    } else {
-      return shopcart;
-    }
-  }
-  static async updateQuantity(products, product) {
-    if (product.quantity <= 0 || !isNumber(product.quantity)) throw new errorHandler_utilts_default({
-      code: "invalid_product_quantity",
-      status: 400,
-      message: "La cantidad ingresada debe ser mayor o igual a 1"
-    });
-    return products.map((i) => {
-      if (i.id === product.id) {
-        return {
-          ...i,
-          quantity: product.quantity
-        };
-      }
-      return i;
-    });
-  }
-  static removeProduct(shopcart, product_id) {
-    return shopcart.filter((i) => i.id !== product_id);
-  }
-  static groupProducts(products) {
-    const groupedProducts = [];
-    for (const product of products) {
-      const { color_fk, product_fk, size_fk } = product;
-      const isEqual = groupedProducts.find((i) => i.color_fk == color_fk && product_fk == i.product_fk && i.size_fk == size_fk);
-      if (!isEqual) {
-        groupedProducts.push({ ...product });
-      } else {
-        isEqual.quantity += product.quantity;
-      }
-    }
-    return groupedProducts;
-  }
-};
-var shopcart_service_default = ShopcartService;
-
-// src/controller/shopcart.controller.ts
-var ShopcartController = class {
-  static async getShopcart(req, res, next) {
-    try {
-      const data = getSessionData_helper_default("shopcart", req.session);
-      res.json({
-        data
-      });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
-      } else {
-        next();
-      }
-    }
-  }
-  static async addProducts(req, res, next) {
-    try {
-      const shopcart = getSessionData_helper_default("shopcart", req.session);
-      const {
-        recentProductsChanges,
-        products
-      } = await shopcart_service_default.addProducts(shopcart.products, req.body.products);
-      shopcart.products = products;
-      res.json({
-        message: "Productos agregados al carrito correctamente.",
-        data: recentProductsChanges
-      });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
-      } else {
-        next();
-      }
-    }
-  }
-  static async updateProductQuantity(req, res, next) {
-    try {
-      const product = req.body.product;
-      const shopcart = getSessionData_helper_default("shopcart", req.session);
-      shopcart.products = await shopcart_service_default.updateQuantity(shopcart.products, product);
-      res.json({
-        message: "Cantidad del producto cambianda exitosamente.",
-        data: shopcart.products.find((i) => i.id === product.id)
-      });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
-      } else {
-        next();
-      }
-    }
-  }
-  static async removeProduct(req, res, next) {
-    try {
-      const shopcart = getSessionData_helper_default("shopcart", req.session);
-      shopcart.products = shopcart_service_default.removeProduct(shopcart.products, req.body.product_id);
-      res.json({
-        message: "Producto borrado del carrito exitosamente."
-      });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
-      } else {
-        next();
-      }
-    }
-  }
-};
-var shopcart_controller_default = ShopcartController;
-
-// src/middleware/isExitsShopcart.middleware.ts
-var isExitsShopcart = async (req, res, next) => {
-  const shopcart = req.session?.shopcart;
-  if (!shopcart) {
-    new errorHandler_utilts_default({
-      status: 404,
-      code: "unavailable_shopcart",
-      message: "No hay un carrito de compras creado"
-    }).response(res);
-  } else if (shopcart.expired_at < Date.now()) {
-    shopcart.products = [];
-    new errorHandler_utilts_default({
-      status: 404,
-      code: "expired_shopcart",
-      message: "El carrito de compras se encuentra expirado."
-    }).response(res);
-  } else {
-    next();
-  }
-};
-var isExitsShopcart_middleware_default = isExitsShopcart;
-
-// src/middleware/createShopcart.middleware.ts
-var createShopcartMiddleware = (req, _, next) => {
-  const shopcart = req.session.shopcart;
-  if (!shopcart || Date.now() > shopcart.expired_at) {
-    req.session.shopcart = shopcart_service_default.createShopcart(shopcart);
-  }
-  next();
-};
-var createShopcart_middleware_default = createShopcartMiddleware;
-
-// src/router/shopcart.router.ts
-var shopcartRouter = Router2();
-shopcartRouter.get("/", isExitsShopcart_middleware_default, shopcart_controller_default.getShopcart);
-shopcartRouter.post("/", createShopcart_middleware_default, shopcart_controller_default.addProducts);
-shopcartRouter.delete("/", isExitsShopcart_middleware_default, shopcart_controller_default.removeProduct);
-shopcartRouter.patch("/", isExitsShopcart_middleware_default, shopcart_controller_default.updateProductQuantity);
-var shopcart_router_default = shopcartRouter;
+var router_default = createRouters;
 
 // src/index.ts
 var port = env_constant_default.BACKEND_PORT;
@@ -3225,22 +3312,7 @@ app.use(express15.json());
 app.use(session_config_default);
 app.use(cors_config_default);
 app.use(default_rate_limiter_default);
-app.use("/categories", categories_router_default);
-app.use("/products", products_router_default);
-app.use("/products/recomendations", productsRecomendations_router_default);
-app.use("/products/view", productsView_router_default);
-app.use("/products/colors", isAdmin_middleware_default, productColors_router_default);
-app.use("/products/colors/sizes", isAdmin_middleware_default, ProductColorSizes_router_default);
-app.use("/products/colors/images", isAdmin_middleware_default, ProductColorImages_router_default);
-app.use("/brands", brands_router_default);
-app.use("/sizes", sizes_router_default);
-app.use("/colors", colors_router_default);
-app.use("/users", users_router_default);
-app.use("/users/register", userRegister_router_default);
-app.use("/users/account", userAccount_router_default);
-app.use("/mercadopago", isCompleteUser_middleware_default, mercadoPago_router_default);
-app.use("/orders", isCompleteUser_middleware_default, order_router_default);
-app.use("/shopcart", shopcart_router_default);
+router_default(app);
 app.use(errorGlobal_middleware_default);
 userToken_service_default.cleanExpiredTokens({ cleaning_hour: 15, cleaning_minute: 0 });
 app.listen(port, () => console.log("SERVER START"));

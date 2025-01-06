@@ -4,17 +4,15 @@ import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
 
-type ProductColorKeys = keyof ProductColorSchema.Base
 type ProductColorPartial = Partial<ProductColorSchema.Base>
-type ProductColorRequerid = Required<ProductColorSchema.Base>
 
 class ProductColorsModel extends ModelUtils {
-    static async select<T extends ProductColorKeys = ProductColorKeys>(
+    static async select(
         props: ProductColorPartial = {},
-        modify?: APP.ModifySQL<Pick<ProductColorRequerid, T>>
+        modify?: APP.ModifySQL
     ) {
         try {
-            const query = sql<Pick<ProductColorRequerid, T>>("product_colors as pc")
+            const query = sql("product_colors as pc")
                 .where(props)
             modify && query.modify(modify)
             return await query
@@ -53,21 +51,21 @@ class ProductColorsModel extends ModelUtils {
         }
     }
 
-    static selectJoinColor<T extends ProductColorKeys = ProductColorKeys>(
+    static selectJoinColor(
         props?: ProductColorPartial,
-        modify?: APP.ModifySQL<Pick<ProductColorRequerid, T>>) {
-        return this.select<T>(props, (builder) => {
+        modify?: APP.ModifySQL) {
+        return this.select(props, (builder) => {
             modify && builder.modify(modify)
             builder
                 .innerJoin("colors as c", "c.color_id", "pc.color_fk")
         })
     }
 
-    static selectExistsSizes<T extends ProductColorKeys = ProductColorKeys>(
+    static selectExistsSizes(
         props?: ProductColorPartial,
-        modify?: APP.ModifySQL<Pick<ProductColorRequerid, T>>
+        modify?: APP.ModifySQL
     ) {
-        return this.selectJoinColor<T>(props, (builder) => {
+        return this.selectJoinColor(props, (builder) => {
             modify && builder.modify(modify)
             builder
                 .whereExists(
