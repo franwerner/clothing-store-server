@@ -17,7 +17,8 @@ class OrderController {
     ) {
         try {
             const user = getSessionData("user_info", req.session)
-            const { products, expired_at } = getSessionData("shopcart", req.session)
+            const shopcart = getSessionData("shopcart", req.session)
+            const { products, expired_at } = shopcart
             const expired_date = new Date(expired_at)
             const { order = {} } = req.body
             const { user_purchase_id } = await OrdersService.create({
@@ -28,6 +29,8 @@ class OrderController {
                 },
                 order_products: products,
             })
+
+            req.session.shopcart = undefined
 
             const transform = await MercadoPagoService.transformProductsToCheckoutItems({
                 user_fk: user.user_id,
@@ -63,6 +66,7 @@ class OrderController {
                     init_point,
                     date_of_expiration,
                 },
+                message: "Orden creada exitosamente."
 
             })
         } catch (error) {

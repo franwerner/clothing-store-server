@@ -24,14 +24,12 @@ class UserAccountController {
             const password = req.body.password || ""
             const { email } = getSessionData("user_info", req.session)
             await UserAuthService.authenticar({ email, password })
-           
-            const edit_authorization = {
-                expired_at: Date.now() + 60 * 60 * 1000, //1 Hora,
-                isAuthorized: true
-            }
+
+            const edit_authorization = UserAccountService.createEditAuthorization()
+            
             req.session.edit_authorization = edit_authorization
             res.json({
-                message: "Contraseña verificada con éxito. Tienes una hora para actualizar tu información antes de que caduque la autorización.",
+                message: "Contraseña verificada con éxito.",
                 data: edit_authorization
             })
 
@@ -114,7 +112,7 @@ class UserAccountController {
                 user_id: user.user_id
             })
 
-            const userParse = zodParse(userSchema.formatUser)({ ...user, ...req.body, create_at: new Date(user.create_at || "") })
+            const userParse = zodParse(userSchema.formatUser)({ ...user, ...req.body })
 
             req.session.user_info = userParse
             res.json({

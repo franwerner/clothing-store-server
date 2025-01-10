@@ -103,7 +103,7 @@ var rateLimitHandler_utilts_default = rateLimitHandler;
 var defaultLimiter = rateLimit({
   windowMs: 5 * 60 * 1e3,
   //5 minutos 
-  limit: 150,
+  limit: 1e3,
   handler: rateLimitHandler_utilts_default
 });
 var default_rate_limiter_default = defaultLimiter;
@@ -891,8 +891,7 @@ var UserPurchaseProductsModel = class extends model_utils_default {
                 WHERE p.product_id = ? AND 
                 p.status = true AND 
                 pc.color_fk = ? AND  
-                pcs.size_fk = ? AND
-                pcs.stock = true  
+                pcs.size_fk = ?
                 `, [
         product_fk,
         user_purchase_fk,
@@ -1071,7 +1070,7 @@ var userPurchaseShippings_service_default = UserPurchaseShippings;
 
 // src/constant/storeConfig.contant.ts
 var storeConfig = {
-  maxAccountPerIp: 10,
+  maxAccountPerIp: 99,
   minFreeShipping: 9e4
 };
 
@@ -1224,7 +1223,8 @@ var OrderController = class {
   static async createOrder(req, res, next) {
     try {
       const user = getSessionData_helper_default("user_info", req.session);
-      const { products, expired_at } = getSessionData_helper_default("shopcart", req.session);
+      const shopcart = getSessionData_helper_default("shopcart", req.session);
+      const { products, expired_at } = shopcart;
       const expired_date = new Date(expired_at);
       const { order = {} } = req.body;
       const { user_purchase_id } = await orders_service_default.create({
@@ -1235,6 +1235,7 @@ var OrderController = class {
         },
         order_products: products
       });
+      req.session.shopcart = void 0;
       const transform = await mercadoPago_service_default.transformProductsToCheckoutItems({
         user_fk: user.user_id,
         user_purchase_fk: user_purchase_id
@@ -1262,7 +1263,8 @@ var OrderController = class {
         data: {
           init_point,
           date_of_expiration
-        }
+        },
+        message: "Orden creada exitosamente."
       });
     } catch (error) {
       if (errorHandler_utilts_default.isInstanceOf(error)) {
@@ -2808,6 +2810,13 @@ var UserAccountService = class {
     };
     return await users_model_default.update(selectedInfo);
   }
+  static createEditAuthorization() {
+    return {
+      expired_at: Date.now() + 1e3 * 60 * 15,
+      //15m,
+      isAuthorized: true
+    };
+  }
   static async getUserInfo(user_id) {
     const [res] = await users_model_default.select({ user_id });
     if (!res) throw new errorHandler_utilts_default({
@@ -2995,14 +3004,10 @@ var UserAccountController = class {
       const password = req.body.password || "";
       const { email } = getSessionData_helper_default("user_info", req.session);
       await userAuth_service_default.authenticar({ email, password });
-      const edit_authorization = {
-        expired_at: Date.now() + 60 * 60 * 1e3,
-        //1 Hora,
-        isAuthorized: true
-      };
+      const edit_authorization = userAccount_service_default.createEditAuthorization();
       req.session.edit_authorization = edit_authorization;
       res.json({
-        message: "Contrase\xF1a verificada con \xE9xito. Tienes una hora para actualizar tu informaci\xF3n antes de que caduque la autorizaci\xF3n.",
+        message: "Contrase\xF1a verificada con \xE9xito.",
         data: edit_authorization
       });
     } catch (error) {
@@ -3066,7 +3071,7 @@ var UserAccountController = class {
         ...req.body,
         user_id: user.user_id
       });
-      const userParse = zodParse_helper_default(userSchema4.formatUser)({ ...user, ...req.body, create_at: new Date(user.create_at || "") });
+      const userParse = zodParse_helper_default(userSchema4.formatUser)({ ...user, ...req.body });
       req.session.user_info = userParse;
       res.json({
         message: "Informaci\xF3n actualizada correctamente.",
@@ -3164,6 +3169,7 @@ var UserRegisterController = class {
         data: account
       });
     } catch (error) {
+      console.log(error);
       if (errorHandler_utilts_default.isInstanceOf(error)) {
         error.response(res);
       } else {
@@ -3284,6 +3290,93 @@ usersRouter.post("/login", users_controller_default.login);
 usersRouter.get("/logout", users_controller_default.logout);
 var users_router_default = usersRouter;
 
+// src/router/userAdresess.router.ts
+import { Router as Router3 } from "express";
+
+// src/service/userAdresess.service.ts
+import { userAdresessSchema } from "clothing-store-shared/schema";
+
+// src/model/userAdresess.model.ts
+var UserAdresessModel = class extends model_utils_default {
+  static async select(props) {
+    try {
+      return await knex_config_default("user_adresess").where(props);
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async insert(props) {
+    const { apartament = null, locality, postal_code, province, street, street_number, user_fk } = props;
+    try {
+      return await knex_config_default.raw(`
+                INSERT INTO user_adresess (postal_code,street,street_number,apartament,locality,province,user_fk)
+                SELECT ?,?,?,?,?,?,? * FROM DUAL
+                WHERE NOT EXISTS (
+                SELECT 1 FROM user_adresses WHERE user_fk = ?
+                 )
+                `, [
+        postal_code,
+        street,
+        street_number,
+        apartament,
+        locality,
+        province,
+        user_fk,
+        user_fk,
+        user_fk
+      ]);
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async update(props) {
+    try {
+      return await knex_config_default("user_adresess").update(props);
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+};
+var userAdresess_model_default = UserAdresessModel;
+
+// src/service/userAdresess.service.ts
+var UserAdresessService = class {
+  static async createAdress(adress) {
+    const parseData = zodParse_helper_default(userAdresessSchema.insert)(adress);
+    const [{ affectedRows }] = await userAdresess_model_default.insert(parseData);
+    if (affectedRows === 0) {
+      throw new errorHandler_utilts_default({
+        message: "Ya tienes una direccion creada.",
+        status: 400,
+        code: "adress_already_exists"
+      });
+    }
+  }
+  static async getAdress(user_fk) {
+    const [adress] = await userAdresess_model_default.select({ user_fk });
+    if (!adress) {
+      throw new errorHandler_utilts_default({
+        message: "No se encontro ninguna direccion",
+        status: 404,
+        code: "adress_not_found"
+      });
+    }
+    return adress;
+  }
+  static async updateAdress(adress) {
+    const parseData = zodParse_helper_default(userAdresessSchema.update)(adress);
+    await userAdresess_model_default.update(parseData);
+  }
+};
+var userAdresess_service_default = UserAdresessService;
+
+// src/router/userAdresess.router.ts
+var userAdresessRouter = Router3();
+userAdresessRouter.get("/", userAdresess_service_default.getAdress);
+userAdresessRouter.post("/", userAdresess_service_default.createAdress);
+userAdresessRouter.patch("/", userAdresess_service_default.updateAdress);
+var userAdresess_router_default = userAdresessRouter;
+
 // src/router/index.ts
 var createRouters = (app2) => {
   app2.use("/categories", categories_router_default);
@@ -3299,6 +3392,7 @@ var createRouters = (app2) => {
   app2.use("/users", users_router_default);
   app2.use("/users/register", userRegister_router_default);
   app2.use("/users/account", userAccount_router_default);
+  app2.use("/users/adresess", userAdresess_router_default);
   app2.use("/mercadopago", isCompleteUser_middleware_default, mercadoPago_router_default);
   app2.use("/orders", isCompleteUser_middleware_default, order_router_default);
   app2.use("/shopcart", shopcart_router_default);

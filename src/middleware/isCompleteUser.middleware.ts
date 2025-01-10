@@ -20,7 +20,7 @@ const isCompleteUser = async (
         return next()
     }
 
-    const [u] = await UsersModel.select<"email_confirmed">({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"))
+    const [u] = await UsersModel.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"))
     const { email_confirmed } = u
 
     if (email_confirmed) {

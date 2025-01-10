@@ -17,6 +17,7 @@ import sizesRouter from "./sizes.router"
 import userAccountRouter from "./userAccount.router"
 import userRegisterRouter from "./userRegister.router"
 import usersRouter from "./users.router"
+import userAdresessRouter from "./userAdresess.router"
 
 const createRouters = (app:Application) => {
     app.use("/categories", categoriesRouter)
@@ -32,6 +33,7 @@ const createRouters = (app:Application) => {
     app.use("/users", usersRouter)
     app.use("/users/register", userRegisterRouter)
     app.use("/users/account", userAccountRouter)
+    app.use("/users/adresess",userAdresessRouter)
     app.use("/mercadopago",isCompleteUser, mercadoPagoRouter)
     app.use("/orders",isCompleteUser,orderRouter)
     app.use("/shopcart",shopcartRouter)

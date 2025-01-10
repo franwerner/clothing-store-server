@@ -17,6 +17,13 @@ class UserAccountService {
         return await UsersModel.update(selectedInfo)
     }
 
+    static  createEditAuthorization(){
+        return  {
+            expired_at: Date.now() + (1000 * 60 * 15), //15m,
+            isAuthorized: true
+        }
+    }
+
     static async getUserInfo(user_id: DatabaseKeySchema) {
         const [res] = await UsersModel.select({ user_id })
         if (!res) throw new ErrorHandler({

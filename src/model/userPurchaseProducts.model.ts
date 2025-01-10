@@ -68,7 +68,8 @@ class UserPurchaseProductsModel extends ModelUtils {
         try {
             /**
              * Solo se inserta a la base datos si el product,color y tamño estan relacionados.
-             * Ademas de tener status y stock en true.
+             * Ademas de tener status en true.
+             * El stock no se verifica que ya eso se hace en el shopcart, un vez ingrese al carrito se suponen que contiene un stock.
              */
             const query = tsx.raw<Array<ResultSetHeader>>(`
                 INSERT INTO user_purchase_products (product_fk,user_purchase_fk,color_fk,size_fk,quantity,price,discount)
@@ -79,8 +80,7 @@ class UserPurchaseProductsModel extends ModelUtils {
                 WHERE p.product_id = ? AND 
                 p.status = true AND 
                 pc.color_fk = ? AND  
-                pcs.size_fk = ? AND
-                pcs.stock = true  
+                pcs.size_fk = ?
                 `, [
                 product_fk,
                 user_purchase_fk,
