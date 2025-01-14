@@ -41,7 +41,6 @@ class UserRegisterController {
                 data: account
             })
         } catch (error) {
-            console.log(error)
             if (ErrorHandler.isInstanceOf(error)) {
                 error.response(res)
             }

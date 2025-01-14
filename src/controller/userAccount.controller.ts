@@ -26,7 +26,7 @@ class UserAccountController {
             await UserAuthService.authenticar({ email, password })
 
             const edit_authorization = UserAccountService.createEditAuthorization()
-            
+
             req.session.edit_authorization = edit_authorization
             res.json({
                 message: "Contraseña verificada con éxito.",
@@ -105,7 +105,7 @@ class UserAccountController {
         next: NextFunction
     ) {
         try {
-        
+
             const user = getSessionData("user_info", req.session)
             await UserAccountService.updateInfo({
                 ...req.body,
@@ -129,7 +129,7 @@ class UserAccountController {
         }
     }
 
-    static async getLoginUserInfo(
+    static async getUserInfo(
         req: Request,
         res: APP.ResponseTemplate,
         next: NextFunction

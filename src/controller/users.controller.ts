@@ -1,13 +1,10 @@
 import { NextFunction, Request } from "express";
 import UserAuthService from "../service/userAuth.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-interface LoginBody {
-    email: string
-    password: string
-}
+
 class UsersController {
     static async login(
-        req: Request<any, any, LoginBody>,
+        req: Request,
         res: APP.ResponseTemplate,
         next: NextFunction
     ) {
@@ -28,7 +25,7 @@ class UsersController {
             }
         }
     }
-    static async logout(
+    static  logout(
         req: Request,
         res: APP.ResponseTemplate,
         next: NextFunction

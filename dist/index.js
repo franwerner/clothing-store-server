@@ -34,7 +34,7 @@ var sessionConfig = session({
     // 30 dias,
     secure: env_constant_default.NODE_ENV == "prod",
     httpOnly: true,
-    sameSite: "lax"
+    sameSite: "strict"
   }
 });
 var session_config_default = sessionConfig;
@@ -281,9 +281,7 @@ var isUser_middleware_default = isUser;
 var isCompleteUser = async (req, res, next) => {
   const user = req.session.user_info;
   if (!user) return isUser_middleware_default(req, res, next);
-  if (user.email_confirmed) {
-    return next();
-  }
+  else if (user.email_confirmed) return next();
   const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
   const { email_confirmed } = u;
   if (email_confirmed) {
@@ -293,7 +291,7 @@ var isCompleteUser = async (req, res, next) => {
     new errorHandler_utilts_default({
       status: 401,
       message: "Por favor, confirma tu direcci\xF3n de correo electr\xF3nico para continuar con esta operaci\xF3n.",
-      code: "session_unauthorized"
+      code: "session_not_complete"
     }).response(res);
   }
 };
@@ -860,7 +858,7 @@ var UserPurchaseProductsModel = class extends model_utils_default {
   static async selectForUser({ user_fk, ...props }, modify) {
     return this.select(props, (builder) => {
       builder.whereExists(
-        knex_config_default("user_purchases").where({ user_fk, user_purchase_id: props.user_purchase_fk })
+        knex_config_default("user_purchases").select(1).where({ user_fk, user_purchase_id: props.user_purchase_fk })
       );
       modify && builder.modify(modify);
     });
@@ -874,7 +872,7 @@ var UserPurchaseProductsModel = class extends model_utils_default {
   static async selectDetailedForUser({ user_fk, ...props }, modify) {
     return this.selectDetailed(props, (builder) => {
       builder.whereExists(
-        knex_config_default("user_purchases").where({ user_fk, user_purchase_id: props.user_purchase_fk })
+        knex_config_default("user_purchases").select(1).where({ user_fk, user_purchase_id: props.user_purchase_fk })
       );
       modify && builder.modify(modify);
     });
@@ -889,7 +887,6 @@ var UserPurchaseProductsModel = class extends model_utils_default {
                 INNER JOIN product_colors pc ON pc.product_fk = p.product_id 
                 INNER JOIN product_color_sizes pcs ON pcs.product_color_fk = pc.product_color_id  
                 WHERE p.product_id = ? AND 
-                p.status = true AND 
                 pc.color_fk = ? AND  
                 pcs.size_fk = ?
                 `, [
@@ -1205,7 +1202,7 @@ var OrdersService = class extends service_utils_default {
 var orders_service_default = OrdersService;
 
 // src/service/userPurchaseProducts.service.ts
-var UserPurchaseProductService = class extends service_utils_default {
+var UserPurchaseProductsService = class extends service_utils_default {
   static async getForUser({ user_purchase_fk, user_fk }) {
     const res = await userPurchaseProducts_model_default.selectDetailedForUser({ user_purchase_fk, user_fk });
     if (res.length == 0) throw new errorHandler_utilts_default({
@@ -1216,7 +1213,7 @@ var UserPurchaseProductService = class extends service_utils_default {
     return res;
   }
 };
-var userPurchaseProducts_service_default = UserPurchaseProductService;
+var userPurchaseProducts_service_default = UserPurchaseProductsService;
 
 // src/controller/order.controller.ts
 var OrderController = class {
@@ -1318,7 +1315,7 @@ var isExitsShopcart = async (req, res, next) => {
   if (!shopcart) {
     new errorHandler_utilts_default({
       status: 404,
-      code: "unavailable_shopcart",
+      code: "shopcart_not_found",
       message: "No hay un carrito de compras creado"
     }).response(res);
   } else if (shopcart.expired_at < Date.now()) {
@@ -2491,7 +2488,7 @@ var ShopcartController = class {
       const shopcart = getSessionData_helper_default("shopcart", req.session);
       shopcart.products = await shopcart_service_default.updateQuantity(shopcart.products, product);
       res.json({
-        message: "Cantidad del producto cambianda exitosamente.",
+        message: "Cantidad del producto cambiada exitosamente.",
         data: shopcart.products.find((i) => i.id === product.id)
       });
     } catch (error) {
@@ -2808,7 +2805,13 @@ var UserAccountService = class {
       fullname,
       user_id
     };
-    return await users_model_default.update(selectedInfo);
+    const res = await users_model_default.update(selectedInfo);
+    if (res === 0) throw new errorHandler_utilts_default({
+      message: "No se logro actualizar los datos del usuario",
+      code: "update_info_failed",
+      status: 403
+    });
+    return res;
   }
   static createEditAuthorization() {
     return {
@@ -3085,7 +3088,7 @@ var UserAccountController = class {
       }
     }
   }
-  static async getLoginUserInfo(req, res, next) {
+  static async getUserInfo(req, res, next) {
     try {
       const { user_id } = getSessionData_helper_default("user_info", req.session);
       const edit_authorization = req.session.edit_authorization;
@@ -3136,7 +3139,7 @@ userAccountRouter.post("/reset/password", token_rate_limiter_default, userAccoun
 userAccountRouter.post("/reset/password/:token", userAccount_controller_default.passwordReset);
 userAccountRouter.post("/update/info/auth", isCompleteUser_middleware_default, userAccount_controller_default.updateInfoAuth);
 userAccountRouter.post("/update/info", [isCompleteUser_middleware_default, isAuthorizedToUpdateInfo_middleware_default], userAccount_controller_default.updateInfo);
-userAccountRouter.get("/", isUser_middleware_default, userAccount_controller_default.getLoginUserInfo);
+userAccountRouter.get("/", isUser_middleware_default, userAccount_controller_default.getUserInfo);
 var userAccount_router_default = userAccountRouter;
 
 // src/router/userRegister.router.ts
@@ -3169,7 +3172,6 @@ var UserRegisterController = class {
         data: account
       });
     } catch (error) {
-      console.log(error);
       if (errorHandler_utilts_default.isInstanceOf(error)) {
         error.response(res);
       } else {
@@ -3219,24 +3221,22 @@ var UserRegisterController = class {
 var userRegister_controller_default = UserRegisterController;
 
 // src/middleware/isNotCompleteUser.middleware.ts
-var response = (res) => {
-  new errorHandler_utilts_default({
-    message: "El email ya est\xE1 confirmado, no puedes continuar con esta operacion.",
-    code: "email_already_confirmed",
-    status: 401
-  }).response(res);
-};
+var errorHandler = new errorHandler_utilts_default({
+  message: "El email ya est\xE1 confirmado, no puedes continuar con esta operacion.",
+  code: "email_already_confirmed",
+  status: 401
+});
 var isNotCompleteUser = async (req, res, next) => {
   const user = req.session.user_info;
   if (!user) return isUser_middleware_default(req, res, next);
-  if (user.email_confirmed) return response(res);
+  else if (user.email_confirmed) return errorHandler.response(res);
   const [u] = await users_model_default.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"));
   const { email_confirmed } = u;
   if (!email_confirmed) {
     next();
   } else {
     user.email_confirmed = true;
-    response(res);
+    errorHandler.response(res);
   }
 };
 var isNotCompleteUser_middleware_default = isNotCompleteUser;
@@ -3270,7 +3270,7 @@ var UsersController = class {
       }
     }
   }
-  static async logout(req, res, next) {
+  static logout(req, res, next) {
     req.session.destroy((err) => {
       if (err) {
         next();
@@ -3290,17 +3290,17 @@ usersRouter.post("/login", users_controller_default.login);
 usersRouter.get("/logout", users_controller_default.logout);
 var users_router_default = usersRouter;
 
-// src/router/userAdresess.router.ts
+// src/router/userAddresess.router.ts
 import { Router as Router3 } from "express";
 
-// src/service/userAdresess.service.ts
-import { userAdresessSchema } from "clothing-store-shared/schema";
+// src/service/userAddresess.service.ts
+import { userAddresessSchema } from "clothing-store-shared/schema";
 
-// src/model/userAdresess.model.ts
+// src/model/userAddresess.model.ts
 var UserAdresessModel = class extends model_utils_default {
   static async select(props) {
     try {
-      return await knex_config_default("user_adresess").where(props);
+      return await knex_config_default("user_addresses").where(props);
     } catch (error) {
       throw this.generateError(error);
     }
@@ -3309,10 +3309,10 @@ var UserAdresessModel = class extends model_utils_default {
     const { apartament = null, locality, postal_code, province, street, street_number, user_fk } = props;
     try {
       return await knex_config_default.raw(`
-                INSERT INTO user_adresess (postal_code,street,street_number,apartament,locality,province,user_fk)
-                SELECT ?,?,?,?,?,?,? * FROM DUAL
+                INSERT INTO user_addresses (postal_code,street,street_number,apartament,locality,province,user_fk)
+                SELECT ?,?,?,?,?,?,? FROM DUAL
                 WHERE NOT EXISTS (
-                SELECT 1 FROM user_adresses WHERE user_fk = ?
+                SELECT 1 FROM user_addresses WHERE user_fk = ?
                  )
                 `, [
         postal_code,
@@ -3322,60 +3322,147 @@ var UserAdresessModel = class extends model_utils_default {
         locality,
         province,
         user_fk,
-        user_fk,
         user_fk
       ]);
     } catch (error) {
       throw this.generateError(error);
     }
   }
-  static async update(props) {
+  static async update({ user_fk, user_address_id, ...props }) {
     try {
-      return await knex_config_default("user_adresess").update(props);
+      return await knex_config_default("user_addresses").where({
+        user_fk,
+        user_address_id
+      }).update(props);
     } catch (error) {
       throw this.generateError(error);
     }
   }
 };
-var userAdresess_model_default = UserAdresessModel;
+var userAddresess_model_default = UserAdresessModel;
 
-// src/service/userAdresess.service.ts
-var UserAdresessService = class {
-  static async createAdress(adress) {
-    const parseData = zodParse_helper_default(userAdresessSchema.insert)(adress);
-    const [{ affectedRows }] = await userAdresess_model_default.insert(parseData);
+// src/service/userAddresess.service.ts
+var UserAddresessService = class {
+  static async createAddress(address) {
+    const parseData = zodParse_helper_default(userAddresessSchema.insert)(address);
+    const { locality, province } = parseData;
+    await this.validateLocation({ locality, province });
+    const [{ affectedRows, insertId }] = await userAddresess_model_default.insert(parseData);
     if (affectedRows === 0) {
       throw new errorHandler_utilts_default({
         message: "Ya tienes una direccion creada.",
         status: 400,
-        code: "adress_already_exists"
+        code: "address_already_exists"
       });
     }
+    return {
+      ...parseData,
+      user_address_id: insertId
+    };
   }
-  static async getAdress(user_fk) {
-    const [adress] = await userAdresess_model_default.select({ user_fk });
+  static async getAddress(user_fk) {
+    const [adress] = await userAddresess_model_default.select({ user_fk });
     if (!adress) {
       throw new errorHandler_utilts_default({
         message: "No se encontro ninguna direccion",
         status: 404,
-        code: "adress_not_found"
+        code: "address_not_found"
       });
     }
     return adress;
   }
-  static async updateAdress(adress) {
-    const parseData = zodParse_helper_default(userAdresessSchema.update)(adress);
-    await userAdresess_model_default.update(parseData);
+  static async validateLocation({ locality, province }) {
+    const res = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${province}&nombre=${locality}&exacto=true&campos=nombre`);
+    const json = await res.json();
+    if (!json.cantidad) {
+      throw new errorHandler_utilts_default({
+        status: 403,
+        message: "La provincia o localidad ingresada es incorrecta.",
+        code: "wrong_localation"
+      });
+    }
+  }
+  static async updateAddress(address) {
+    const parseData = zodParse_helper_default(userAddresessSchema.update)(address);
+    const { locality, province } = parseData;
+    if (locality || province) {
+      await this.validateLocation({ locality, province });
+    }
+    const res = await userAddresess_model_default.update(parseData);
+    if (res === 0) throw new errorHandler_utilts_default({
+      code: "update_user_address_failed",
+      message: "No se logro actualizar la direccion.",
+      status: 403
+    });
+    return parseData;
   }
 };
-var userAdresess_service_default = UserAdresessService;
+var userAddresess_service_default = UserAddresessService;
 
-// src/router/userAdresess.router.ts
-var userAdresessRouter = Router3();
-userAdresessRouter.get("/", userAdresess_service_default.getAdress);
-userAdresessRouter.post("/", userAdresess_service_default.createAdress);
-userAdresessRouter.patch("/", userAdresess_service_default.updateAdress);
-var userAdresess_router_default = userAdresessRouter;
+// src/controller/userAddresses.controller.ts
+var UserAddresessController = class {
+  static async getAddress(req, res, next) {
+    try {
+      const { user_id } = getSessionData_helper_default("user_info", req.session);
+      const address = await userAddresess_service_default.getAddress(user_id);
+      res.json({
+        data: address
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async createAddress(req, res, next) {
+    try {
+      const { user_id } = getSessionData_helper_default("user_info", req.session);
+      const data = await userAddresess_service_default.createAddress({
+        ...req.body,
+        user_fk: user_id
+      });
+      res.json({
+        message: "Direccion creada exitosamente!",
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async updateAddress(req, res, next) {
+    try {
+      const { user_id } = getSessionData_helper_default("user_info", req.session);
+      const data = await userAddresess_service_default.updateAddress({
+        ...req.body,
+        user_fk: user_id
+      });
+      res.json({
+        message: "Direccion editada exitosamente!",
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+};
+var userAddresses_controller_default = UserAddresessController;
+
+// src/router/userAddresess.router.ts
+var userAddresessRouter = Router3();
+userAddresessRouter.get("/", userAddresses_controller_default.getAddress);
+userAddresessRouter.post("/", userAddresses_controller_default.createAddress);
+userAddresessRouter.patch("/", userAddresses_controller_default.updateAddress);
+var userAddresess_router_default = userAddresessRouter;
 
 // src/router/index.ts
 var createRouters = (app2) => {
@@ -3392,7 +3479,7 @@ var createRouters = (app2) => {
   app2.use("/users", users_router_default);
   app2.use("/users/register", userRegister_router_default);
   app2.use("/users/account", userAccount_router_default);
-  app2.use("/users/adresess", userAdresess_router_default);
+  app2.use("/users/addresess", isCompleteUser_middleware_default, userAddresess_router_default);
   app2.use("/mercadopago", isCompleteUser_middleware_default, mercadoPago_router_default);
   app2.use("/orders", isCompleteUser_middleware_default, order_router_default);
   app2.use("/shopcart", shopcart_router_default);

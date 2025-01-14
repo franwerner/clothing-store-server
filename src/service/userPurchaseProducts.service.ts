@@ -5,7 +5,7 @@ import ServiceUtils from "../utils/service.utils"
 
 
 
-class UserPurchaseProductService extends ServiceUtils {
+class UserPurchaseProductsService extends ServiceUtils {
     static async getForUser({ user_purchase_fk, user_fk }: { user_purchase_fk: DatabaseKeySchema, user_fk: DatabaseKeySchema }) {
         const res = await UserPurchaseProductsModel.selectDetailedForUser({ user_purchase_fk, user_fk })
         if (res.length == 0) throw new ErrorHandler({
@@ -17,4 +17,4 @@ class UserPurchaseProductService extends ServiceUtils {
     }
 }
 
-export default UserPurchaseProductService
+export default UserPurchaseProductsService

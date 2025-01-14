@@ -62,7 +62,7 @@ class ShopcartController {
             shopcart.products = await ShopcartService.updateQuantity(shopcart.products, product)
 
             res.json({
-                message: "Cantidad del producto cambianda exitosamente.",
+                message: "Cantidad del producto cambiada exitosamente.",
                 data: shopcart.products.find(i => i.id === product.id)
             })
         } catch (error) {

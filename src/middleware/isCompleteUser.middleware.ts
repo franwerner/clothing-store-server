@@ -15,10 +15,8 @@ const isCompleteUser = async (
     const user = req.session.user_info
 
     if (!user) return isUser(req, res, next)
+    else if (user.email_confirmed) return next()
 
-    if (user.email_confirmed) {
-        return next()
-    }
 
     const [u] = await UsersModel.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"))
     const { email_confirmed } = u
@@ -30,7 +28,7 @@ const isCompleteUser = async (
         new ErrorHandler({
             status: 401,
             message: "Por favor, confirma tu dirección de correo electrónico para continuar con esta operación.",
-            code: "session_unauthorized"
+            code: "session_not_complete"
         }).response(res)
     }
 

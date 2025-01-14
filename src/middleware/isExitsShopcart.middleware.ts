@@ -10,7 +10,7 @@ const isExitsShopcart = async (
     if (!shopcart) {
         new ErrorHandler({
             status: 404,
-            code: "unavailable_shopcart",
+            code: "shopcart_not_found",
             message: "No hay un carrito de compras creado",
         }).response(res)
     }

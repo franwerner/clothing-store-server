@@ -3,7 +3,7 @@ import sql from "../config/knex.config"
 import Exact from "../types/Exact.types"
 import ModelUtils from "../utils/model.utils"
 import { Knex } from "knex"
-import { DatabaseKeySchema,UserPurchaseProductSchema } from "clothing-store-shared/schema"
+import { DatabaseKeySchema, UserPurchaseProductSchema } from "clothing-store-shared/schema"
 
 type UserPurchaseProductPartial = Partial<UserPurchaseProductSchema.Base>
 
@@ -28,6 +28,7 @@ class UserPurchaseProductsModel extends ModelUtils {
         return this.select(props, (builder) => {
             builder.whereExists(
                 sql("user_purchases")
+                    .select(1)
                     .where({ user_fk: user_fk, user_purchase_id: props.user_purchase_fk })
             )
             modify && builder.modify(modify)
@@ -37,7 +38,8 @@ class UserPurchaseProductsModel extends ModelUtils {
 
     static async selectDetailed(
         props: UserPurchaseProductPartial = {},
-        modify?: APP.ModifySQL) {
+        modify?: APP.ModifySQL
+    ) {
         return this.select(props, (builder) => {
             builder.innerJoin("products as p", "p.product_id", "upp.product_fk")
                 .innerJoin("colors as c", "c.color_id", "upp.color_fk")
@@ -54,6 +56,7 @@ class UserPurchaseProductsModel extends ModelUtils {
         return this.selectDetailed(props, (builder) => {
             builder.whereExists(
                 sql("user_purchases")
+                    .select(1)
                     .where({ user_fk: user_fk, user_purchase_id: props.user_purchase_fk })
             )
             modify && builder.modify(modify)
@@ -64,13 +67,14 @@ class UserPurchaseProductsModel extends ModelUtils {
         props: Exact<T, UserPurchaseProductSchema.Insert>,
         tsx: Knex<any> = sql
     ) {
-        const { color_fk, product_fk, size_fk, user_purchase_fk, quantity,price,discount = 0 } = props
+        const { color_fk, product_fk, size_fk, user_purchase_fk, quantity, price, discount = 0 } = props
         try {
             /**
-             * Solo se inserta a la base datos si el product,color y tamño estan relacionados.
-             * Ademas de tener status en true.
-             * El stock no se verifica que ya eso se hace en el shopcart, un vez ingrese al carrito se suponen que contiene un stock.
-             */
+ * Solo se inserta en la base de datos si el producto, color y tamaño están relacionados.
+ * No se verifica el stock ni el estado del producto, ya que si el producto estuvo disponible en el carrito de compras en el momento de la selección,
+ * se asume que estaba disponible en ese momento.
+ * Para evitar una mala experiencia del usuario, la orden se procesará independientemente de si el stock o el estado del producto cambian después.
+ */
             const query = tsx.raw<Array<ResultSetHeader>>(`
                 INSERT INTO user_purchase_products (product_fk,user_purchase_fk,color_fk,size_fk,quantity,price,discount)
                 SELECT ?,?,?,?,?,?,? FROM
@@ -78,7 +82,6 @@ class UserPurchaseProductsModel extends ModelUtils {
                 INNER JOIN product_colors pc ON pc.product_fk = p.product_id 
                 INNER JOIN product_color_sizes pcs ON pcs.product_color_fk = pc.product_color_id  
                 WHERE p.product_id = ? AND 
-                p.status = true AND 
                 pc.color_fk = ? AND  
                 pcs.size_fk = ?
                 `, [

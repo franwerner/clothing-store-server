@@ -1,6 +1,6 @@
 import zodParse from "../helper/zodParse.helper"
 import UsersModel from "../model/users.model"
-import  { UserSchema,userSchema,DatabaseKeySchema } from "clothing-store-shared/schema"
+import { UserSchema, userSchema, DatabaseKeySchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import UserRegisterService from "./userRegister.service"
 
@@ -14,11 +14,17 @@ class UserAccountService {
             fullname,
             user_id
         }
-        return await UsersModel.update(selectedInfo)
+        const res = await UsersModel.update(selectedInfo)
+        if (res === 0) throw new ErrorHandler({
+            message: "No se logro actualizar los datos del usuario",
+            code: "update_info_failed",
+            status: 403
+        })
+        return res
     }
 
-    static  createEditAuthorization(){
-        return  {
+    static createEditAuthorization() {
+        return {
             expired_at: Date.now() + (1000 * 60 * 15), //15m,
             isAuthorized: true
         }
@@ -29,7 +35,7 @@ class UserAccountService {
         if (!res) throw new ErrorHandler({
             status: 404,
             message: "No se encontro ningun usuario.",
-            code : "user_not_found"
+            code: "user_not_found"
         })
         return zodParse(userSchema.formatUser)(res)
     }
