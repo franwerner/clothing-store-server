@@ -80,6 +80,7 @@ class UserAccountController {
         next: NextFunction
     ) {
         try {
+            console.log("HOLA")
             const token = req.params.token
             const { user_fk } = await UserTokenService.findActiveToken({ request: "password_reset_by_email", token })
             await UserAccountService.updateInfo({

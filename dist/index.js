@@ -2340,19 +2340,23 @@ var ShopcartModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
-  static async checkProductAvailability({ color_fk, product_fk, size_fk }) {
-    try {
-      return await knex_config_default("products as p").select(1).innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id").where({
-        "p.product_id": product_fk,
-        "pc.color_fk": color_fk,
-        "pcs.size_fk": size_fk,
-        "p.status": true,
-        "pcs.stock": true
-      });
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
+  // static async checkProductAvailability({ color_fk, product_fk, size_fk }: ShopcartProductSchema.BaseOutShopcart) {
+  //     try {
+  //         return await sql("products as p")
+  //             .select(1)
+  //             .innerJoin("product_colors as pc", "pc.product_fk", "p.product_id")
+  //             .innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id")
+  //             .where({
+  //                 'p.product_id': product_fk,
+  //                 'pc.color_fk': color_fk,
+  //                 'pcs.size_fk': size_fk,
+  //                 'p.status': true,
+  //                 'pcs.stock': true
+  //             })
+  //     } catch (error) {
+  //         throw this.generateError(error)
+  //     }
+  // }
 };
 var shopcart_model_default = ShopcartModel;
 
@@ -2862,6 +2866,7 @@ var UserAuthService = class {
 var userAuth_service_default = UserAuthService;
 
 // src/service/userToken.service.ts
+import { userTokenSchema } from "clothing-store-shared/schema";
 import crypto2 from "crypto";
 
 // src/model/userTokens.model.ts
@@ -2921,7 +2926,6 @@ var UserTokensModel = class extends model_utils_default {
 var userTokens_model_default = UserTokensModel;
 
 // src/service/userToken.service.ts
-import { userTokenSchema } from "clothing-store-shared/schema";
 var UserTokenService = class {
   static createTokenDate({ timeUnit, timeValue }) {
     const date = /* @__PURE__ */ new Date();
@@ -3049,6 +3053,7 @@ var UserAccountController = class {
   }
   static async passwordReset(req, res, next) {
     try {
+      console.log("HOLA");
       const token = req.params.token;
       const { user_fk } = await userToken_service_default.findActiveToken({ request: "password_reset_by_email", token });
       await userAccount_service_default.updateInfo({
@@ -3113,8 +3118,8 @@ var userAccount_controller_default = UserAccountController;
 // src/rate-limiter/token.rate-limiter.ts
 import { rateLimit as rateLimit2 } from "express-rate-limit";
 var tokenRateLimiter = rateLimit2({
-  windowMs: 1 * 60 * 1e3,
-  limit: 20,
+  windowMs: 1e3 * 30,
+  limit: 1,
   handler: rateLimitHandler_utilts_default
 });
 var token_rate_limiter_default = tokenRateLimiter;

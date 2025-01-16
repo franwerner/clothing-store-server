@@ -1,6 +1,5 @@
 import { NextFunction, Request } from "express";
 import ErrorHandler from "../utils/errorHandler.utilts";
-import "../service/shopcart.service"
 import getSessionData from "../helper/getSessionData.helper";
 import ShopcartService from "../service/shopcart.service";
 
@@ -60,7 +59,6 @@ class ShopcartController {
             const product = req.body.product
             const shopcart = getSessionData("shopcart", req.session)
             shopcart.products = await ShopcartService.updateQuantity(shopcart.products, product)
-
             res.json({
                 message: "Cantidad del producto cambiada exitosamente.",
                 data: shopcart.products.find(i => i.id === product.id)

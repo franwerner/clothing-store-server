@@ -5,7 +5,6 @@ import MercadoPagoService from "../service/mercadoPago.service";
 import OrdersService from "../service/orders.service";
 import UserPurchaseProductService from "../service/userPurchaseProducts.service";
 import UserPurchasesService from "../service/userPurchases.service";
-import "../service/userPurchaseShippings.service";
 import UserPurchaseShippings from "../service/userPurchaseShippings.service";
 import ErrorHandler from "../utils/errorHandler.utilts";
 class OrderController {

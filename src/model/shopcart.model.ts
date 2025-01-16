@@ -9,7 +9,7 @@ interface ProductDetails {
     price: number
     color: string
     size: string
-    url: string 
+    url: string
 }
 
 class ShopcartModel extends ModelUtils {
@@ -27,7 +27,7 @@ class ShopcartModel extends ModelUtils {
                 )
                 .innerJoin('product_colors as pc', 'pc.product_fk', 'p.product_id')
                 .innerJoin('product_color_sizes as pcs', 'pcs.product_color_fk', 'pc.product_color_id')
-                .leftJoin('product_color_images as pci', 'pci.product_color_fk', 'pc.product_color_id')
+                .leftJoin('product_color_images as pci', 'pci.product_color_fk', 'pc.product_color_id') //REFACTORIZAR ACA PARA QUE SOLO SE OBTENGA UNA IMAGEN:
                 .innerJoin('colors as c', 'c.color_id', 'pc.color_fk')
                 .innerJoin('sizes as s', 's.size_id', 'pcs.size_fk')
                 .where({
@@ -42,25 +42,25 @@ class ShopcartModel extends ModelUtils {
         }
     }
 
-    static async checkProductAvailability({ color_fk, product_fk, size_fk }: ShopcartProductSchema.BaseOutShopcart) {
+    // static async checkProductAvailability({ color_fk, product_fk, size_fk }: ShopcartProductSchema.BaseOutShopcart) {
 
-        try {
-            return await sql("products as p")
-                .select(1)
-                .innerJoin("product_colors as pc", "pc.product_fk", "p.product_id")
-                .innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id")
-                .where({
-                    'p.product_id': product_fk,
-                    'pc.color_fk': color_fk,
-                    'pcs.size_fk': size_fk,
-                    'p.status': true,
-                    'pcs.stock': true
-                })
-        } catch (error) {
-            throw this.generateError(error)
-        }
+    //     try {
+    //         return await sql("products as p")
+    //             .select(1)
+    //             .innerJoin("product_colors as pc", "pc.product_fk", "p.product_id")
+    //             .innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id")
+    //             .where({
+    //                 'p.product_id': product_fk,
+    //                 'pc.color_fk': color_fk,
+    //                 'pcs.size_fk': size_fk,
+    //                 'p.status': true,
+    //                 'pcs.stock': true
+    //             })
+    //     } catch (error) {
+    //         throw this.generateError(error)
+    //     }
 
-    }
+    // }
 
 
 }

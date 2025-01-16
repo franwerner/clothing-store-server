@@ -1,14 +1,13 @@
+import { userTokenSchema, UserTokenSchema } from "clothing-store-shared/schema";
 import crypto from "crypto";
 import zodParse from "../helper/zodParse.helper.js";
 import UserTokensModel from "../model/userTokens.model.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-import { userTokenSchema, UserTokenSchema } from "clothing-store-shared/schema";
 
 interface TokenDate {
     timeUnit: "minute" | "hour" | "day",
     timeValue: number,
 }
-
 interface CreateToken extends TokenDate {
     maxTokens: number
 }

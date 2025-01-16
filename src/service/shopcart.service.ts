@@ -42,7 +42,6 @@ class ShopcartService {
                 const details = await this.getDetailProduct(product)
                 cloneProducts.push(details)
                 recentProductsChanges.push(details)
-
             }
         }
         return {
