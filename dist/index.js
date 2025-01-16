@@ -425,10 +425,7 @@ var BrandsService = class extends service_utils_default {
   }
   static async update(brands) {
     const data = zodParse_helper_default(brandSchema.update.array().min(1))(brands);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => brands_model_default.update(e)
-    );
+    const res = await this.writeOperationsHandler(data, (e) => brands_model_default.update(e));
     res("brands_update");
   }
   static async insert(brands) {
@@ -582,10 +579,7 @@ var CategoriesService = class extends service_utils_default {
   }
   static async update(categories) {
     const data = zodParse_helper_default(categorySchema.update.array().min(1))(categories);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => categories_model_default.update(e)
-    );
+    const res = await this.writeOperationsHandler(data, (e) => categories_model_default.update(e));
     res("categories_update");
   }
   static async insert(categories) {
@@ -924,7 +918,7 @@ var MercadoPagoService = class {
       });
     }
   }
-  static async getPreference(preference_id) {
+  static async getPreference(preference_id = "") {
     try {
       return await preferences.get({ preferenceId: preference_id });
     } catch (error) {
@@ -1023,10 +1017,10 @@ var UserPurchasesModel = class extends model_utils_default {
 var userPurchases_model_default = UserPurchasesModel;
 
 // src/service/userPurchases.service.ts
-import { userPurchaseSchema } from "clothing-store-shared/schema";
+import { userPurchaseSchema, databaseKeySchema } from "clothing-store-shared/schema";
 var UserPurchasesService = class {
   static async updateForUser(props) {
-    const parse = zodParse_helper_default(userPurchaseSchema.updateForUser)(props);
+    const parse = zodParse_helper_default(userPurchaseSchema.update.extend({ user_fk: databaseKeySchema }))(props);
     return await userPurchases_model_default.updateForUser(parse);
   }
   static async getForUser({ user_purchase_id, user_fk }) {
@@ -1178,16 +1172,18 @@ var OrdersService = class extends service_utils_default {
       const [user_purchase_id] = await userPurchases_model_default.insert(orderData, (builder) => builder.transacting(tsx));
       const productsWithID = order_products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }));
       const productsData = zodParse_helper_default(userPurchaseProductSchema.insert.array().min(1))(productsWithID);
-      const user_purchase_products_id = await Promise.all(productsData.map(async (i) => {
-        const [result] = await userPurchaseProducts_model_default.insert(i, tsx);
-        if (result.affectedRows == 0) throw new errorHandler_utilts_default({
-          status: 400,
-          message: "Problemas con los productos de la orden.",
-          data: i,
-          code: "product_unavailable"
-        });
-        return result.insertId;
-      }));
+      const user_purchase_products_id = await Promise.all(
+        productsData.map(async (i) => {
+          const [result] = await userPurchaseProducts_model_default.insert(i, tsx);
+          if (result.affectedRows == 0) throw new errorHandler_utilts_default({
+            status: 400,
+            message: "Problemas con los productos de la orden.",
+            data: i,
+            code: "product_unavailable"
+          });
+          return result.insertId;
+        })
+      );
       await tsx.commit();
       return {
         user_purchase_id,
@@ -2600,10 +2596,7 @@ var SizeService = class extends service_utils_default {
   }
   static async update(sizes) {
     const data = zodParse_helper_default(sizeSchema.update.array())(sizes);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => sizes_model_default.update(e)
-    );
+    const res = await this.writeOperationsHandler(data, (e) => sizes_model_default.update(e));
     res("sizes_update");
   }
   static async insert(sizes) {
@@ -2982,8 +2975,7 @@ var UserTokenService = class {
     }
     const current_date = /* @__PURE__ */ new Date();
     const expected_date = /* @__PURE__ */ new Date();
-    expected_date.setUTCHours(cleaning_hour);
-    expected_date.setUTCMinutes(cleaning_minute);
+    expected_date.setUTCHours(cleaning_hour, cleaning_minute);
     if (current_date.getTime() >= expected_date.getTime()) {
       expected_date.setUTCDate(expected_date.getUTCDate() + 1);
     }
@@ -2998,7 +2990,7 @@ var UserTokenService = class {
         this.cleanExpiredTokens({ cleaning_hour, cleaning_minute });
       }, milliseconds);
     } catch (error) {
-      console.error("Error cr\xEDtico: Fallo al intentar eliminar los tokens expirados. Se requiere atenci\xF3n inmediata.");
+      console.error("ERR TOKENS");
     }
   }
 };
@@ -3053,7 +3045,6 @@ var UserAccountController = class {
   }
   static async passwordReset(req, res, next) {
     try {
-      console.log("HOLA");
       const token = req.params.token;
       const { user_fk } = await userToken_service_default.findActiveToken({ request: "password_reset_by_email", token });
       await userAccount_service_default.updateInfo({
@@ -3093,11 +3084,12 @@ var UserAccountController = class {
       }
     }
   }
-  static async getUserInfo(req, res, next) {
+  static async getUser(req, res, next) {
     try {
       const { user_id } = getSessionData_helper_default("user_info", req.session);
       const edit_authorization = req.session.edit_authorization;
       const user_info = await userAccount_service_default.getUserInfo(user_id);
+      req.session.user_info = user_info;
       res.json({
         data: {
           edit_authorization,
@@ -3144,7 +3136,7 @@ userAccountRouter.post("/reset/password", token_rate_limiter_default, userAccoun
 userAccountRouter.post("/reset/password/:token", userAccount_controller_default.passwordReset);
 userAccountRouter.post("/update/info/auth", isCompleteUser_middleware_default, userAccount_controller_default.updateInfoAuth);
 userAccountRouter.post("/update/info", [isCompleteUser_middleware_default, isAuthorizedToUpdateInfo_middleware_default], userAccount_controller_default.updateInfo);
-userAccountRouter.get("/", isUser_middleware_default, userAccount_controller_default.getUserInfo);
+userAccountRouter.get("/", isUser_middleware_default, userAccount_controller_default.getUser);
 var userAccount_router_default = userAccountRouter;
 
 // src/router/userRegister.router.ts
@@ -3208,9 +3200,6 @@ var UserRegisterController = class {
       const { token } = req.params;
       const userID = await userToken_service_default.useToken({ request: "email_confirm", token });
       await userRegister_service_default.completeRegister(userID);
-      if (req.session.user_info) {
-        req.session.user_info.email_confirmed = true;
-      }
       res.json({
         message: "Registro confirmado con exito!"
       });
@@ -3311,26 +3300,10 @@ var UserAdresessModel = class extends model_utils_default {
     }
   }
   static async insert(props) {
-    const { apartament = null, locality, postal_code, province, street, street_number, user_fk } = props;
     try {
-      return await knex_config_default.raw(`
-                INSERT INTO user_addresses (postal_code,street,street_number,apartament,locality,province,user_fk)
-                SELECT ?,?,?,?,?,?,? FROM DUAL
-                WHERE NOT EXISTS (
-                SELECT 1 FROM user_addresses WHERE user_fk = ?
-                 )
-                `, [
-        postal_code,
-        street,
-        street_number,
-        apartament,
-        locality,
-        province,
-        user_fk,
-        user_fk
-      ]);
+      return await knex_config_default("user_addresses").insert(props);
     } catch (error) {
-      throw this.generateError(error);
+      throw this.generateError(error, { "ER_DUP_ENTRY": "Ya contiene una direccion." });
     }
   }
   static async update({ user_fk, user_address_id, ...props }) {
@@ -3352,8 +3325,8 @@ var UserAddresessService = class {
     const parseData = zodParse_helper_default(userAddresessSchema.insert)(address);
     const { locality, province } = parseData;
     await this.validateLocation({ locality, province });
-    const [{ affectedRows, insertId }] = await userAddresess_model_default.insert(parseData);
-    if (affectedRows === 0) {
+    const [insertID] = await userAddresess_model_default.insert(parseData);
+    if (!insertID) {
       throw new errorHandler_utilts_default({
         message: "Ya tienes una direccion creada.",
         status: 400,
@@ -3362,19 +3335,19 @@ var UserAddresessService = class {
     }
     return {
       ...parseData,
-      user_address_id: insertId
+      user_address_id: insertID
     };
   }
   static async getAddress(user_fk) {
-    const [adress] = await userAddresess_model_default.select({ user_fk });
-    if (!adress) {
+    const [address] = await userAddresess_model_default.select({ user_fk });
+    if (!address) {
       throw new errorHandler_utilts_default({
         message: "No se encontro ninguna direccion",
         status: 404,
         code: "address_not_found"
       });
     }
-    return adress;
+    return address;
   }
   static async validateLocation({ locality, province }) {
     const res = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${province}&nombre=${locality}&exacto=true&campos=nombre`);
@@ -3383,7 +3356,7 @@ var UserAddresessService = class {
       throw new errorHandler_utilts_default({
         status: 403,
         message: "La provincia o localidad ingresada es incorrecta.",
-        code: "wrong_localation"
+        code: "wrong_location"
       });
     }
   }

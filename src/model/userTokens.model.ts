@@ -4,19 +4,16 @@ import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 import { UserTokenSchema } from "clothing-store-shared/schema"
 
-type UserTokenKeys = keyof UserTokenSchema.Base
 type UserTokenPartial = Partial<UserTokenSchema.Base>
-type UserTokenRequired = Required<UserTokenSchema.Base>
-
 
 class UserTokensModel extends ModelUtils {
 
-    static async select<T extends UserTokenKeys = UserTokenKeys>
+    static async select
         (props: UserTokenPartial = {},
-            modify?: APP.ModifySQL<Pick<UserTokenRequired, T>>
+            modify?: APP.ModifySQL
         ) {
         try {
-            const query = sql<Pick<UserTokenRequired, T>>("user_tokens as ut")
+            const query = sql("user_tokens as ut")
                 .where(props)
             modify && query.modify(modify)
             return await query
@@ -25,11 +22,11 @@ class UserTokensModel extends ModelUtils {
         }
     }
 
-    static selectActiveToken<T extends UserTokenKeys = UserTokenKeys>(
+    static selectActiveToken(
         props?: UserTokenPartial,
-        modify?: APP.ModifySQL<Pick<UserTokenRequired, T>>
+        modify?: APP.ModifySQL
     ) {
-        return this.select<T>(props, (builder) => {
+        return this.select(props, (builder) => {
             builder
                 .whereRaw("expired_at > NOW()")
                 .where("used", false)

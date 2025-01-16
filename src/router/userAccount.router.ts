@@ -11,6 +11,6 @@ userAccountRouter.post("/reset/password", tokenRateLimiter, UserAccountControlle
 userAccountRouter.post("/reset/password/:token", UserAccountController.passwordReset)
 userAccountRouter.post("/update/info/auth", isCompleteUser, UserAccountController.updateInfoAuth)
 userAccountRouter.post("/update/info", [isCompleteUser, isAuthorizedToUpdateInfo], UserAccountController.updateInfo)
-userAccountRouter.get("/", isUser, UserAccountController.getUserInfo)
+userAccountRouter.get("/", isUser, UserAccountController.getUser)
 
 export default userAccountRouter

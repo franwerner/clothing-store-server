@@ -19,8 +19,7 @@ class CategoriesService extends ServiceUtils {
 
     static async update(categories: Array<CategorySchema.Update>) {
         const data = zodParse(categorySchema.update.array().min(1))(categories);
-        const res = await this.writeOperationsHandler(data, (e) => CategoriesModel.update(e),
-        )
+        const res = await this.writeOperationsHandler(data, (e) => CategoriesModel.update(e))
         res("categories_update")
     }
     static async insert(categories: Array<CategorySchema.Insert>) {

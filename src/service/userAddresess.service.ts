@@ -9,8 +9,8 @@ class UserAddresessService {
         const parseData = zodParse(userAddresessSchema.insert)(address)
         const { locality, province } = parseData
         await this.validateLocation({ locality, province })
-        const [{ affectedRows, insertId }] = await UserAddresessModel.insert(parseData)
-        if (affectedRows === 0) {
+        const [insertID] = await UserAddresessModel.insert(parseData)
+        if (!insertID) {
             throw new ErrorHandler({
                 message: "Ya tienes una direccion creada.",
                 status: 400,
@@ -19,20 +19,20 @@ class UserAddresessService {
         }
         return {
             ...parseData,
-            user_address_id: insertId
+            user_address_id: insertID
         }
     }
 
     static async getAddress(user_fk: DatabaseKeySchema) {
-        const [adress] = await UserAddresessModel.select({ user_fk })
-        if (!adress) {
+        const [address] = await UserAddresessModel.select({ user_fk })
+        if (!address) {
             throw new ErrorHandler({
                 message: "No se encontro ninguna direccion",
                 status: 404,
                 code: "address_not_found"
             })
         }
-        return adress
+        return address
     }
 
     static async validateLocation({ locality, province }: { locality?: string, province?: string }) {
@@ -42,7 +42,7 @@ class UserAddresessService {
             throw new ErrorHandler({
                 status: 403,
                 message: "La provincia o localidad ingresada es incorrecta.",
-                code: "wrong_localation"
+                code: "wrong_location"
             })
         }
     }

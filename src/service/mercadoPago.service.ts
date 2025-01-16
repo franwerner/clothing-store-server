@@ -10,9 +10,9 @@ interface createCheckout {
     items: Array<Items>,
     external_reference: DatabaseKeySchema,
     date_of_expiration: Date,
-    shipments : {
-        cost : number,
-        free_shipping : boolean
+    shipments: {
+        cost: number,
+        free_shipping: boolean
     }
 }
 
@@ -25,22 +25,22 @@ class MercadoPagoService {
         try {
             return await payment.search({ options: { external_reference: external_reference as string } })
         } catch (error) {
-             return new ErrorHandler({
-                message : "Pago no encontrado.",
-                status : 404,
-                code : "payment_not_found"
-             })
+            return new ErrorHandler({
+                message: "Pago no encontrado.",
+                status: 404,
+                code: "payment_not_found"
+            })
         }
     }
 
-    static async getPreference(preference_id?: string) {
+    static async getPreference(preference_id: string = "") {
         try {
-            return await preferences.get({ preferenceId: preference_id as string })
+            return await preferences.get({ preferenceId: preference_id })
         } catch (error) {
-            return  new ErrorHandler({
+            return new ErrorHandler({
                 message: "Preferencia no encontrada",
                 status: 404,
-                code : "preference_not_found"
+                code: "preference_not_found"
             })
         }
     }
@@ -62,9 +62,9 @@ class MercadoPagoService {
                 external_reference: external_reference.toString(),
                 expires: true,
                 date_of_expiration: this.toMercadoPagoFormat(date_of_expiration),
-                shipments : {
+                shipments: {
                     ...shipments,
-                    mode : "not_specified"
+                    mode: "not_specified"
                 }
             },
         })
@@ -86,7 +86,7 @@ class MercadoPagoService {
         if (data.length == 0) throw new ErrorHandler({
             status: 404,
             message: "No se pueden generar productos para la preferencia, ya que no se encontraron productos asociados a la orden.",
-            code : "products_not_found"
+            code: "products_not_found"
         })
         return data as unknown as Array<Items>
     }

@@ -80,7 +80,6 @@ class UserAccountController {
         next: NextFunction
     ) {
         try {
-            console.log("HOLA")
             const token = req.params.token
             const { user_fk } = await UserTokenService.findActiveToken({ request: "password_reset_by_email", token })
             await UserAccountService.updateInfo({
@@ -112,9 +111,7 @@ class UserAccountController {
                 ...req.body,
                 user_id: user.user_id
             })
-
             const userParse = zodParse(userSchema.formatUser)({ ...user, ...req.body })
-
             req.session.user_info = userParse
             res.json({
                 message: "Información actualizada correctamente.",
@@ -130,7 +127,7 @@ class UserAccountController {
         }
     }
 
-    static async getUserInfo(
+    static async getUser(
         req: Request,
         res: APP.ResponseTemplate,
         next: NextFunction
@@ -139,6 +136,7 @@ class UserAccountController {
             const { user_id } = getSessionData("user_info", req.session)
             const edit_authorization = req.session.edit_authorization
             const user_info = await UserAccountService.getUserInfo(user_id)
+            req.session.user_info = user_info
             res.json({
                 data: {
                     edit_authorization,

@@ -1,6 +1,6 @@
 import zodParse from "../helper/zodParse.helper.js"
 import BrandsModel from "../model/brands.model.js"
-import  { BrandSchema,brandSchema } from "clothing-store-shared/schema"
+import { BrandSchema, brandSchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ServiceUtils from "../utils/service.utils.js"
 
@@ -18,9 +18,7 @@ class BrandsService extends ServiceUtils {
     }
     static async update(brands: Array<BrandSchema.Update>) {
         const data = zodParse(brandSchema.update.array().min(1))(brands)
-        const res = await this.writeOperationsHandler(data,
-            (e) => BrandsModel.update(e),
-        )
+        const res = await this.writeOperationsHandler(data, (e) => BrandsModel.update(e))
         res("brands_update")
     }
     static async insert(brands: Array<BrandSchema.Insert>) {
@@ -32,7 +30,7 @@ class BrandsService extends ServiceUtils {
         const data = zodParse(brandSchema.delete.array().min(1))(brands)
         const res = await this.writeOperationsHandler(data,
             (e) => BrandsModel.delete(e),
-         
+
         )
         res("brands_delete")
     }

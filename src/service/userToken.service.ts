@@ -43,7 +43,7 @@ class UserTokenService {
             throw new ErrorHandler({
                 status: 429,
                 message: `Se ha excedido el límite de ${maxTokens} solicitudes de generación de tokens para este usuario.`,
-                code : "limit_tokens_by_ip"
+                code: "limit_tokens_by_ip"
             })
         }
         return data.token
@@ -53,12 +53,12 @@ class UserTokenService {
 
         const requestValidated = zodParse(userTokenSchema.requestTokenSchema)(request)
 
-        const [user] = await UserTokensModel.selectActiveToken<"user_fk">({ token, request: requestValidated }, (builder) => builder.select("user_fk"))
+        const [user] = await UserTokensModel.selectActiveToken({ token, request: requestValidated }, (builder) => builder.select("user_fk"))
         if (!user) {
             throw new ErrorHandler({
                 status: 404,
                 message: `El token que estás intentando utilizar ha expirado o no existe.`,
-                code :"token_not_found"
+                code: "token_not_found"
             })
         }
         return user
@@ -87,13 +87,12 @@ class UserTokenService {
         const current_date = new Date()
         const expected_date = new Date()
 
-        expected_date.setUTCHours(cleaning_hour)
-        expected_date.setUTCMinutes(cleaning_minute)
+        expected_date.setUTCHours(cleaning_hour, cleaning_minute)
 
         if (current_date.getTime() >= expected_date.getTime()) {
             expected_date.setUTCDate(expected_date.getUTCDate() + 1)
         }
-        
+
         const milliseconds = (expected_date.getTime() - current_date.getTime())
 
         const hours = Math.floor(milliseconds / 3600000)
@@ -110,7 +109,7 @@ class UserTokenService {
                 this.cleanExpiredTokens({ cleaning_hour, cleaning_minute })
             }, milliseconds)
         } catch (error) {
-            console.error("Error crítico: Fallo al intentar eliminar los tokens expirados. Se requiere atención inmediata.")
+            console.error("ERR TOKENS")
         }
     }
 

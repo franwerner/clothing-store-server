@@ -28,16 +28,17 @@ class OrdersService extends ServiceUtils {
             const [user_purchase_id] = await UserPurchasesModel.insert(orderData, (builder) => builder.transacting(tsx))
             const productsWithID = order_products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }))
             const productsData = zodParse(userPurchaseProductSchema.insert.array().min(1))(productsWithID)
-            const user_purchase_products_id = await Promise.all(productsData.map(async i => {
-                const [result] = await UserPurchaseProductsModel.insert(i, tsx)
-                if (result.affectedRows == 0) throw new ErrorHandler({
-                    status: 400,
-                    message: "Problemas con los productos de la orden.",
-                    data: i,
-                    code: "product_unavailable"
-                });
-                return result.insertId
-            }))
+            const user_purchase_products_id = await Promise.all(
+                productsData.map(async i => {
+                    const [result] = await UserPurchaseProductsModel.insert(i, tsx)
+                    if (result.affectedRows == 0) throw new ErrorHandler({
+                        status: 400,
+                        message: "Problemas con los productos de la orden.",
+                        data: i,
+                        code: "product_unavailable"
+                    })
+                    return result.insertId
+                }))
 
             await tsx.commit()
 

@@ -1,11 +1,12 @@
 import sql from "../config/knex.config"
-import { UserPurchaseSchema } from "clothing-store-shared/schema"
+import { DatabaseKeySchema, UserPurchaseSchema } from "clothing-store-shared/schema"
 import Exact from "../types/Exact.types"
 import ModelUtils from "../utils/model.utils"
 
 
 type UserPurchasePartial = Partial<UserPurchaseSchema.Base>
 
+type UpdateForUser = UserPurchaseSchema.Update & { user_fk: DatabaseKeySchema }
 class UserPurchasesModel extends ModelUtils {
 
     static async select(
@@ -50,8 +51,8 @@ class UserPurchasesModel extends ModelUtils {
         }
     }
 
-    static async updateForUser<T extends UserPurchaseSchema.UpdateForUser>(
-        { user_fk, ...props }: Exact<T, UserPurchaseSchema.UpdateForUser>,
+    static async updateForUser<T extends UpdateForUser>(
+        { user_fk, ...props }: Exact<T, UpdateForUser>,
     ) {
         return this.update<any>(props, (builder) => {
             builder.where("user_fk", user_fk)

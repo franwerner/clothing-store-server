@@ -19,8 +19,7 @@ class SizeService extends ServiceUtils {
 
     static async update(sizes: Array<SizeSchema.Update>) {
         const data = zodParse(sizeSchema.update.array())(sizes)
-        const res = await this.writeOperationsHandler(data, (e) => SizesModel.update(e),
-        )
+        const res = await this.writeOperationsHandler(data, (e) => SizesModel.update(e) )
         res("sizes_update")
     }
 

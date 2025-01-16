@@ -84,9 +84,6 @@ class UserRegisterController {
             const { token } = req.params
             const userID = await UserTokenService.useToken({ request: "email_confirm", token })
             await UserRegisterService.completeRegister(userID)
-            if (req.session.user_info) {
-                req.session.user_info.email_confirmed = true
-            }
             res.json({
                 message: "Registro confirmado con exito!",
             })

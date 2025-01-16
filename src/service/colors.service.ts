@@ -7,7 +7,6 @@ import ServiceUtils from "../utils/service.utils.js"
 class ColorsService extends ServiceUtils {
     static async get() {
         const res = await ColorsModel.select()
-
         if (res.length === 0) {
             throw new ErrorHandler({
                 message: "No se encontraron colores.",
@@ -15,7 +14,6 @@ class ColorsService extends ServiceUtils {
                 code: "colors_not_found"
             })
         }
-
         return res
 
     }
