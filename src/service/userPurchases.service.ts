@@ -7,7 +7,13 @@ class UserPurchasesService {
 
     static async updateForUser(props: UserPurchaseSchema.Update & { user_fk: DatabaseKeySchema }) {
         const parse = zodParse(userPurchaseSchema.update.extend({ user_fk: databaseKeySchema }))(props)
-        return await UserPurchasesModel.updateForUser(parse)
+        const res = await UserPurchasesModel.updateForUser(parse)
+        if (!res) throw new ErrorHandler({
+            message: "Error al intentar actualizar la orden de compra.",
+            code: "purchase_update_failed",
+            status: 400
+        })
+        return
 
     }
     static async getForUser({ user_purchase_id, user_fk }: { user_purchase_id: DatabaseKeySchema, user_fk: DatabaseKeySchema }) {
@@ -15,7 +21,7 @@ class UserPurchasesService {
         if (!res) throw new ErrorHandler({
             message: "No se encontró ninguna orden con la id especificada.",
             status: 404,
-            code: "order_not_found"
+            code: "purchase_not_found"
         })
         return res
     }

@@ -22,11 +22,8 @@ interface ProductPreviewPagination {
 
 type FilterProperties = { [K in keyof ProductPreviewFilters]?: string }
 class ProductsPreviewService {
-
     static generateProductPreviewFilters(filterProperties: FilterProperties) {
-
         let res = {} as ProductPreviewFilters
-
         for (const key in filterProperties) {
             const k = key as keyof ProductPreviewFilters
             const current = filterProperties[k]
@@ -48,7 +45,6 @@ class ProductsPreviewService {
                 }
             }
         }
-
         return res
     }
 
@@ -61,7 +57,7 @@ class ProductsPreviewService {
         order: ProductPreviewOrder
         pagination: ProductPreviewPagination
     }) {
-        const res = await ProductPreviewModel.selectProducts({
+        const res = await ProductPreviewModel.select({
             filters,
             order,
             pagination

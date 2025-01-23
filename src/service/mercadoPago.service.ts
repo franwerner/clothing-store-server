@@ -37,7 +37,7 @@ class MercadoPagoService {
         try {
             return await preferences.get({ preferenceId: preference_id })
         } catch (error) {
-            return new ErrorHandler({
+            throw new ErrorHandler({
                 message: "Preferencia no encontrada",
                 status: 404,
                 code: "preference_not_found"
@@ -51,11 +51,6 @@ class MercadoPagoService {
         date_of_expiration,
         shipments
     }: createCheckout) {
-        /**
-         * Tiempo de expiracion 3 horas.
-         * Solo se generara cuando se cree la orden de compra y debe ser unico por cada external_reference.
-         */
-
         return await preferences.create({
             body: {
                 items,

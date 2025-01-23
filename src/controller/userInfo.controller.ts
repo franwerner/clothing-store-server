@@ -4,12 +4,12 @@ import tokenSettings from "../constant/tokenSettings.constant.js";
 import getSessionData from "../helper/getSessionData.helper.js";
 import zodParse from "../helper/zodParse.helper.js";
 import emailService from "../service/email/index.js";
-import UserAccountService from "../service/userAccount.service.js";
+import UserInfoService from "../service/userAccount.service.js";
 import UserAuthService from "../service/userAuth.service.js";
 import UserTokenService from "../service/userToken.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 
-class UserAccountController {
+class UserInfoController {
 
     static async updateInfoAuth(
         req: Request<any, any, { password: string }>,
@@ -25,7 +25,7 @@ class UserAccountController {
             const { email } = getSessionData("user_info", req.session)
             await UserAuthService.authenticar({ email, password })
 
-            const edit_authorization = UserAccountService.createEditAuthorization()
+            const edit_authorization = UserInfoService.createEditAuthorization()
 
             req.session.edit_authorization = edit_authorization
             res.json({
@@ -75,14 +75,15 @@ class UserAccountController {
     }
 
     static async passwordReset(
-        req: Request<{ token: string }, any, { password: string }>,
+        req: Request,
         res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
             const token = req.params.token
             const { user_fk } = await UserTokenService.findActiveToken({ request: "password_reset_by_email", token })
-            await UserAccountService.updateInfo({
+            console.log("HOLA")
+            await UserInfoService.updateInfo({
                 user_id: user_fk,
                 password: req.body.password
             })
@@ -107,7 +108,7 @@ class UserAccountController {
         try {
 
             const user = getSessionData("user_info", req.session)
-            await UserAccountService.updateInfo({
+            await UserInfoService.updateInfo({
                 ...req.body,
                 user_id: user.user_id
             })
@@ -135,7 +136,7 @@ class UserAccountController {
         try {
             const { user_id } = getSessionData("user_info", req.session)
             const edit_authorization = req.session.edit_authorization
-            const user_info = await UserAccountService.getUserInfo(user_id)
+            const user_info = await UserInfoService.getUserInfo(user_id)
             req.session.user_info = user_info
             res.json({
                 data: {
@@ -154,4 +155,4 @@ class UserAccountController {
 
 }
 
-export default UserAccountController
+export default UserInfoController

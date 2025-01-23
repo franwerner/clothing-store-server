@@ -2,7 +2,7 @@ import { NextFunction, Request } from "express";
 import UserAuthService from "../service/userAuth.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 
-class UsersController {
+class UserSessionController {
     static async login(
         req: Request,
         res: APP.ResponseTemplate,
@@ -25,7 +25,7 @@ class UsersController {
             }
         }
     }
-    static  logout(
+    static logout(
         req: Request,
         res: APP.ResponseTemplate,
         next: NextFunction
@@ -44,4 +44,4 @@ class UsersController {
 }
 
 
-export default UsersController
+export default UserSessionController

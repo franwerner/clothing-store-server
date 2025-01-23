@@ -4,6 +4,6 @@ import verifyOrderPreference from "../middleware/verifyOrderPreference.middlewar
 
 const mercadoPagoRouter = express.Router()
 
-mercadoPagoRouter.get("/checkout",verifyOrderPreference, MercadoPagoController.checkout)
+mercadoPagoRouter.get("/checkout/:user_purchase_id",verifyOrderPreference, MercadoPagoController.checkout)
 
 export default mercadoPagoRouter

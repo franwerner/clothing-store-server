@@ -78,16 +78,16 @@ class OrderController {
     }
 
     static async getOrder(
-        req: Request<any, any, any, { purchase_id: string }>,
+        req: Request<any, any, any>,
         res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const { purchase_id = "" } = req.query
+            const { user_purchase_id = "" } = req.params
             const { user_id } = getSessionData("user_info", req.session)
             const data = await UserPurchasesService.getForUser({
                 user_fk: user_id,
-                user_purchase_id: purchase_id
+                user_purchase_id: user_purchase_id
             })
             res.json({
                 data,
@@ -102,14 +102,14 @@ class OrderController {
     }
 
     static async getOrderDetails(
-        req: Request<any, any, any, { purchase_id: string }>,
+        req: Request,
         res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
             const { user_id } = getSessionData("user_info", req.session)
-            const { purchase_id = "" } = req.query
-            const data = await UserPurchaseProductService.getForUser({ user_purchase_fk: purchase_id, user_fk: user_id })
+            const { user_purchase_id } = req.params
+            const data = await UserPurchaseProductService.getForUser({ user_purchase_fk: user_purchase_id, user_fk: user_id })
             res.json({
                 data,
 

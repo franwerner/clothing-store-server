@@ -14,12 +14,12 @@ import productRecomendationsRouter from "./productsRecomendations.router"
 import productsViewRouter from "./productsView.router"
 import shopcartRouter from "./shopcart.router"
 import sizesRouter from "./sizes.router"
-import userAccountRouter from "./userAccount.router"
+import userInfoRouter from "./userInfo.router"
 import userRegisterRouter from "./userRegister.router"
-import usersRouter from "./users.router"
+import UserSession from "./userSession.router"
 import userAddresessRouter from "./userAddresess.router"
 
-const createRouters = (app:Application) => {
+const createRouters = (app: Application) => {
     app.use("/categories", categoriesRouter)
     app.use("/products", productsRouter)
     app.use("/products/recomendations", productRecomendationsRouter)
@@ -30,13 +30,13 @@ const createRouters = (app:Application) => {
     app.use("/brands", brandsRouter)
     app.use("/sizes", sizesRouter)
     app.use("/colors", colorsRouter)
-    app.use("/users", usersRouter)
+    app.use("/users/session", UserSession)
     app.use("/users/register", userRegisterRouter)
-    app.use("/users/account", userAccountRouter)
-    app.use("/users/addresess",isCompleteUser,userAddresessRouter)
-    app.use("/mercadopago",isCompleteUser, mercadoPagoRouter)
-    app.use("/orders",isCompleteUser,orderRouter)
-    app.use("/shopcart",shopcartRouter)
+    app.use("/users/info", userInfoRouter)
+    app.use("/users/addresess", isCompleteUser, userAddresessRouter)
+    app.use("/mercadopago", isCompleteUser, mercadoPagoRouter)
+    app.use("/orders", isCompleteUser, orderRouter)
+    app.use("/shopcart", shopcartRouter)
 }
 
 export default createRouters

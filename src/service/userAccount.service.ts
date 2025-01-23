@@ -4,14 +4,15 @@ import { UserSchema, userSchema, DatabaseKeySchema } from "clothing-store-shared
 import ErrorHandler from "../utils/errorHandler.utilts"
 import UserRegisterService from "./userRegister.service"
 
-class UserAccountService {
+class UserInfoService {
 
     static async updateInfo(update: UserSchema.UpdateInfo) {
-        const { password, phone, fullname, user_id } = zodParse(userSchema.updateInfo)(update)
+        const { password, phone, name, lastname, user_id } = zodParse(userSchema.updateInfo)(update)
         const selectedInfo = {
             password: password && await UserRegisterService.createPassword(password),
             phone,
-            fullname,
+            name,
+            lastname,
             user_id
         }
         const res = await UsersModel.update(selectedInfo)
@@ -42,4 +43,4 @@ class UserAccountService {
 
 }
 
-export default UserAccountService
+export default UserInfoService

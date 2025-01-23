@@ -9,14 +9,14 @@ import { storeConfig } from "../constant/storeConfig.contant";
 class MercadoPagoController {
 
     static async checkout(
-        req: Request<any, any, any, { user_purchase_id: string }>,
+        req: Request,
         res: APP.ResponseTemplate<any,{expired_date : Date}>,
         next: NextFunction
     ) {
         try {
             const { user_id } = getSessionData("user_info", req.session)
 
-            const { user_purchase_id = "" } = req.query
+            const { user_purchase_id = "" } = req.params
 
             const transform = await MercadoPagoService.transformProductsToCheckoutItems({
                 user_fk: user_id,
@@ -44,7 +44,8 @@ class MercadoPagoController {
                 user_fk: user_id
             })
 
-            res.status(201).json({
+            res.json({
+                message : "preferencia de pago obtenida exitosamente!",
                 data: {
                     init_point,
                     date_of_expiration,

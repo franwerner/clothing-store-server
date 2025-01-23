@@ -46,14 +46,15 @@ class UsersModel extends ModelUtils {
         user: UserSchema.Insert,
         ip_limit = 0
     ) {
-        const { email, fullname, ip, password, phone, permission } = user
+        const { email, name, lastname, ip, password, phone, permission } = user
         try {
             return await sql.raw<Array<ResultSetHeader>>(`
-            INSERT INTO users (fullname,phone,email,password,ip,permission)
-            SELECT ?, ?, ?, ?, ?,?
+            INSERT INTO users (name,lastname,phone,email,password,ip,permission)
+            SELECT ?,?,?,?,?,?,?
             WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ?
               `, [
-                fullname,
+                name,
+                lastname,
                 phone,
                 email,
                 password,

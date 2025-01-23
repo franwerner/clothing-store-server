@@ -3,7 +3,7 @@ import sql from "../config/knex.config.js";
 import { ProductPreviewFilters, ProductPreviewOrder, ProductPreviewPagination } from "../service/productsPreview.service.js";
 import ModelUtils from "../utils/model.utils.js";
 
-const getOrderProduct = (orderKey: OrderProducts) => {
+const getOrderField = (orderKey: OrderProducts) => {
     if (orderKey === "name") {
         return "p.product"
     } else if (orderKey === "price") {
@@ -17,7 +17,7 @@ const getOrderProduct = (orderKey: OrderProducts) => {
 
 
 class ProductPreviewModel extends ModelUtils {
-    static async selectProducts({
+    static async select({
         filters,
         order,
         pagination
@@ -29,7 +29,7 @@ class ProductPreviewModel extends ModelUtils {
         try {
             const { color, price, search, size, brand, category } = filters
             const { offset } = pagination
-            const orderField = getOrderProduct(order.sortField)
+            const orderField = getOrderField(order.sortField)
             const defaultOrder = ["asc", "desc"].includes(order.sortDirection) ? order.sortDirection : "asc"
             const [min, max] = price || []
             const subQueryForOneImagePerProductColor = sql('product_color_images as pci')
@@ -59,16 +59,17 @@ class ProductPreviewModel extends ModelUtils {
                 })
                 .limit(15)
                 .where("p.status", true)
-                .whereExists(
-                    sql('product_color_sizes as pcs')
-                        .select(1)
-                        .whereRaw("pcs.product_color_fk = pc.product_color_id")
-                )
+
+            !size && query.whereExists(
+                sql('product_color_sizes as pcs')
+                    .select(1)
+                    .whereRaw("pcs.product_color_fk = pc.product_color_id")
+            )
             offset && query.offset(Number(offset))
             orderField && query.orderBy(orderField, defaultOrder)
             brand && query.where("pb.brand", brand)
             category && query.where("ct.category", category)
-            search && query.whereILike("p.product", `%${search}%`);
+            search && query.whereILike("p.product", `%${search}%`)
             min && query.where("p.price", ">=", min)
             max && query.where("p.price", "<=", max)
             color && query.whereIn("c.color_id", color)
@@ -83,7 +84,11 @@ class ProductPreviewModel extends ModelUtils {
         }
     }
 
-    private static selectProductsPreviewDetailBase(filters: Omit<ProductPreviewFilters, "size" | "color">) {
+    private static selectDetailBase(filters: Omit<ProductPreviewFilters, "size" | "color">) {
+        /**
+         * Se debe incluir esta base tanto para la seleccion de colores y tamaños,
+         * debido a que se necesitar hacer los mismos filtros de los productos, para obtener los colores y tamaños relacionados correctamente.
+         */
 
         const { price, brand, category, search } = filters
         const [min, max] = price || []
@@ -98,23 +103,24 @@ class ProductPreviewModel extends ModelUtils {
         max && query.where("p.price", "<=", max)
         brand && query.where("b.brand", brand)
         category && query.where("ct.category", category)
-        search && query.whereILike("p.product", `%${search}%`);
+        search && query.whereILike("p.product", `%${search}%`)
         return query
 
     }
 
     static async selectProductColors({ size, ...filters }: Omit<ProductPreviewFilters, "color">) {
         try {
-            const query = this.selectProductsPreviewDetailBase(filters)
+            const query = this.selectDetailBase(filters)
                 .innerJoin("colors as c", "c.color_id", "pc.color_fk")
                 .select("c.color_id", "c.color", "c.hexadecimal")
                 .groupBy("c.color_id")
-                .whereExists(
-                    sql('product_color_sizes as pcs')
-                        .select(1)
-                        .whereRaw("pcs.product_color_fk = pc.product_color_id")
-                )
-            size && size.length > 0 && query.whereIn("pc.product_color_id", (builder) => {
+            !size && query.whereExists(
+                sql('product_color_sizes as pcs')
+                    .select(1)
+                    .whereRaw("pcs.product_color_fk = pc.product_color_id")
+            )//Solo queremos obtener los colores que contengan tamaños relacionados.
+
+            size && query.whereIn("pc.product_color_id", (builder) => {
                 builder.select("product_color_fk")
                     .from("product_color_sizes")
                     .whereIn("size_fk", size)
@@ -127,7 +133,7 @@ class ProductPreviewModel extends ModelUtils {
 
     static async selectProductSizes({ color, ...filters }: Omit<ProductPreviewFilters, "size">) {
         try {
-            const query = this.selectProductsPreviewDetailBase(filters)
+            const query = this.selectDetailBase(filters)
                 .select("s.size_id", "s.size")
                 .groupBy("s.size_id")
                 .innerJoin("product_color_sizes as pcs", "pc.product_color_id", "pcs.product_color_fk")

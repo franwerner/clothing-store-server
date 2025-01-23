@@ -230,14 +230,15 @@ var UsersModel = class extends model_utils_default {
     });
   }
   static async insertByLimitIP(user, ip_limit = 0) {
-    const { email, fullname, ip, password, phone, permission } = user;
+    const { email, name, lastname, ip, password, phone, permission } = user;
     try {
       return await knex_config_default.raw(`
-            INSERT INTO users (fullname,phone,email,password,ip,permission)
-            SELECT ?, ?, ?, ?, ?,?
+            INSERT INTO users (name,lastname,phone,email,password,ip,permission)
+            SELECT ?,?,?,?,?,?,?
             WHERE (SELECT COUNT(*) FROM users WHERE ip = ?) < ?
               `, [
-        fullname,
+        name,
+        lastname,
         phone,
         email,
         password,
@@ -922,7 +923,7 @@ var MercadoPagoService = class {
     try {
       return await preferences.get({ preferenceId: preference_id });
     } catch (error) {
-      return new errorHandler_utilts_default({
+      throw new errorHandler_utilts_default({
         message: "Preferencia no encontrada",
         status: 404,
         code: "preference_not_found"
@@ -1021,14 +1022,20 @@ import { userPurchaseSchema, databaseKeySchema } from "clothing-store-shared/sch
 var UserPurchasesService = class {
   static async updateForUser(props) {
     const parse = zodParse_helper_default(userPurchaseSchema.update.extend({ user_fk: databaseKeySchema }))(props);
-    return await userPurchases_model_default.updateForUser(parse);
+    const res = await userPurchases_model_default.updateForUser(parse);
+    if (!res) throw new errorHandler_utilts_default({
+      message: "Error al intentar actualizar la orden de compra.",
+      code: "purchase_update_failed",
+      status: 400
+    });
+    return;
   }
   static async getForUser({ user_purchase_id, user_fk }) {
     const [res] = await userPurchases_model_default.select({ user_purchase_id, user_fk });
     if (!res) throw new errorHandler_utilts_default({
       message: "No se encontr\xF3 ninguna orden con la id especificada.",
       status: 404,
-      code: "order_not_found"
+      code: "purchase_not_found"
     });
     return res;
   }
@@ -1070,7 +1077,7 @@ var MercadoPagoController = class {
   static async checkout(req, res, next) {
     try {
       const { user_id } = getSessionData_helper_default("user_info", req.session);
-      const { user_purchase_id = "" } = req.query;
+      const { user_purchase_id = "" } = req.params;
       const transform = await mercadoPago_service_default.transformProductsToCheckoutItems({
         user_fk: user_id,
         user_purchase_fk: user_purchase_id
@@ -1093,7 +1100,8 @@ var MercadoPagoController = class {
         preference_id: id,
         user_fk: user_id
       });
-      res.status(201).json({
+      res.json({
+        message: "preferencia de pago obtenida exitosamente!",
         data: {
           init_point,
           date_of_expiration
@@ -1112,44 +1120,45 @@ var mercadoPago_controller_default = MercadoPagoController;
 
 // src/middleware/verifyOrderPreference.middleware.ts
 var verifyOrderPreference = async (req, res, next) => {
-  const { user_purchase_id = "" } = req.query;
-  const [{ preference_id, expire_at = "", user_purchase_id: id } = {}] = await userPurchases_model_default.select({ user_purchase_id }, (builder) => builder.select("preference_id", "expire_at", "user_purchase_id"));
-  const current_date = /* @__PURE__ */ new Date();
-  const expired_date = new Date(expire_at);
-  if (!id) {
-    new errorHandler_utilts_default({
-      message: `No se encontro ninguna orden de compra.`,
-      status: 404
-    }).response(res);
-    return;
-  } else if (current_date > expired_date) {
-    new errorHandler_utilts_default({
+  try {
+    const { user_purchase_id } = req.params;
+    const user = getSessionData_helper_default("user_info", req.session);
+    const { preference_id, expire_at = "" } = await userPurchases_service_default.getForUser({ user_fk: user.user_id, user_purchase_id });
+    const current_date = /* @__PURE__ */ new Date();
+    const expired_date = new Date(expire_at);
+    if (current_date > expired_date) throw new errorHandler_utilts_default({
       message: "No puedes obtener la preferencia de pago debido a que venci\xF3 el plazo de la orden de compra.",
-      status: 403
-    }).response(res);
-    return;
-  }
-  const preference = await mercadoPago_service_default.getPreference(preference_id?.toString());
-  if (!errorHandler_utilts_default.isInstanceOf(preference)) {
-    const { init_point, date_of_expiration } = preference;
-    res.json({
-      data: {
-        init_point,
-        date_of_expiration
-      }
+      status: 403,
+      code: "expired_order"
     });
-  } else {
-    res.locals = {
-      expired_date
-    };
-    next();
+    try {
+      const preference = await mercadoPago_service_default.getPreference(preference_id?.toString());
+      const { init_point, date_of_expiration } = preference;
+      res.json({
+        data: {
+          init_point,
+          date_of_expiration
+        }
+      });
+    } catch (error) {
+      res.locals = {
+        expired_date
+      };
+      next();
+    }
+  } catch (error) {
+    if (errorHandler_utilts_default.isInstanceOf(error)) {
+      error.response(res);
+    } else {
+      errorGlobal_middleware_default(req, res);
+    }
   }
 };
 var verifyOrderPreference_middleware_default = verifyOrderPreference;
 
 // src/router/mercadoPago.router.ts
 var mercadoPagoRouter = express4.Router();
-mercadoPagoRouter.get("/checkout", verifyOrderPreference_middleware_default, mercadoPago_controller_default.checkout);
+mercadoPagoRouter.get("/checkout/:user_purchase_id", verifyOrderPreference_middleware_default, mercadoPago_controller_default.checkout);
 var mercadoPago_router_default = mercadoPagoRouter;
 
 // src/router/order.router.ts
@@ -1269,11 +1278,11 @@ var OrderController = class {
   }
   static async getOrder(req, res, next) {
     try {
-      const { purchase_id = "" } = req.query;
+      const { user_purchase_id = "" } = req.params;
       const { user_id } = getSessionData_helper_default("user_info", req.session);
       const data = await userPurchases_service_default.getForUser({
         user_fk: user_id,
-        user_purchase_id: purchase_id
+        user_purchase_id
       });
       res.json({
         data
@@ -1289,8 +1298,8 @@ var OrderController = class {
   static async getOrderDetails(req, res, next) {
     try {
       const { user_id } = getSessionData_helper_default("user_info", req.session);
-      const { purchase_id = "" } = req.query;
-      const data = await userPurchaseProducts_service_default.getForUser({ user_purchase_fk: purchase_id, user_fk: user_id });
+      const { user_purchase_id } = req.params;
+      const data = await userPurchaseProducts_service_default.getForUser({ user_purchase_fk: user_purchase_id, user_fk: user_id });
       res.json({
         data
       });
@@ -1330,8 +1339,8 @@ var isExitsShopcart_middleware_default = isExitsShopcart;
 // src/router/order.router.ts
 var orderRouter = Router();
 orderRouter.post("/", isExitsShopcart_middleware_default, order_controller_default.createOrder);
-orderRouter.get("/", order_controller_default.getOrder);
-orderRouter.get("/details", order_controller_default.getOrderDetails);
+orderRouter.get("/:user_purchase_id", order_controller_default.getOrder);
+orderRouter.get("/details/:user_purchase_id", order_controller_default.getOrderDetails);
 var order_router_default = orderRouter;
 
 // src/router/ProductColorImages.router.ts
@@ -2058,7 +2067,7 @@ var ProductFullViewService = class {
 var productFullview_service_default = ProductFullViewService;
 
 // src/model/productsPreview.model.ts
-var getOrderProduct = (orderKey) => {
+var getOrderField = (orderKey) => {
   if (orderKey === "name") {
     return "p.product";
   } else if (orderKey === "price") {
@@ -2070,7 +2079,7 @@ var getOrderProduct = (orderKey) => {
   }
 };
 var ProductPreviewModel = class extends model_utils_default {
-  static async selectProducts({
+  static async select({
     filters,
     order,
     pagination
@@ -2078,7 +2087,7 @@ var ProductPreviewModel = class extends model_utils_default {
     try {
       const { color, price, search, size, brand, category } = filters;
       const { offset } = pagination;
-      const orderField = getOrderProduct(order.sortField);
+      const orderField = getOrderField(order.sortField);
       const defaultOrder = ["asc", "desc"].includes(order.sortDirection) ? order.sortDirection : "asc";
       const [min, max] = price || [];
       const subQueryForOneImagePerProductColor = knex_config_default("product_color_images as pci").select(
@@ -2098,7 +2107,8 @@ var ProductPreviewModel = class extends model_utils_default {
       ).innerJoin("categories as ct", "ct.brand_fk", "pb.brand_id").innerJoin("products as p", "p.category_fk", "ct.category_id").innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").leftJoin(subQueryForOneImagePerProductColor.as("pci"), (pci) => {
         pci.on("pci.product_color_fk", "=", "pc.product_color_id");
         pci.andOn("pci.row_num", "=", 1);
-      }).limit(15).where("p.status", true).whereExists(
+      }).limit(15).where("p.status", true);
+      !size && query.whereExists(
         knex_config_default("product_color_sizes as pcs").select(1).whereRaw("pcs.product_color_fk = pc.product_color_id")
       );
       offset && query.offset(Number(offset));
@@ -2118,7 +2128,7 @@ var ProductPreviewModel = class extends model_utils_default {
       throw this.generateError(error);
     }
   }
-  static selectProductsPreviewDetailBase(filters) {
+  static selectDetailBase(filters) {
     const { price, brand, category, search } = filters;
     const [min, max] = price || [];
     const query = knex_config_default("brands as b").count("* as quantity").innerJoin("categories as ct", "ct.brand_fk", "b.brand_id").innerJoin("products as p", "p.category_fk", "ct.category_id").innerJoin("product_colors as pc", "p.product_id", "pc.product_fk").where("p.status", true);
@@ -2131,10 +2141,11 @@ var ProductPreviewModel = class extends model_utils_default {
   }
   static async selectProductColors({ size, ...filters }) {
     try {
-      const query = this.selectProductsPreviewDetailBase(filters).innerJoin("colors as c", "c.color_id", "pc.color_fk").select("c.color_id", "c.color", "c.hexadecimal").groupBy("c.color_id").whereExists(
+      const query = this.selectDetailBase(filters).innerJoin("colors as c", "c.color_id", "pc.color_fk").select("c.color_id", "c.color", "c.hexadecimal").groupBy("c.color_id");
+      !size && query.whereExists(
         knex_config_default("product_color_sizes as pcs").select(1).whereRaw("pcs.product_color_fk = pc.product_color_id")
       );
-      size && size.length > 0 && query.whereIn("pc.product_color_id", (builder) => {
+      size && query.whereIn("pc.product_color_id", (builder) => {
         builder.select("product_color_fk").from("product_color_sizes").whereIn("size_fk", size);
       });
       return await query;
@@ -2144,7 +2155,7 @@ var ProductPreviewModel = class extends model_utils_default {
   }
   static async selectProductSizes({ color, ...filters }) {
     try {
-      const query = this.selectProductsPreviewDetailBase(filters).select("s.size_id", "s.size").groupBy("s.size_id").innerJoin("product_color_sizes as pcs", "pc.product_color_id", "pcs.product_color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk");
+      const query = this.selectDetailBase(filters).select("s.size_id", "s.size").groupBy("s.size_id").innerJoin("product_color_sizes as pcs", "pc.product_color_id", "pcs.product_color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk");
       color && query.whereIn("pc.color_fk", color);
       return await query;
     } catch (error) {
@@ -2186,7 +2197,7 @@ var ProductsPreviewService = class {
     order,
     pagination
   }) {
-    const res = await productsPreview_model_default.selectProducts({
+    const res = await productsPreview_model_default.select({
       filters,
       order,
       pagination
@@ -2682,10 +2693,10 @@ sizesRouter.patch("/", isAdmin_middleware_default, sizes_controller_default.modi
 sizesRouter.delete("/", isAdmin_middleware_default, sizes_controller_default.removeSizes);
 var sizes_router_default = sizesRouter;
 
-// src/router/userAccount.router.ts
+// src/router/userInfo.router.ts
 import express12 from "express";
 
-// src/controller/userAccount.controller.ts
+// src/controller/userInfo.controller.ts
 import { userSchema as userSchema4 } from "clothing-store-shared/schema";
 
 // src/constant/tokenSettings.constant.ts
@@ -2793,13 +2804,14 @@ var UserRegisterService = class {
 var userRegister_service_default = UserRegisterService;
 
 // src/service/userAccount.service.ts
-var UserAccountService = class {
+var UserInfoService = class {
   static async updateInfo(update) {
-    const { password, phone, fullname, user_id } = zodParse_helper_default(userSchema2.updateInfo)(update);
+    const { password, phone, name, lastname, user_id } = zodParse_helper_default(userSchema2.updateInfo)(update);
     const selectedInfo = {
       password: password && await userRegister_service_default.createPassword(password),
       phone,
-      fullname,
+      name,
+      lastname,
       user_id
     };
     const res = await users_model_default.update(selectedInfo);
@@ -2827,7 +2839,7 @@ var UserAccountService = class {
     return zodParse_helper_default(userSchema2.formatUser)(res);
   }
 };
-var userAccount_service_default = UserAccountService;
+var userAccount_service_default = UserInfoService;
 
 // src/service/userAuth.service.ts
 import bcrypt2 from "bcrypt";
@@ -2996,8 +3008,8 @@ var UserTokenService = class {
 };
 var userToken_service_default = UserTokenService;
 
-// src/controller/userAccount.controller.ts
-var UserAccountController = class {
+// src/controller/userInfo.controller.ts
+var UserInfoController = class {
   static async updateInfoAuth(req, res, next) {
     try {
       const password = req.body.password || "";
@@ -3047,6 +3059,7 @@ var UserAccountController = class {
     try {
       const token = req.params.token;
       const { user_fk } = await userToken_service_default.findActiveToken({ request: "password_reset_by_email", token });
+      console.log("HOLA");
       await userAccount_service_default.updateInfo({
         user_id: user_fk,
         password: req.body.password
@@ -3105,7 +3118,7 @@ var UserAccountController = class {
     }
   }
 };
-var userAccount_controller_default = UserAccountController;
+var userInfo_controller_default = UserInfoController;
 
 // src/rate-limiter/token.rate-limiter.ts
 import { rateLimit as rateLimit2 } from "express-rate-limit";
@@ -3130,14 +3143,14 @@ var isAuthorizedToUpdateInfo = (req, res, next) => {
 };
 var isAuthorizedToUpdateInfo_middleware_default = isAuthorizedToUpdateInfo;
 
-// src/router/userAccount.router.ts
-var userAccountRouter = express12.Router();
-userAccountRouter.post("/reset/password", token_rate_limiter_default, userAccount_controller_default.sendPasswordReset);
-userAccountRouter.post("/reset/password/:token", userAccount_controller_default.passwordReset);
-userAccountRouter.post("/update/info/auth", isCompleteUser_middleware_default, userAccount_controller_default.updateInfoAuth);
-userAccountRouter.post("/update/info", [isCompleteUser_middleware_default, isAuthorizedToUpdateInfo_middleware_default], userAccount_controller_default.updateInfo);
-userAccountRouter.get("/", isUser_middleware_default, userAccount_controller_default.getUser);
-var userAccount_router_default = userAccountRouter;
+// src/router/userInfo.router.ts
+var userInfoRouter = express12.Router();
+userInfoRouter.post("/reset/password", token_rate_limiter_default, userInfo_controller_default.sendPasswordReset);
+userInfoRouter.post("/reset/password/:token", userInfo_controller_default.passwordReset);
+userInfoRouter.post("/update/auth", isCompleteUser_middleware_default, userInfo_controller_default.updateInfoAuth);
+userInfoRouter.patch("/update", [isCompleteUser_middleware_default, isAuthorizedToUpdateInfo_middleware_default], userInfo_controller_default.updateInfo);
+userInfoRouter.get("/", isUser_middleware_default, userInfo_controller_default.getUser);
+var userInfo_router_default = userInfoRouter;
 
 // src/router/userRegister.router.ts
 import express13 from "express";
@@ -3242,11 +3255,11 @@ userRegisterRouter.get("/confirmation/:token", userRegister_controller_default.c
 userRegisterRouter.get("/send/token", token_rate_limiter_default, isNotCompleteUser_middleware_default, userRegister_controller_default.sendRegisterToken);
 var userRegister_router_default = userRegisterRouter;
 
-// src/router/users.router.ts
+// src/router/userSession.router.ts
 import express14 from "express";
 
-// src/controller/users.controller.ts
-var UsersController = class {
+// src/controller/userSession.controller.ts
+var UserSessionController = class {
   static async login(req, res, next) {
     try {
       const { email, password } = req.body;
@@ -3276,13 +3289,13 @@ var UsersController = class {
     });
   }
 };
-var users_controller_default = UsersController;
+var userSession_controller_default = UserSessionController;
 
-// src/router/users.router.ts
-var usersRouter = express14.Router();
-usersRouter.post("/login", users_controller_default.login);
-usersRouter.get("/logout", users_controller_default.logout);
-var users_router_default = usersRouter;
+// src/router/userSession.router.ts
+var UserSession = express14.Router();
+UserSession.post("/login", userSession_controller_default.login);
+UserSession.get("/logout", userSession_controller_default.logout);
+var userSession_router_default = UserSession;
 
 // src/router/userAddresess.router.ts
 import { Router as Router3 } from "express";
@@ -3454,9 +3467,9 @@ var createRouters = (app2) => {
   app2.use("/brands", brands_router_default);
   app2.use("/sizes", sizes_router_default);
   app2.use("/colors", colors_router_default);
-  app2.use("/users", users_router_default);
+  app2.use("/users/session", userSession_router_default);
   app2.use("/users/register", userRegister_router_default);
-  app2.use("/users/account", userAccount_router_default);
+  app2.use("/users/info", userInfo_router_default);
   app2.use("/users/addresess", isCompleteUser_middleware_default, userAddresess_router_default);
   app2.use("/mercadopago", isCompleteUser_middleware_default, mercadoPago_router_default);
   app2.use("/orders", isCompleteUser_middleware_default, order_router_default);
