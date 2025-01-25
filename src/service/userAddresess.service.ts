@@ -1,12 +1,12 @@
-import { DatabaseKeySchema, userAddresessSchema, UserAddresessSchema } from "clothing-store-shared/schema";
+import { DatabaseKeySchema, userAddressesSchema, UserAddressesSchema } from "clothing-store-shared/schema";
 import zodParse from "../helper/zodParse.helper";
 import UserAddresessModel from "../model/userAddresess.model";
 import ErrorHandler from "../utils/errorHandler.utilts";
 
 class UserAddresessService {
 
-    static async createAddress(address: UserAddresessSchema.Insert): Promise<UserAddresessSchema.Base> {
-        const parseData = zodParse(userAddresessSchema.insert)(address)
+    static async createAddress(address: UserAddressesSchema.Insert): Promise<UserAddressesSchema.Base> {
+        const parseData = zodParse(userAddressesSchema.insert)(address)
         const { locality, province } = parseData
         await this.validateLocation({ locality, province })
         const [insertID] = await UserAddresessModel.insert(parseData)
@@ -47,8 +47,8 @@ class UserAddresessService {
         }
     }
 
-    static async updateAddress(address: UserAddresessSchema.Update) {
-        const parseData = zodParse(userAddresessSchema.update)(address)
+    static async updateAddress(address: UserAddressesSchema.Update) {
+        const parseData = zodParse(userAddressesSchema.update)(address)
         const { locality, province } = parseData
         if (locality || province) {
             await this.validateLocation({ locality, province })

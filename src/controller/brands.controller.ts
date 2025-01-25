@@ -11,6 +11,9 @@ class BrandsController {
         next: NextFunction
     ) {
         try {
+             await new Promise((res) => setTimeout(() => {
+                res(1)
+            }, 1500))
             const data = await BrandsService.get()
             res.json({
                 data: data

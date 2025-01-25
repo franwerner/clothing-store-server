@@ -65,8 +65,8 @@ class MercadoPagoService {
         })
     }
 
-    static async transformProductsToCheckoutItems(props: { user_fk: DatabaseKeySchema, user_purchase_fk: DatabaseKeySchema, }) {
-        const data = await UserPurchaseProductsModel.selectDetailedForUser(props,
+    static async transformProductsToCheckoutItems(user_purchase_fk: DatabaseKeySchema) {
+        const data = await UserPurchaseProductsModel.selectDetailed({ user_purchase_fk },
             (build) => build.select(sql.raw(
                 `
                 user_purchase_product_id as id,

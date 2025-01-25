@@ -8,11 +8,7 @@ const createShopcartMiddleware = (
 ) => {
 
     const shopcart = req.session.shopcart
-    
-    if (!shopcart || Date.now() > shopcart.expired_at ){
-        req.session.shopcart = ShopcartService.createShopcart(shopcart)
-    }
-
+    req.session.shopcart = ShopcartService.createShopcart(shopcart)
     next()
 
 }

@@ -28,11 +28,11 @@ class ShopcartService {
 
     static async addProducts(products: Array<ShopcartProductSchema.BaseInShopcart>, newProducts: Array<ShopcartProductSchema.BaseOutShopcart>) {
         const cloneProducts = structuredClone(products)
-        const isArrayNewProducts = Array.isArray(newProducts) ? newProducts : []
+        const parseNewProducts = zodParse(shopcartProductSchema.baseOutShopcartProduct.array())(newProducts)
 
         const recentProductsChanges = []
 
-        for (const product of isArrayNewProducts) {
+        for (const product of parseNewProducts) {
             const { color_fk, product_fk, quantity, size_fk, } = product
             const repeated = cloneProducts.find(i => i.color_fk == color_fk && i.product_fk == product_fk && i.size_fk == size_fk)
             if (repeated) {
@@ -51,7 +51,7 @@ class ShopcartService {
     }
 
     static createShopcart(shopcart?: Shopcart) {
-        if (!shopcart || (shopcart.expired_at || 0) < Date.now()) {
+        if (!shopcart || (shopcart.expired_at || 0) < Date.now() ||  shopcart.products.length === 0) {
             return {
                 products: [],
                 expired_at: Date.now() + (1000 * 60 * 60 * 3) //3 hours,
@@ -82,21 +82,6 @@ class ShopcartService {
         return shopcart.filter(i => i.id !== id)
     }
 
-    static groupProducts(products: Array<ShopcartProductSchema.BaseInShopcart>) {
-        const groupedProducts: Array<ShopcartProductSchema.BaseInShopcart> = []
-
-        for (const product of products) {
-            const { color_fk, product_fk, size_fk } = product
-            const isEqual = groupedProducts.find(i => (i.color_fk == color_fk && product_fk == i.product_fk && i.size_fk == size_fk))
-            if (!isEqual) {
-                groupedProducts.push({ ...product })
-            } else {
-                isEqual.quantity += product.quantity
-            }
-
-        }
-        return groupedProducts
-    }
 }
 
 export default ShopcartService

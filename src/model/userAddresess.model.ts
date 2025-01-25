@@ -1,8 +1,8 @@
-import { UserAddresessSchema } from "clothing-store-shared/schema";
+import { UserAddressesSchema } from "clothing-store-shared/schema";
 import sql from "../config/knex.config";
 import ModelUtils from "../utils/model.utils";
 
-type UserAdressesPartial = Partial<UserAddresessSchema.Base>
+type UserAdressesPartial = Partial<UserAddressesSchema.Base>
 
 class UserAdresessModel extends ModelUtils {
 
@@ -15,7 +15,7 @@ class UserAdresessModel extends ModelUtils {
         }
     }
 
-    static async insert(props: UserAddresessSchema.Insert) {
+    static async insert(props: UserAddressesSchema.Insert) {
         try {
             return await sql("user_addresses")
             .insert(props)
@@ -24,7 +24,7 @@ class UserAdresessModel extends ModelUtils {
         }
     }
 
-    static async update({ user_fk, user_address_id, ...props }: UserAddresessSchema.Update) {
+    static async update({ user_fk, user_address_id, ...props }: UserAddressesSchema.Update) {
         try {
             return await sql("user_addresses")
                 .where({

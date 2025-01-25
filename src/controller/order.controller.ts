@@ -1,11 +1,8 @@
 import { NextFunction, Request } from "express";
-import { storeConfig } from "../constant/storeConfig.contant";
 import getSessionData from "../helper/getSessionData.helper";
-import MercadoPagoService from "../service/mercadoPago.service";
 import OrdersService from "../service/orders.service";
 import UserPurchaseProductService from "../service/userPurchaseProducts.service";
 import UserPurchasesService from "../service/userPurchases.service";
-import UserPurchaseShippings from "../service/userPurchaseShippings.service";
 import ErrorHandler from "../utils/errorHandler.utilts";
 class OrderController {
 
@@ -19,46 +16,55 @@ class OrderController {
             const shopcart = getSessionData("shopcart", req.session)
             const { products, expired_at } = shopcart
             const expired_date = new Date(expired_at)
-            const { order = {} } = req.body
-            const { user_purchase_id } = await OrdersService.create({
+            const { date_of_expiration, init_point } = await OrdersService.createOrder({
                 order: {
-                    ...order,
-                    user_fk: user.user_id,
-                    expire_at: expired_date
+                    user_fk: user?.user_id,
+                    expire_at: expired_date,
+                    is_guest: false
                 },
                 order_products: products,
+                order_address: req.body.order_address
             })
 
             req.session.shopcart = undefined
 
-            const transform = await MercadoPagoService.transformProductsToCheckoutItems({
-                user_fk: user.user_id,
-                user_purchase_fk: user_purchase_id
-            })
-
-            const total = await UserPurchaseShippings.calculateFreeShipping({
-                user_fk: user.user_id,
-                user_purchase_fk: user_purchase_id
-            })
-
-            const data = await MercadoPagoService.createCheckout({
-                items: transform,
-                external_reference: user_purchase_id,
-                date_of_expiration: expired_date,
-                shipments: {
-                    cost: 15000,
-                    free_shipping: total >= storeConfig.minFreeShipping
-                }
+            res.status(201).json({
+                data: {
+                    init_point,
+                    date_of_expiration,
+                },
+                message: "Orden creada exitosamente."
 
             })
+        } catch (error) {
+            if (ErrorHandler.isInstanceOf(error)) {
+                error.response(res)
+            } else {
+                next()
+            }
+        }
+    }
 
-            await UserPurchasesService.updateForUser({
-                user_purchase_id,
-                preference_id: data.id,
-                user_fk: user.user_id
+    static async createOrderGuest(
+        req: Request,
+        res: APP.ResponseTemplate,
+        next: NextFunction
+    ) {
+        try {
+            const shopcart = getSessionData("shopcart", req.session)
+            const { products, expired_at } = shopcart
+            const expired_date = new Date(expired_at)
+            const { date_of_expiration, init_point } = await OrdersService.createOrder({
+                order: {
+                    user_fk: null,
+                    expire_at: expired_date,
+                    is_guest: true
+                },
+                order_products: products,
+                order_address: req.body.order_address
             })
 
-            const { init_point, date_of_expiration } = data
+            req.session.shopcart = undefined
 
             res.status(201).json({
                 data: {
@@ -112,7 +118,6 @@ class OrderController {
             const data = await UserPurchaseProductService.getForUser({ user_purchase_fk: user_purchase_id, user_fk: user_id })
             res.json({
                 data,
-
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

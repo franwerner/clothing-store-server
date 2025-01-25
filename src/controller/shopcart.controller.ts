@@ -81,9 +81,6 @@ class ShopcartController {
         try {
             const shopcart = getSessionData("shopcart", req.session)
             shopcart.products = ShopcartService.removeProduct(shopcart.products, req.body.id)
-            if (shopcart.products.length == 0) {
-                req.session.shopcart = undefined
-            }
             res.json({
                 message: "Producto borrado del carrito exitosamente."
             })

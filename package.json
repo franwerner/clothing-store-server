@@ -4,9 +4,10 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"node --watch dist/index.js\" \"node build.js --watch\"",
+    "dev-build": "concurrently \"node --watch dist/index.js\" \"node build.js --watch\"",
     "build": "node build.js --watch",
-    "tunnel": "ngrok.exe http 3000"
+    "tunnel": "ngrok.exe http 3000",
+    "dev" : "node --watch dist/index.js"
   },
   "keywords": [],
   "author": "",

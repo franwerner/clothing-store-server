@@ -35,7 +35,7 @@ const createRouters = (app: Application) => {
     app.use("/users/info", userInfoRouter)
     app.use("/users/addresess", isCompleteUser, userAddresessRouter)
     app.use("/mercadopago", isCompleteUser, mercadoPagoRouter)
-    app.use("/orders", isCompleteUser, orderRouter)
+    app.use("/orders", orderRouter)
     app.use("/shopcart", shopcartRouter)
 }
 

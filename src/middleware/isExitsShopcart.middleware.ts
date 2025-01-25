@@ -7,15 +7,15 @@ const isExitsShopcart = async (
     next: NextFunction
 ) => {
     const shopcart = req.session?.shopcart
-    if (!shopcart) {
+    if (!shopcart || shopcart.products.length === 0) {
         new ErrorHandler({
             status: 404,
             code: "shopcart_not_found",
             message: "No hay un carrito de compras creado",
         }).response(res)
     }
-    else if (shopcart.expired_at  < Date.now()) {
-        shopcart.products = []
+    else if (shopcart.expired_at < Date.now()) {
+        req.session.shopcart = undefined
         new ErrorHandler({
             status: 404,
             code: "expired_shopcart",

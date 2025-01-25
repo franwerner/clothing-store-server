@@ -1,58 +1,67 @@
-import { Knex } from "knex"
-import sql from "../config/knex.config"
-import zodParse from "../helper/zodParse.helper"
-import UserPurchaseProductsModel from "../model/userPurchaseProducts.model"
-import UserPurchasesModel from "../model/userPurchases.model"
-import { userPurchaseProductSchema, UserPurchaseProductSchema, UserPurchaseSchema, userPurchaseSchema } from "clothing-store-shared/schema"
-import ErrorHandler from "../utils/errorHandler.utilts"
+import { DatabaseKeySchema, UserPurchaseAddressesSchema, UserPurchaseGuestsSchema } from "clothing-store-shared/schema"
+import { storeConfig } from "../constant/storeConfig.contant"
 import ServiceUtils from "../utils/service.utils"
+import startTransaction from "../utils/startTransaction.utilts"
+import MercadoPagoService from "./mercadoPago.service"
+import UserPurchaseAddresessService from "./userPurchaseAddresess.service"
+import UserPurchaseGuestsService from "./userPurchaseGuests.service"
+import UserPurchasesService, { CreateUserPurchase } from "./userPurchases.service"
+import UserPurchaseShippingsService from "./userPurchaseShippings.service"
+import UserPurchaseProductsService, { CreateUserPurchaseProducts } from "./userPurchaseProducts.service"
 
-interface CreateOrder {
-    order: Omit<UserPurchaseSchema.Insert, "expire_at"> & { expire_at: Date },
-    order_products: Array<Omit<UserPurchaseProductSchema.Insert, "user_purchase_fk">>
+
+type CreateOrder = {
+    order: CreateUserPurchase
+    order_products: CreateUserPurchaseProducts
 }
 
 class OrdersService extends ServiceUtils {
-    private static adapteExpireDataToDB(date: Date) {
-        return date.toISOString().replace('T', ' ').substring(0, 19)
+
+    static async createOrderCheckout({ expired_date, user_purchase_id }: { user_purchase_id: DatabaseKeySchema, expired_date: Date }) {
+        const transform = await MercadoPagoService.transformProductsToCheckoutItems(user_purchase_id)
+        const total = await UserPurchaseShippingsService.calculateFreeShipping(user_purchase_id)
+        const data = await MercadoPagoService.createCheckout({
+            items: transform,
+            external_reference: user_purchase_id,
+            date_of_expiration: expired_date,
+            shipments: {
+                cost: 15000,
+                free_shipping: total >= storeConfig.minFreeShipping
+            }
+        })
+        return data
     }
 
-    static async create({ order, order_products }: CreateOrder) {
-        let tsx = {} as Knex.Transaction
+    static async createOrder({
+        order,
+        order_products,
+        order_address,
+        order_guest
+    }: CreateOrder & { order_address: UserPurchaseAddressesSchema.Insert; order_guest?: UserPurchaseGuestsSchema.Insert }) {
+        let tsx = await startTransaction()
         try {
-            const orderData = zodParse(userPurchaseSchema.insert)({
-                ...order,
-                expire_at: this.adapteExpireDataToDB(order.expire_at)
-            })
-            tsx = await sql.transaction()
-            const [user_purchase_id] = await UserPurchasesModel.insert(orderData, (builder) => builder.transacting(tsx))
+            const { user_purchase_id } = await UserPurchasesService.create(order, tsx)
             const productsWithID = order_products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }))
-            const productsData = zodParse(userPurchaseProductSchema.insert.array().min(1))(productsWithID)
-            const user_purchase_products_id = await Promise.all(
-                productsData.map(async i => {
-                    const [result] = await UserPurchaseProductsModel.insert(i, tsx)
-                    if (result.affectedRows == 0) throw new ErrorHandler({
-                        status: 400,
-                        message: "Problemas con los productos de la orden.",
-                        data: i,
-                        code: "product_unavailable"
-                    })
-                    return result.insertId
-                }))
-
+            await UserPurchaseProductsService.create(productsWithID, tsx)
+            await UserPurchaseAddresessService.create({ ...order_address, user_purchase_fk: user_purchase_id }, tsx)
+            if (order_guest) await UserPurchaseGuestsService.create({ ...order_guest, user_purchase_fk: user_purchase_id }, tsx)
             await tsx.commit()
-
-            return {
+            const { init_point, id, date_of_expiration } = await this.createOrderCheckout({ expired_date: order.expire_at, user_purchase_id })
+            await UserPurchasesService.update({
                 user_purchase_id,
-                user_purchase_products_id,
+                preference_id: id,
+            })
+            return {
+                init_point,
+                date_of_expiration
             }
         } catch (error) {
-            if (tsx.rollback) await tsx.rollback()
+            await tsx.rollback()
             throw error
         }
     }
 
-
 }
 
 export default OrdersService
+

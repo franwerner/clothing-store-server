@@ -4,16 +4,18 @@ import { UserSchema, userSchema, DatabaseKeySchema } from "clothing-store-shared
 import ErrorHandler from "../utils/errorHandler.utilts"
 import UserRegisterService from "./userRegister.service"
 
+const onlyInfo = userSchema.update.omit({email_confirmed : true,email : true,guest_purchases_synced : true})
+
 class UserInfoService {
 
-    static async updateInfo(update: UserSchema.UpdateInfo) {
-        const { password, phone, name, lastname, user_id } = zodParse(userSchema.updateInfo)(update)
+    static async updateInfo(update: UserSchema.Update) {
+        const { password, phone, name, lastname, user_id } = zodParse(onlyInfo)(update)
         const selectedInfo = {
             password: password && await UserRegisterService.createPassword(password),
             phone,
             name,
             lastname,
-            user_id
+            user_id,
         }
         const res = await UsersModel.update(selectedInfo)
         if (res === 0) throw new ErrorHandler({
@@ -22,6 +24,14 @@ class UserInfoService {
             status: 403
         })
         return res
+    }
+
+    static async syncGuestPurchases(user_id: DatabaseKeySchema) {
+        //Falta agregar la logica de sincronizacion de compras de invitado
+        const res = await UsersModel.update({ user_id, guest_purchases_synced: true })
+        if (res === 0) throw new ErrorHandler({
+            message: "No se logro sincronizar las compras de invitado.",
+            code: "sync_guest_purchases_failed"})
     }
 
     static createEditAuthorization() {
