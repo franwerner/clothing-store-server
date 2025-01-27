@@ -4,7 +4,7 @@ import { UserSchema, userSchema, DatabaseKeySchema } from "clothing-store-shared
 import ErrorHandler from "../utils/errorHandler.utilts"
 import UserRegisterService from "./userRegister.service"
 
-const onlyInfo = userSchema.update.omit({email_confirmed : true,email : true,guest_purchases_synced : true})
+const onlyInfo = userSchema.update.omit({ email_confirmed: true, email: true, guest_purchases_synced: true })
 
 class UserInfoService {
 
@@ -17,13 +17,7 @@ class UserInfoService {
             lastname,
             user_id,
         }
-        const res = await UsersModel.update(selectedInfo)
-        if (res === 0) throw new ErrorHandler({
-            message: "No se logro actualizar los datos del usuario",
-            code: "update_info_failed",
-            status: 403
-        })
-        return res
+        await UsersModel.update(selectedInfo)
     }
 
     static async syncGuestPurchases(user_id: DatabaseKeySchema) {
@@ -31,7 +25,8 @@ class UserInfoService {
         const res = await UsersModel.update({ user_id, guest_purchases_synced: true })
         if (res === 0) throw new ErrorHandler({
             message: "No se logro sincronizar las compras de invitado.",
-            code: "sync_guest_purchases_failed"})
+            code: "sync_guest_purchases_failed"
+        })
     }
 
     static createEditAuthorization() {

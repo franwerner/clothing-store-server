@@ -7,32 +7,24 @@ import ServiceUtils from "../utils/service.utils.js"
 class BrandsService extends ServiceUtils {
     static async get() {
         const brands = await BrandsModel.select()
-
         if (brands.length === 0) throw new ErrorHandler({
             message: "No se econtro ninguna marca",
             status: 404,
             code: "brands_not_found"
         })
-
         return brands
     }
     static async update(brands: Array<BrandSchema.Update>) {
         const data = zodParse(brandSchema.update.array().min(1))(brands)
-        const res = await this.writeOperationsHandler(data, (e) => BrandsModel.update(e))
-        res("brands_update")
+        await this.writeOperationsHandler(data, (e) => BrandsModel.update(e))
     }
     static async insert(brands: Array<BrandSchema.Insert>) {
         const data = zodParse(brandSchema.insert.array().min(1))(brands)
-        const res = await this.writeOperationsHandler(data, (e) => BrandsModel.insert(e))
-        res("brands_insert")
+        await this.writeOperationsHandler(data, (e) => BrandsModel.insert(e))
     }
     static async delete(brands: Array<BrandSchema.Delete>) {
         const data = zodParse(brandSchema.delete.array().min(1))(brands)
-        const res = await this.writeOperationsHandler(data,
-            (e) => BrandsModel.delete(e),
-
-        )
-        res("brands_delete")
+        await this.writeOperationsHandler(data, (e) => BrandsModel.delete(e))
     }
 }
 

@@ -1,15 +1,25 @@
 import { NextFunction, Request, Response } from "express"
 import ShopcartService from "../service/shopcart.service"
+import errorGlobal from "./errorGlobal.middleware"
+import ErrorHandler from "../utils/errorHandler.utilts"
 
-const createShopcartMiddleware = (
+const createShopcartMiddleware = async (
     req: Request,
-    _: Response,
+    res: Response,
     next: NextFunction
 ) => {
 
-    const shopcart = req.session.shopcart
-    req.session.shopcart = ShopcartService.createShopcart(shopcart)
-    next()
+    try {
+        const shopcart = req.session.shopcart
+        req.session.shopcart = await ShopcartService.createShopcart(shopcart)
+        next()
+    } catch (error) {
+        if (ErrorHandler.isInstanceOf(error)) {
+            error.response(res)
+        } else {
+            errorGlobal(req, res)
+        }
+    }
 
 }
 

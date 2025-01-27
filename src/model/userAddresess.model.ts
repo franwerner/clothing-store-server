@@ -2,11 +2,10 @@ import { UserAddressesSchema } from "clothing-store-shared/schema";
 import sql from "../config/knex.config";
 import ModelUtils from "../utils/model.utils";
 
-type UserAdressesPartial = Partial<UserAddressesSchema.Base>
 
 class UserAdresessModel extends ModelUtils {
 
-    static async select(props: UserAdressesPartial) {
+    static async select(props: Partial<UserAddressesSchema.Base>) {
         try {
             return await sql("user_addresses")
                 .where(props)
@@ -20,7 +19,7 @@ class UserAdresessModel extends ModelUtils {
             return await sql("user_addresses")
             .insert(props)
         } catch (error) {
-            throw this.generateError(error, { "ER_DUP_ENTRY": "Ya contiene una direccion." })
+            throw this.generateError(error, { "ER_DUP_ENTRY": "El usuario ya contiene una direccion." })
         }
     }
 

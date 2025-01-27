@@ -14,7 +14,8 @@ class OrderController {
         try {
             const user = getSessionData("user_info", req.session)
             const shopcart = getSessionData("shopcart", req.session)
-            const { products, expired_at } = shopcart
+            const { order_address } = req.body
+            const { products, expired_at, shipping } = shopcart
             const expired_date = new Date(expired_at)
             const { date_of_expiration, init_point } = await OrdersService.createOrder({
                 order: {
@@ -23,18 +24,16 @@ class OrderController {
                     is_guest: false
                 },
                 order_products: products,
-                order_address: req.body.order_address
+                order_shipping: shipping,
+                order_address
             })
-
             req.session.shopcart = undefined
-
             res.status(201).json({
                 data: {
                     init_point,
                     date_of_expiration,
                 },
                 message: "Orden creada exitosamente."
-
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -52,7 +51,8 @@ class OrderController {
     ) {
         try {
             const shopcart = getSessionData("shopcart", req.session)
-            const { products, expired_at } = shopcart
+            const { products, expired_at, shipping } = shopcart
+            const { order_address, order_guest } = req.body
             const expired_date = new Date(expired_at)
             const { date_of_expiration, init_point } = await OrdersService.createOrder({
                 order: {
@@ -61,11 +61,11 @@ class OrderController {
                     is_guest: true
                 },
                 order_products: products,
-                order_address: req.body.order_address
+                order_shipping: shipping,
+                order_address,
+                order_guest
             })
-
             req.session.shopcart = undefined
-
             res.status(201).json({
                 data: {
                     init_point,

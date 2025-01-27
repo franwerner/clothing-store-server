@@ -10,13 +10,6 @@ class UserAddresessService {
         const { locality, province } = parseData
         await this.validateLocation({ locality, province })
         const [insertID] = await UserAddresessModel.insert(parseData)
-        if (!insertID) {
-            throw new ErrorHandler({
-                message: "Ya tienes una direccion creada.",
-                status: 400,
-                code: "address_already_exists"
-            })
-        }
         return {
             ...parseData,
             user_address_id: insertID
@@ -53,12 +46,8 @@ class UserAddresessService {
         if (locality || province) {
             await this.validateLocation({ locality, province })
         }
-        const res = await UserAddresessModel.update(parseData)
-        if (res === 0) throw new ErrorHandler({
-            code: "update_user_address_failed",
-            message: "No se logro actualizar la direccion.",
-            status: 403,
-        })
+        await UserAddresessModel.update(parseData)
+
         return parseData
     }
 }

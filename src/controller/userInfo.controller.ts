@@ -127,30 +127,6 @@ class UserInfoController {
         }
     }
 
-    static async getUser(
-        req: Request,
-        res: APP.ResponseTemplate,
-        next: NextFunction
-    ) {
-        try {
-            const { user_id } = getSessionData("user_info", req.session)
-            const edit_authorization = req.session.edit_authorization
-            const user_info = await UserInfoService.getUserInfo(user_id)
-            req.session.user_info = user_info
-            res.json({
-                data: {
-                    edit_authorization,
-                    user_info
-                }
-            })
-        } catch (error) {
-            if (ErrorHandler.isInstanceOf(error)) {
-                error.response(res)
-            } else {
-                next()
-            }
-        }
-    }
 
 }
 

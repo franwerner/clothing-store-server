@@ -41,28 +41,6 @@ class ShopcartModel extends ModelUtils {
             throw this.generateError(error)
         }
     }
-
-    // static async checkProductAvailability({ color_fk, product_fk, size_fk }: ShopcartProductSchema.BaseOutShopcart) {
-
-    //     try {
-    //         return await sql("products as p")
-    //             .select(1)
-    //             .innerJoin("product_colors as pc", "pc.product_fk", "p.product_id")
-    //             .innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id")
-    //             .where({
-    //                 'p.product_id': product_fk,
-    //                 'pc.color_fk': color_fk,
-    //                 'pcs.size_fk': size_fk,
-    //                 'p.status': true,
-    //                 'pcs.stock': true
-    //             })
-    //     } catch (error) {
-    //         throw this.generateError(error)
-    //     }
-
-    // }
-
-
 }
 
 export default ShopcartModel

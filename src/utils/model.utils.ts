@@ -4,7 +4,6 @@ import ErrorHandler from "./errorHandler.utilts.js"
 abstract class ModelUtils {
 
     static generateError(error: unknown, messages: CustomSQLQueryErrorMessages = {}) {
-        console.log(error)
         if (DatabaseErrorHandler.isSqlError(error)) {
             throw new DatabaseErrorHandler(error, messages)
         }

@@ -10,24 +10,18 @@ class UserPurchasesService {
 
     static async update(props: UserPurchaseSchema.Update) {
         const parse = zodParse(userPurchaseSchema.update)(props)
-        const res = await UserPurchasesModel.update(parse)
-        if (!res) throw new ErrorHandler({
-            message: "Error al intentar actualizar la compra.",
-            code: "purchase_update_failed",
-            status: 400
-        })
-        return
+        await UserPurchasesModel.update(parse)
     }
 
-
-    static async create({ expire_at, ...props }: CreateUserPurchase, tsx: Knex.Transaction) {
+    static async create({ expire_at, ...props }: CreateUserPurchase, trx: Knex.Transaction) {
         const uuid = crypto.randomUUID()
         const orderData = zodParse(userPurchaseSchema.insert)({
             ...props,
             expire_at: adapteDateToDB(expire_at),
             uuid
         })
-        const [user_purchase_id] = await UserPurchasesModel.insert(orderData, (builder) => builder.transacting(tsx))
+        const [user_purchase_id] = await UserPurchasesModel.insert(orderData, (builder) => builder.transacting(trx))
+
         return {
             user_purchase_id,
             uuid

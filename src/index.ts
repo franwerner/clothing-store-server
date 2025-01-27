@@ -15,7 +15,6 @@ app.use(express.json())
 app.use(sessionConfig)
 app.use(corsConfig)
 app.use(limiter)
-
 createRouters(app)
 
 app.use(errorGlobal)

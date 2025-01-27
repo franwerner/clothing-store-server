@@ -12,6 +12,7 @@ class UserPurchaseAddresessService {
             code: "userPurchaseAddresess_not_created",
             status: 403,
         })
+        return parse
     }
     // static async get(user_purchase_address_id: DatabaseKeySchema) {
     //     const [res] = await UserPurchaseAddresessModel.select({ user_purchase_address_id: user_purchase_address_id })

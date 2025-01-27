@@ -1,6 +1,6 @@
 import zodParse from "../helper/zodParse.helper.js"
 import ProductsModel from "../model/products.model.js"
-import { DatabaseKeySchema, ProductSchema,productSchema } from "clothing-store-shared/schema"
+import { DatabaseKeySchema, ProductSchema, productSchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import ServiceUtils from "../utils/service.utils.js"
 
@@ -20,28 +20,22 @@ class ProductsService extends ServiceUtils {
 
     static async updateByCategory(products: Array<ProductSchema.UpdateByCategory>) {
         const data = zodParse(productSchema.updateByCategory.array().min(1))(products)
-        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.updateByCategory(e),
-        )
-        res("products_update_by")
+        await this.writeOperationsHandler(data, (e) => ProductsModel.updateByCategory(e))
     }
 
     static async update(products: Array<ProductSchema.Update>) {
         const data = zodParse(productSchema.update.array().min(1))(products)
-        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.update(e))
-        res("products_update")
+        await this.writeOperationsHandler(data, (e) => ProductsModel.update(e))
     }
 
     static async insert(products: Array<ProductSchema.Insert>) {
         const data = zodParse(productSchema.insert.array().min(1))(products)
-        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.insert(e))
-        res("products_insert")
+        await this.writeOperationsHandler(data, (e) => ProductsModel.insert(e))
     }
 
     static async delete(products: Array<ProductSchema.Delete>) {
         const data = zodParse(productSchema.delete.array().min(1))(products)
-        const res = await this.writeOperationsHandler(data, (e) => ProductsModel.delete(e),
-        )
-        res("products_delete")
+        await this.writeOperationsHandler(data, (e) => ProductsModel.delete(e))
     }
 }
 

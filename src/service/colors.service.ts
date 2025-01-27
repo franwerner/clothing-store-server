@@ -19,21 +19,15 @@ class ColorsService extends ServiceUtils {
     }
     static async delete(colors: ColorSchema.Delete[]) {
         const data = zodParse(colorSchema.delete.array().min(1))(colors)
-        const res = await this.writeOperationsHandler(data,
-            (color) => ColorsModel.delete(color),
-        )
-        res("colors_delete")
+        await this.writeOperationsHandler(data,(color) => ColorsModel.delete(color))
     }
     static async insert(colors: ColorSchema.Insert[]) {
         const data = zodParse(colorSchema.insert.array().min(1))(colors)
-        const res = await this.writeOperationsHandler(data, (color) => ColorsModel.insert(color))
-        res("colors_insert")
+        await this.writeOperationsHandler(data, (color) => ColorsModel.insert(color))
     }
     static async update(colors: ColorSchema.Update[]) {
         const data = zodParse(colorSchema.update.array().min(1))(colors)
-        const res = await this.writeOperationsHandler(data, (color) => ColorsModel.update(color),
-        )
-        res("colors_update")
+        await this.writeOperationsHandler(data, (color) => ColorsModel.update(color))
     }
 }
 

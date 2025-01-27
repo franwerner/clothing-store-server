@@ -19,21 +19,16 @@ class CategoriesService extends ServiceUtils {
 
     static async update(categories: Array<CategorySchema.Update>) {
         const data = zodParse(categorySchema.update.array().min(1))(categories);
-        const res = await this.writeOperationsHandler(data, (e) => CategoriesModel.update(e))
-        res("categories_update")
+        await this.writeOperationsHandler(data, (e) => CategoriesModel.update(e))
     }
     static async insert(categories: Array<CategorySchema.Insert>) {
         const data = zodParse(categorySchema.insert.array().min(1))(categories)
-        const res = await this.writeOperationsHandler(data, (e) => CategoriesModel.insert(e))
-        res("categories_insert")
+        await this.writeOperationsHandler(data, (e) => CategoriesModel.insert(e))
 
     }
     static async delete(categories: Array<CategorySchema.Delete>) {
         const data = zodParse(categorySchema.delete.array().min(1))(categories)
-        const res = await this.writeOperationsHandler(data,
-            (e) => CategoriesModel.delete(e),
-        )
-        res("categories_delete")
+        await this.writeOperationsHandler(data,(e) => CategoriesModel.delete(e))
     }
 
 }

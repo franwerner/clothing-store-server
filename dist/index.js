@@ -8,7 +8,7 @@ var cors_config_default = corsConfig;
 
 // src/config/dotenv.config.ts
 import dotenv from "dotenv";
-var dotenvConfig = dotenv.config({ path: ".env.local" });
+dotenv.config({ path: ".env.local" });
 
 // src/config/mercadopago.config.ts
 import { MercadoPagoConfig } from "mercadopago";
@@ -140,7 +140,13 @@ var sql = knex({
     min: 1,
     max: 10,
     createTimeoutMillis: 3e3,
-    idleTimeoutMillis: 3e4
+    // Tiempo máximo para crear una nueva conexión (en milisegundos)
+    acquireTimeoutMillis: 5e3,
+    // Tiempo máximo que se espera para obtener una conexión del pool (en milisegundos)
+    idleTimeoutMillis: 3e4,
+    // Tiempo máximo en milisegundos que una conexión puede estar inactiva antes de ser destruida
+    reapIntervalMillis: 1e3
+    // Intervalo en milisegundos para revisar conexiones inactivas,
   }
 });
 var knex_config_default = sql;
@@ -190,7 +196,6 @@ var databaseErrorHandler_utilts_default = DatabaseErrorHandler;
 // src/utils/model.utils.ts
 var ModelUtils = class {
   static generateError(error, messages = {}) {
-    console.log(error);
     if (databaseErrorHandler_utilts_default.isSqlError(error)) {
       throw new databaseErrorHandler_utilts_default(error, messages);
     } else {
@@ -251,13 +256,6 @@ var UsersModel = class extends model_utils_default {
       throw this.generateError(error, {
         ER_DUP_ENTRY: "El email que est\xE1s intentando registrar ya est\xE1 en uso."
       });
-    }
-  }
-  static async delete(userID) {
-    try {
-      return await knex_config_default("users").where("user_id", userID).delete();
-    } catch (error) {
-      throw this.generateError(error);
     }
   }
 };
@@ -393,7 +391,7 @@ var ServiceUtils = class {
       try {
         const r = await operation(e);
         if (!r) throw new errorHandler_utilts_default({
-          message: "Al parece hubo un error al intentar realizar la operaci\xF3n, ya que no se modifico nada."
+          message: "El recurso que intentas modificar o eliminar no existe o ya ha sido modificado/eliminado previamente."
         });
       } catch (error) {
         errors.push({
@@ -402,13 +400,13 @@ var ServiceUtils = class {
         });
       }
     }
-    return (code) => {
-      if (errors.length > 0) throw new errorHandler_utilts_default({
+    if (errors.length > 0) {
+      throw new errorHandler_utilts_default({
         data: errors,
-        code: `${code}_write_failed`,
-        status: 206
+        code: "write_operation_failed",
+        message: "Hubo errores en algunos datos entrantes."
       });
-    };
+    }
   }
 };
 var service_utils_default = ServiceUtils;
@@ -426,21 +424,15 @@ var BrandsService = class extends service_utils_default {
   }
   static async update(brands) {
     const data = zodParse_helper_default(brandSchema.update.array().min(1))(brands);
-    const res = await this.writeOperationsHandler(data, (e) => brands_model_default.update(e));
-    res("brands_update");
+    await this.writeOperationsHandler(data, (e) => brands_model_default.update(e));
   }
   static async insert(brands) {
     const data = zodParse_helper_default(brandSchema.insert.array().min(1))(brands);
-    const res = await this.writeOperationsHandler(data, (e) => brands_model_default.insert(e));
-    res("brands_insert");
+    await this.writeOperationsHandler(data, (e) => brands_model_default.insert(e));
   }
   static async delete(brands) {
     const data = zodParse_helper_default(brandSchema.delete.array().min(1))(brands);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => brands_model_default.delete(e)
-    );
-    res("brands_delete");
+    await this.writeOperationsHandler(data, (e) => brands_model_default.delete(e));
   }
 };
 var brands_service_default = BrandsService;
@@ -449,9 +441,6 @@ var brands_service_default = BrandsService;
 var BrandsController = class {
   static async getBrands(_, res, next) {
     try {
-      await new Promise((res2) => setTimeout(() => {
-        res2(1);
-      }, 1500));
       const data = await brands_service_default.get();
       res.json({
         data
@@ -583,21 +572,15 @@ var CategoriesService = class extends service_utils_default {
   }
   static async update(categories) {
     const data = zodParse_helper_default(categorySchema.update.array().min(1))(categories);
-    const res = await this.writeOperationsHandler(data, (e) => categories_model_default.update(e));
-    res("categories_update");
+    await this.writeOperationsHandler(data, (e) => categories_model_default.update(e));
   }
   static async insert(categories) {
     const data = zodParse_helper_default(categorySchema.insert.array().min(1))(categories);
-    const res = await this.writeOperationsHandler(data, (e) => categories_model_default.insert(e));
-    res("categories_insert");
+    await this.writeOperationsHandler(data, (e) => categories_model_default.insert(e));
   }
   static async delete(categories) {
     const data = zodParse_helper_default(categorySchema.delete.array().min(1))(categories);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => categories_model_default.delete(e)
-    );
-    res("categories_delete");
+    await this.writeOperationsHandler(data, (e) => categories_model_default.delete(e));
   }
 };
 var categories_service_default = CategoriesService;
@@ -732,24 +715,15 @@ var ColorsService = class extends service_utils_default {
   }
   static async delete(colors) {
     const data = zodParse_helper_default(colorSchema.delete.array().min(1))(colors);
-    const res = await this.writeOperationsHandler(
-      data,
-      (color) => colors_model_default.delete(color)
-    );
-    res("colors_delete");
+    await this.writeOperationsHandler(data, (color) => colors_model_default.delete(color));
   }
   static async insert(colors) {
     const data = zodParse_helper_default(colorSchema.insert.array().min(1))(colors);
-    const res = await this.writeOperationsHandler(data, (color) => colors_model_default.insert(color));
-    res("colors_insert");
+    await this.writeOperationsHandler(data, (color) => colors_model_default.insert(color));
   }
   static async update(colors) {
     const data = zodParse_helper_default(colorSchema.update.array().min(1))(colors);
-    const res = await this.writeOperationsHandler(
-      data,
-      (color) => colors_model_default.update(color)
-    );
-    res("colors_update");
+    await this.writeOperationsHandler(data, (color) => colors_model_default.update(color));
   }
 };
 var colors_service_default = ColorsService;
@@ -1028,22 +1002,16 @@ var adapteDateToDB_utilts_default = adapteDateToDB;
 var UserPurchasesService = class {
   static async update(props) {
     const parse = zodParse_helper_default(userPurchaseSchema.update)(props);
-    const res = await userPurchases_model_default.update(parse);
-    if (!res) throw new errorHandler_utilts_default({
-      message: "Error al intentar actualizar la compra.",
-      code: "purchase_update_failed",
-      status: 400
-    });
-    return;
+    await userPurchases_model_default.update(parse);
   }
-  static async create({ expire_at, ...props }, tsx) {
+  static async create({ expire_at, ...props }, trx) {
     const uuid = crypto.randomUUID();
     const orderData = zodParse_helper_default(userPurchaseSchema.insert)({
       ...props,
       expire_at: adapteDateToDB_utilts_default(expire_at),
       uuid
     });
-    const [user_purchase_id] = await userPurchases_model_default.insert(orderData, (builder) => builder.transacting(tsx));
+    const [user_purchase_id] = await userPurchases_model_default.insert(orderData, (builder) => builder.transacting(trx));
     return {
       user_purchase_id,
       uuid
@@ -1061,9 +1029,19 @@ var UserPurchasesService = class {
 };
 var userPurchases_service_default = UserPurchasesService;
 
-// src/service/userPurchaseShippings.service.ts
-var UserPurchaseShippingsService = class {
-  static async calculateFreeShipping(user_purchase_fk) {
+// src/service/userPurchaseProducts.service.ts
+import { userPurchaseProductSchema } from "clothing-store-shared/schema";
+var UserPurchaseProductsService = class extends service_utils_default {
+  static async getForUser({ user_purchase_fk, user_fk }) {
+    const res = await userPurchaseProducts_model_default.selectDetailedForUser({ user_purchase_fk, user_fk });
+    if (res.length == 0) throw new errorHandler_utilts_default({
+      status: 404,
+      message: "Los productos que intentas obtener no se encuentran disponibles.",
+      code: "purchase_products_not_found"
+    });
+    return res;
+  }
+  static async calculateTotalByPurchaseID(user_purchase_fk) {
     const [res] = await userPurchaseProducts_model_default.select(
       { user_purchase_fk },
       (builder) => {
@@ -1075,21 +1053,27 @@ var UserPurchaseShippingsService = class {
     const { total } = res;
     if (!total) {
       throw new errorHandler_utilts_default({
-        message: "No se pudo calcular el total porque no existen productos asociados a la orden con el ID especificado.",
+        message: "No se pudo calcular el total porque no existen productos asociados a la orden.",
         status: 404,
         code: "order_products_not_found"
       });
     }
     return total;
   }
+  static async create(products, trx) {
+    const productsData = zodParse_helper_default(userPurchaseProductSchema.insert.array().min(1))(products);
+    for (const i of productsData) {
+      const [result] = await userPurchaseProducts_model_default.insert(i, trx);
+      if (result.affectedRows == 0) throw new errorHandler_utilts_default({
+        status: 400,
+        message: "Problemas al agregar productos a la compra.",
+        data: i,
+        code: "failed_to_insert_products_in_purchase"
+      });
+    }
+  }
 };
-var userPurchaseShippings_service_default = UserPurchaseShippingsService;
-
-// src/constant/storeConfig.contant.ts
-var storeConfig = {
-  maxAccountPerIp: 99,
-  minFreeShipping: 9e4
-};
+var userPurchaseProducts_service_default = UserPurchaseProductsService;
 
 // src/controller/mercadoPago.controller.ts
 var MercadoPagoController = class {
@@ -1097,27 +1081,20 @@ var MercadoPagoController = class {
     try {
       const { user_id } = getSessionData_helper_default("user_info", req.session);
       const { user_purchase_id = "" } = req.params;
-      const transform = await mercadoPago_service_default.transformProductsToCheckoutItems({
-        user_fk: user_id,
-        user_purchase_fk: user_purchase_id
-      });
-      const total = await userPurchaseShippings_service_default.calculateFreeShipping({
-        user_fk: user_id,
-        user_purchase_fk: user_purchase_id
-      });
+      const transform = await mercadoPago_service_default.transformProductsToCheckoutItems(user_purchase_id);
+      const total = await userPurchaseProducts_service_default.calculateTotal(user_purchase_id);
       const { init_point, date_of_expiration, id } = await mercadoPago_service_default.createCheckout({
         items: transform,
         external_reference: user_purchase_id,
         date_of_expiration: res.locals.expired_date,
         shipments: {
           cost: 15e3,
-          free_shipping: total >= storeConfig.minFreeShipping
+          free_shipping: total >= 0
         }
       });
-      await userPurchases_service_default.updateForUser({
+      await userPurchases_service_default.update({
         user_purchase_id,
-        preference_id: id,
-        user_fk: user_id
+        preference_id: id
       });
       res.json({
         message: "preferencia de pago obtenida exitosamente!",
@@ -1183,20 +1160,6 @@ var mercadoPago_router_default = mercadoPagoRouter;
 // src/router/order.router.ts
 import { Router } from "express";
 
-// src/utils/startTransaction.utilts.ts
-var startTransaction = async () => {
-  try {
-    return await knex_config_default.transaction();
-  } catch (error) {
-    throw new errorHandler_utilts_default({
-      code: "transaction_not_failed",
-      status: 500,
-      message: "No se pudo iniciar la transacci\xF3n."
-    });
-  }
-};
-var startTransaction_utilts_default = startTransaction;
-
 // src/service/userPurchaseAddresess.service.ts
 import { userPurchaseAddressesSchema } from "clothing-store-shared/schema";
 
@@ -1240,6 +1203,7 @@ var UserPurchaseAddresessService = class {
       code: "userPurchaseAddresess_not_created",
       status: 403
     });
+    return parse;
   }
   // static async get(user_purchase_address_id: DatabaseKeySchema) {
   //     const [res] = await UserPurchaseAddresessModel.select({ user_purchase_address_id: user_purchase_address_id })
@@ -1281,46 +1245,241 @@ var UserPurchaseGuestsService = class {
 };
 var userPurchaseGuests_service_default = UserPurchaseGuestsService;
 
-// src/service/userPurchaseProducts.service.ts
-import { userPurchaseProductSchema } from "clothing-store-shared/schema";
-var UserPurchaseProductsService = class extends service_utils_default {
-  static async getForUser({ user_purchase_fk, user_fk }) {
-    const res = await userPurchaseProducts_model_default.selectDetailedForUser({ user_purchase_fk, user_fk });
-    if (res.length == 0) throw new errorHandler_utilts_default({
-      status: 404,
-      message: "Los productos que intentas obtener no se encuentran disponibles.",
-      code: "purchase_products_not_found"
-    });
-    return res;
+// src/service/userPurchaseShippings.service.ts
+import { userPurchaseShippingSchema } from "clothing-store-shared/schema";
+
+// src/model/userPurchaseShippings.model.ts
+var UserPurchaseShippingsModel = class extends model_utils_default {
+  static async select(props, modify) {
+    try {
+      const query = knex_config_default("user_purchase_shippings").where(props);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
   }
-  static async create(products, tsx) {
-    const productsData = zodParse_helper_default(userPurchaseProductSchema.insert.array().min(1))(products);
-    for (const i of productsData) {
-      const [result] = await userPurchaseProducts_model_default.insert(i, tsx);
-      if (result.affectedRows == 0) throw new errorHandler_utilts_default({
-        status: 400,
-        message: "Problemas al agregar productos a la compra.",
-        data: i,
-        code: "failed_to_insert_products_in_purchase"
-      });
-      return result.insertId;
+  static async insert(props, modify) {
+    try {
+      const query = knex_config_default("user_purchase_shippings").insert(props);
+      modify && query.modify(modify);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async update({ user_purchase_shipping_id, ...props }) {
+    try {
+      const query = knex_config_default("user_purchase_shippings").where({ user_purchase_shipping_id }).update(props);
+      return await query;
+    } catch (error) {
+      throw this.generateError(error);
     }
   }
 };
-var userPurchaseProducts_service_default = UserPurchaseProductsService;
+var userPurchaseShippings_model_default = UserPurchaseShippingsModel;
+
+// src/service/userPurchaseShippings.service.ts
+var UserPurchaseShippingsService = class {
+  static async create(props, tsx) {
+    const parse = zodParse_helper_default(userPurchaseShippingSchema.insert)(props);
+    const [res] = await userPurchaseShippings_model_default.insert(parse, (builder) => builder.transacting(tsx));
+    return res;
+  }
+  static async update(props) {
+    const parse = zodParse_helper_default(userPurchaseShippingSchema.update)(props);
+    await userPurchaseShippings_model_default.update(parse);
+    return parse;
+  }
+};
+var userPurchaseShippings_service_default = UserPurchaseShippingsService;
+
+// src/model/shopcart.model.ts
+var ShopcartModel = class extends model_utils_default {
+  static async selectDetailsProducts({ color_fk, product_fk, size_fk }) {
+    try {
+      return await knex_config_default("products as p").select(
+        "p.product",
+        "p.discount",
+        "p.price",
+        "c.color",
+        "s.size",
+        "pci.url"
+      ).innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id").leftJoin("product_color_images as pci", "pci.product_color_fk", "pc.product_color_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk").where({
+        "p.product_id": product_fk,
+        "pc.color_fk": color_fk,
+        "pcs.size_fk": size_fk,
+        "p.status": true,
+        "pcs.stock": true
+      });
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+};
+var shopcart_model_default = ShopcartModel;
+
+// src/service/shopcart.service.ts
+import { isNumber } from "my-utilities";
+import { shopcartProductSchema } from "clothing-store-shared/schema";
+
+// src/service/storeConfig.service.ts
+import { storeConfigSchema } from "clothing-store-shared/schema";
+
+// src/model/storeConfig.model.ts
+var StoreConfigModel = class extends model_utils_default {
+  static async select() {
+    try {
+      return await knex_config_default("store_config");
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async insert(props) {
+    try {
+      return await knex_config_default("store_config").insert(props);
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+  static async update(props) {
+    try {
+      return await knex_config_default("store_config").update(props);
+    } catch (error) {
+      throw this.generateError(error);
+    }
+  }
+};
+var storeConfig_model_default = StoreConfigModel;
+
+// src/service/storeConfig.service.ts
+var StoreConfigService = class {
+  static async createConfig(props) {
+    const parse = zodParse_helper_default(storeConfigSchema.insert)(props);
+    await storeConfig_model_default.insert(parse);
+  }
+  static async updateConfig(props) {
+    const parse = zodParse_helper_default(storeConfigSchema.update)(props);
+    await storeConfig_model_default.insert(parse);
+    return parse;
+  }
+  static async getConfig() {
+    const [res] = await storeConfig_model_default.select();
+    if (!res) throw new errorHandler_utilts_default({
+      message: "configuracion de la tienda no encontrada.",
+      code: "store_config_not_found",
+      status: 404
+    });
+    return res;
+  }
+};
+var storeConfig_service_default = StoreConfigService;
+
+// src/service/shopcart.service.ts
+var ShopcartService = class {
+  static calculateTotal(products) {
+    const parse = zodParse_helper_default(shopcartProductSchema.baseInShopcartProduct.array())(products);
+    return parse.reduce((acc, { discount, price, quantity }) => {
+      const calc = price * (1 - discount / 100) * quantity;
+      return acc + calc;
+    }, 0);
+  }
+  static async getDetailProduct(product) {
+    const parseProduct = zodParse_helper_default(shopcartProductSchema.baseOutShopcartProduct)(product);
+    const [details] = await shopcart_model_default.selectDetailsProducts(parseProduct);
+    if (!details) {
+      throw new errorHandler_utilts_default({
+        status: 404,
+        message: "El producto no se encuentra disponible o no contiene stock.",
+        code: "product_not_available",
+        data: product
+      });
+    }
+    return zodParse_helper_default(shopcartProductSchema.baseInShopcartProduct)({
+      ...product,
+      ...details,
+      url: "",
+      //Cambiar esto es solo para prubeas, la url siempre contendra un string.
+      id: crypto.randomUUID()
+    });
+  }
+  static async addProducts(products, newProducts) {
+    const cloneProducts = structuredClone(products);
+    const parseNewProducts = zodParse_helper_default(shopcartProductSchema.baseOutShopcartProduct.array())(newProducts);
+    const recentProductsChanges = [];
+    for (const product of parseNewProducts) {
+      const { color_fk, product_fk, quantity, size_fk } = product;
+      const repeated = cloneProducts.find((i) => i.color_fk == color_fk && i.product_fk == product_fk && i.size_fk == size_fk);
+      if (repeated) {
+        repeated.quantity += quantity;
+        recentProductsChanges.push(repeated);
+      } else {
+        const details = await this.getDetailProduct(product);
+        cloneProducts.push(details);
+        recentProductsChanges.push(details);
+      }
+    }
+    return {
+      products: cloneProducts,
+      recentProductsChanges
+    };
+  }
+  static async createShopcart(shopcart) {
+    if (!shopcart || (shopcart.expired_at || 0) < Date.now() || shopcart.products.length === 0) {
+      const { min_free_shipping, cost_based_shipping } = await storeConfig_service_default.getConfig();
+      const newShopcart = {
+        products: [],
+        expired_at: Date.now() + 1e3 * 60 * 60 * 3,
+        //3 hours
+        shipping: {
+          cost_based_shipping,
+          min_free_shipping
+        }
+      };
+      return newShopcart;
+    } else {
+      return shopcart;
+    }
+  }
+  static async updateQuantity(products, product) {
+    if (product.quantity <= 0 || !isNumber(product.quantity)) throw new errorHandler_utilts_default({
+      code: "invalid_product_quantity",
+      status: 400,
+      message: "La cantidad ingresada debe ser mayor o igual a 1"
+    });
+    return products.map((i) => {
+      if (i.id === product.id) {
+        return {
+          ...i,
+          quantity: product.quantity
+        };
+      }
+      return i;
+    });
+  }
+  static removeProduct(shopcart, id) {
+    return shopcart.filter((i) => i.id !== id);
+  }
+};
+var shopcart_service_default = ShopcartService;
 
 // src/service/orders.service.ts
 var OrdersService = class extends service_utils_default {
-  static async createOrderCheckout({ expired_date, user_purchase_id }) {
+  static async createOrderCheckout({
+    expired_date,
+    user_purchase_id,
+    uuid,
+    shipping_cost,
+    free_shipping
+  }) {
     const transform = await mercadoPago_service_default.transformProductsToCheckoutItems(user_purchase_id);
-    const total = await userPurchaseShippings_service_default.calculateFreeShipping(user_purchase_id);
     const data = await mercadoPago_service_default.createCheckout({
       items: transform,
-      external_reference: user_purchase_id,
+      external_reference: uuid,
       date_of_expiration: expired_date,
       shipments: {
-        cost: 15e3,
-        free_shipping: total >= storeConfig.minFreeShipping
+        cost: shipping_cost,
+        free_shipping
       }
     });
     return data;
@@ -1329,29 +1488,47 @@ var OrdersService = class extends service_utils_default {
     order,
     order_products,
     order_address,
-    order_guest
+    order_guest,
+    order_shipping
   }) {
-    let tsx = await startTransaction_utilts_default();
-    try {
-      const { user_purchase_id } = await userPurchases_service_default.create(order, tsx);
-      const productsWithID = order_products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }));
-      await userPurchaseProducts_service_default.create(productsWithID, tsx);
-      await userPurchaseAddresess_service_default.create({ ...order_address, user_purchase_fk: user_purchase_id }, tsx);
-      if (order_guest) await userPurchaseGuests_service_default.create({ ...order_guest, user_purchase_fk: user_purchase_id }, tsx);
-      await tsx.commit();
-      const { init_point, id, date_of_expiration } = await this.createOrderCheckout({ expired_date: order.expire_at, user_purchase_id });
-      await userPurchases_service_default.update({
-        user_purchase_id,
-        preference_id: id
-      });
+    const { cost_based_shipping, min_free_shipping } = order_shipping;
+    const res = await knex_config_default.transaction(async (trx) => {
+      const { user_purchase_id: user_purchase_id2, uuid: uuid2 } = await userPurchases_service_default.create(order, trx);
+      const productsWithID = order_products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id2 }));
+      await userPurchaseProducts_service_default.create(productsWithID, trx);
+      await userPurchaseAddresess_service_default.create({ ...order_address, user_purchase_fk: user_purchase_id2 }, trx);
+      const total = shopcart_service_default.calculateTotal(order_products);
+      const free_shipping2 = total > min_free_shipping;
+      await userPurchaseShippings_service_default.create({
+        free_shipping: free_shipping2,
+        cost: cost_based_shipping,
+        user_purchase_fk: user_purchase_id2
+      }, trx);
+      if (order_guest) {
+        await userPurchaseGuests_service_default.create({ ...order_guest, user_purchase_fk: user_purchase_id2 }, trx);
+      }
       return {
-        init_point,
-        date_of_expiration
+        user_purchase_id: user_purchase_id2,
+        free_shipping: free_shipping2,
+        uuid: uuid2
       };
-    } catch (error) {
-      await tsx.rollback();
-      throw error;
-    }
+    });
+    const { free_shipping, user_purchase_id, uuid } = res;
+    const { init_point, id, date_of_expiration } = await this.createOrderCheckout({
+      user_purchase_id,
+      uuid,
+      expired_date: order.expire_at,
+      free_shipping,
+      shipping_cost: cost_based_shipping
+    });
+    await userPurchases_service_default.update({
+      user_purchase_id,
+      preference_id: id
+    });
+    return {
+      init_point,
+      date_of_expiration
+    };
   }
 };
 var orders_service_default = OrdersService;
@@ -1362,7 +1539,8 @@ var OrderController = class {
     try {
       const user = getSessionData_helper_default("user_info", req.session);
       const shopcart = getSessionData_helper_default("shopcart", req.session);
-      const { products, expired_at } = shopcart;
+      const { order_address } = req.body;
+      const { products, expired_at, shipping } = shopcart;
       const expired_date = new Date(expired_at);
       const { date_of_expiration, init_point } = await orders_service_default.createOrder({
         order: {
@@ -1371,7 +1549,8 @@ var OrderController = class {
           is_guest: false
         },
         order_products: products,
-        order_address: req.body.order_address
+        order_shipping: shipping,
+        order_address
       });
       req.session.shopcart = void 0;
       res.status(201).json({
@@ -1392,7 +1571,8 @@ var OrderController = class {
   static async createOrderGuest(req, res, next) {
     try {
       const shopcart = getSessionData_helper_default("shopcart", req.session);
-      const { products, expired_at } = shopcart;
+      const { products, expired_at, shipping } = shopcart;
+      const { order_address, order_guest } = req.body;
       const expired_date = new Date(expired_at);
       const { date_of_expiration, init_point } = await orders_service_default.createOrder({
         order: {
@@ -1401,7 +1581,9 @@ var OrderController = class {
           is_guest: true
         },
         order_products: products,
-        order_address: req.body.order_address
+        order_shipping: shipping,
+        order_address,
+        order_guest
       });
       req.session.shopcart = void 0;
       res.status(201).json({
@@ -1532,24 +1714,15 @@ var productColorImages_model_default = ProductColorImagesModel;
 var ProductColorImagesService = class extends service_utils_default {
   static async update(productColorImages) {
     const data = zodParse_helper_default(productColorImageSchema.update.array().min(1))(productColorImages);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => productColorImages_model_default.update(e)
-    );
-    res("product_color_images_update");
+    await this.writeOperationsHandler(data, (e) => productColorImages_model_default.update(e));
   }
   static async delete(productColorImages) {
     const data = zodParse_helper_default(productColorImageSchema.delete.array().min(1))(productColorImages);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => productColorImages_model_default.delete(e)
-    );
-    res("product_color_images_delete");
+    await this.writeOperationsHandler(data, (e) => productColorImages_model_default.delete(e));
   }
   static async insert(productColorImages) {
     const data = zodParse_helper_default(productColorImageSchema.insert.array().min(1))(productColorImages);
-    const res = await this.writeOperationsHandler(data, (e) => productColorImages_model_default.insert(e));
-    res("product_color_images_insert");
+    await this.writeOperationsHandler(data, (e) => productColorImages_model_default.insert(e));
   }
 };
 var productColorImages_service_default = ProductColorImagesService;
@@ -1667,18 +1840,15 @@ var productColors_model_default = ProductColorsModel;
 var ProductColorsService = class extends service_utils_default {
   static async update(productColors) {
     const data = zodParse_helper_default(productColorSchema.update.array().min(1))(productColors);
-    const res = await this.writeOperationsHandler(data, (e) => productColors_model_default.update(e));
-    res("product_colors_update");
+    await this.writeOperationsHandler(data, (e) => productColors_model_default.update(e));
   }
   static async delete(productColors) {
     const data = zodParse_helper_default(productColorSchema.delete.array().min(1))(productColors);
-    const res = await this.writeOperationsHandler(data, (e) => productColors_model_default.delete(e));
-    res("product_colors_delete");
+    await this.writeOperationsHandler(data, (e) => productColors_model_default.delete(e));
   }
   static async insert(productColors) {
     const data = zodParse_helper_default(productColorSchema.insert.array().min(1))(productColors);
-    const res = await this.writeOperationsHandler(data, (e) => productColors_model_default.insert(e));
-    res("product_colors_insert");
+    await this.writeOperationsHandler(data, (e) => productColors_model_default.insert(e));
   }
 };
 var productColors_service_default = ProductColorsService;
@@ -1795,32 +1965,19 @@ var productColorSizes_model_default = ProductColorSizesModel;
 var ProductColorSizesService = class extends service_utils_default {
   static async insert(sizes) {
     const data = zodParse_helper_default(productColorSizeSchema.insert.array().min(1))(sizes);
-    const res = await this.writeOperationsHandler(data, (e) => productColorSizes_model_default.insert(e));
-    res("product_color_sizes_insert");
+    await this.writeOperationsHandler(data, (e) => productColorSizes_model_default.insert(e));
   }
   static async update(sizes) {
     const data = zodParse_helper_default(productColorSizeSchema.update.array().min(1))(sizes);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => productColorSizes_model_default.update(e)
-    );
-    res("product_color_sizes_update");
+    await this.writeOperationsHandler(data, (e) => productColorSizes_model_default.update(e));
   }
   static async updateByProductColor(productColors) {
     const data = zodParse_helper_default(productColorSizeSchema.updateByProductColor.array().min(1))(productColors);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => productColorSizes_model_default.updatetByProductColor(e)
-    );
-    res("product_color_sizes_update_by");
+    await this.writeOperationsHandler(data, (e) => productColorSizes_model_default.updatetByProductColor(e));
   }
   static async delete(sizes) {
     const data = zodParse_helper_default(productColorSizeSchema.delete.array().min(1))(sizes);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => productColorSizes_model_default.delete(e)
-    );
-    res("product_color_sizes_delete");
+    await this.writeOperationsHandler(data, (e) => productColorSizes_model_default.delete(e));
   }
 };
 var productColorSizes_service_default = ProductColorSizesService;
@@ -1962,29 +2119,19 @@ var ProductsService = class extends service_utils_default {
   }
   static async updateByCategory(products) {
     const data = zodParse_helper_default(productSchema.updateByCategory.array().min(1))(products);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => products_model_default.updateByCategory(e)
-    );
-    res("products_update_by");
+    await this.writeOperationsHandler(data, (e) => products_model_default.updateByCategory(e));
   }
   static async update(products) {
     const data = zodParse_helper_default(productSchema.update.array().min(1))(products);
-    const res = await this.writeOperationsHandler(data, (e) => products_model_default.update(e));
-    res("products_update");
+    await this.writeOperationsHandler(data, (e) => products_model_default.update(e));
   }
   static async insert(products) {
     const data = zodParse_helper_default(productSchema.insert.array().min(1))(products);
-    const res = await this.writeOperationsHandler(data, (e) => products_model_default.insert(e));
-    res("products_insert");
+    await this.writeOperationsHandler(data, (e) => products_model_default.insert(e));
   }
   static async delete(products) {
     const data = zodParse_helper_default(productSchema.delete.array().min(1))(products);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => products_model_default.delete(e)
-    );
-    res("products_delete");
+    await this.writeOperationsHandler(data, (e) => products_model_default.delete(e));
   }
 };
 var products_service_default = ProductsService;
@@ -2469,125 +2616,6 @@ var productsView_router_default = productsViewRouter;
 // src/router/shopcart.router.ts
 import { Router as Router2 } from "express";
 
-// src/model/shopcart.model.ts
-var ShopcartModel = class extends model_utils_default {
-  static async selectDetailsProducts({ color_fk, product_fk, size_fk }) {
-    try {
-      return await knex_config_default("products as p").select(
-        "p.product",
-        "p.discount",
-        "p.price",
-        "c.color",
-        "s.size",
-        "pci.url"
-      ).innerJoin("product_colors as pc", "pc.product_fk", "p.product_id").innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id").leftJoin("product_color_images as pci", "pci.product_color_fk", "pc.product_color_id").innerJoin("colors as c", "c.color_id", "pc.color_fk").innerJoin("sizes as s", "s.size_id", "pcs.size_fk").where({
-        "p.product_id": product_fk,
-        "pc.color_fk": color_fk,
-        "pcs.size_fk": size_fk,
-        "p.status": true,
-        "pcs.stock": true
-      });
-    } catch (error) {
-      throw this.generateError(error);
-    }
-  }
-  // static async checkProductAvailability({ color_fk, product_fk, size_fk }: ShopcartProductSchema.BaseOutShopcart) {
-  //     try {
-  //         return await sql("products as p")
-  //             .select(1)
-  //             .innerJoin("product_colors as pc", "pc.product_fk", "p.product_id")
-  //             .innerJoin("product_color_sizes as pcs", "pcs.product_color_fk", "pc.product_color_id")
-  //             .where({
-  //                 'p.product_id': product_fk,
-  //                 'pc.color_fk': color_fk,
-  //                 'pcs.size_fk': size_fk,
-  //                 'p.status': true,
-  //                 'pcs.stock': true
-  //             })
-  //     } catch (error) {
-  //         throw this.generateError(error)
-  //     }
-  // }
-};
-var shopcart_model_default = ShopcartModel;
-
-// src/service/shopcart.service.ts
-import { isNumber } from "my-utilities";
-import { shopcartProductSchema } from "clothing-store-shared/schema";
-var ShopcartService = class {
-  static async getDetailProduct(product) {
-    const parseProduct = zodParse_helper_default(shopcartProductSchema.baseOutShopcartProduct)(product);
-    const [details] = await shopcart_model_default.selectDetailsProducts(parseProduct);
-    if (!details) {
-      throw new errorHandler_utilts_default({
-        status: 404,
-        message: "El producto no se encuentra disponible o no contiene stock.",
-        code: "product_not_available",
-        data: product
-      });
-    }
-    return zodParse_helper_default(shopcartProductSchema.baseInShopcartProduct)({
-      ...product,
-      ...details,
-      url: "",
-      //Cambiar esto es solo para prubeas, la url siempre contendra un string.
-      id: crypto.randomUUID()
-    });
-  }
-  static async addProducts(products, newProducts) {
-    const cloneProducts = structuredClone(products);
-    const parseNewProducts = zodParse_helper_default(shopcartProductSchema.baseOutShopcartProduct.array())(newProducts);
-    const recentProductsChanges = [];
-    for (const product of parseNewProducts) {
-      const { color_fk, product_fk, quantity, size_fk } = product;
-      const repeated = cloneProducts.find((i) => i.color_fk == color_fk && i.product_fk == product_fk && i.size_fk == size_fk);
-      if (repeated) {
-        repeated.quantity += quantity;
-        recentProductsChanges.push(repeated);
-      } else {
-        const details = await this.getDetailProduct(product);
-        cloneProducts.push(details);
-        recentProductsChanges.push(details);
-      }
-    }
-    return {
-      products: cloneProducts,
-      recentProductsChanges
-    };
-  }
-  static createShopcart(shopcart) {
-    if (!shopcart || (shopcart.expired_at || 0) < Date.now() || shopcart.products.length === 0) {
-      return {
-        products: [],
-        expired_at: Date.now() + 1e3 * 60 * 60 * 3
-        //3 hours,
-      };
-    } else {
-      return shopcart;
-    }
-  }
-  static async updateQuantity(products, product) {
-    if (product.quantity <= 0 || !isNumber(product.quantity)) throw new errorHandler_utilts_default({
-      code: "invalid_product_quantity",
-      status: 400,
-      message: "La cantidad ingresada debe ser mayor o igual a 1"
-    });
-    return products.map((i) => {
-      if (i.id === product.id) {
-        return {
-          ...i,
-          quantity: product.quantity
-        };
-      }
-      return i;
-    });
-  }
-  static removeProduct(shopcart, id) {
-    return shopcart.filter((i) => i.id !== id);
-  }
-};
-var shopcart_service_default = ShopcartService;
-
 // src/controller/shopcart.controller.ts
 var ShopcartController = class {
   static async getShopcart(req, res, next) {
@@ -2660,10 +2688,18 @@ var ShopcartController = class {
 var shopcart_controller_default = ShopcartController;
 
 // src/middleware/createShopcart.middleware.ts
-var createShopcartMiddleware = (req, _, next) => {
-  const shopcart = req.session.shopcart;
-  req.session.shopcart = shopcart_service_default.createShopcart(shopcart);
-  next();
+var createShopcartMiddleware = async (req, res, next) => {
+  try {
+    const shopcart = req.session.shopcart;
+    req.session.shopcart = await shopcart_service_default.createShopcart(shopcart);
+    next();
+  } catch (error) {
+    if (errorHandler_utilts_default.isInstanceOf(error)) {
+      error.response(res);
+    } else {
+      errorGlobal_middleware_default(req, res);
+    }
+  }
 };
 var createShopcart_middleware_default = createShopcartMiddleware;
 
@@ -2733,21 +2769,15 @@ var SizeService = class extends service_utils_default {
   }
   static async update(sizes) {
     const data = zodParse_helper_default(sizeSchema.update.array())(sizes);
-    const res = await this.writeOperationsHandler(data, (e) => sizes_model_default.update(e));
-    res("sizes_update");
+    await this.writeOperationsHandler(data, (e) => sizes_model_default.update(e));
   }
   static async insert(sizes) {
     const data = zodParse_helper_default(sizeSchema.insert.array())(sizes);
-    const res = await this.writeOperationsHandler(data, (e) => sizes_model_default.insert(e));
-    res("sizes_insert");
+    await this.writeOperationsHandler(data, (e) => sizes_model_default.insert(e));
   }
   static async delete(sizes) {
     const data = zodParse_helper_default(sizeSchema.delete.array())(sizes);
-    const res = await this.writeOperationsHandler(
-      data,
-      (e) => sizes_model_default.delete(e)
-    );
-    res("sizes_delete");
+    await this.writeOperationsHandler(data, (e) => sizes_model_default.delete(e));
   }
 };
 var sizes_service_default = SizeService;
@@ -2914,10 +2944,10 @@ var UserRegisterService = class {
     const [rawHeaders] = await users_model_default.insertByLimitIP({
       ...data,
       password: hash
-    }, storeConfig.maxAccountPerIp);
+    }, 10);
     const { insertId, affectedRows } = rawHeaders;
     if (affectedRows == 0) throw new errorHandler_utilts_default({
-      message: `Superaste el limite de ${storeConfig.maxAccountPerIp} cuentas por IP.`,
+      message: `Superaste el limite de ${10} cuentas por IP.`,
       code: "limit_account_per_ip",
       status: 429
     });
@@ -2941,13 +2971,7 @@ var UserInfoService = class {
       lastname,
       user_id
     };
-    const res = await users_model_default.update(selectedInfo);
-    if (res === 0) throw new errorHandler_utilts_default({
-      message: "No se logro actualizar los datos del usuario",
-      code: "update_info_failed",
-      status: 403
-    });
-    return res;
+    await users_model_default.update(selectedInfo);
   }
   static async syncGuestPurchases(user_id) {
     const res = await users_model_default.update({ user_id, guest_purchases_synced: true });
@@ -3078,10 +3102,9 @@ var UserTokenService = class {
     return date.toISOString().replace("T", " ").substring(0, 19);
   }
   static async createToken(props, { maxTokens, ...tokenDate }) {
-    const token = crypto2.randomUUID();
     const data = zodParse_helper_default(userTokenSchema.insert)({
       ...props,
-      token,
+      token: crypto2.randomUUID(),
       expired_at: this.createTokenDate(tokenDate)
     });
     const [ResultSetHeader] = await userTokens_model_default.insertWithTokenLimit(data, maxTokens);
@@ -3230,37 +3253,8 @@ var UserInfoController = class {
       }
     }
   }
-  static async getUser(req, res, next) {
-    try {
-      const { user_id } = getSessionData_helper_default("user_info", req.session);
-      const edit_authorization = req.session.edit_authorization;
-      const user_info = await userInfo_service_default.getUserInfo(user_id);
-      req.session.user_info = user_info;
-      res.json({
-        data: {
-          edit_authorization,
-          user_info
-        }
-      });
-    } catch (error) {
-      if (errorHandler_utilts_default.isInstanceOf(error)) {
-        error.response(res);
-      } else {
-        next();
-      }
-    }
-  }
 };
 var userInfo_controller_default = UserInfoController;
-
-// src/rate-limiter/token.rate-limiter.ts
-import { rateLimit as rateLimit2 } from "express-rate-limit";
-var tokenRateLimiter = rateLimit2({
-  windowMs: 1e3 * 30,
-  limit: 1,
-  handler: rateLimitHandler_utilts_default
-});
-var token_rate_limiter_default = tokenRateLimiter;
 
 // src/middleware/isAuthorizedToUpdateInfo.middleware.ts
 var isAuthorizedToUpdateInfo = (req, res, next) => {
@@ -3276,13 +3270,21 @@ var isAuthorizedToUpdateInfo = (req, res, next) => {
 };
 var isAuthorizedToUpdateInfo_middleware_default = isAuthorizedToUpdateInfo;
 
+// src/rate-limiter/token.rate-limiter.ts
+import { rateLimit as rateLimit2 } from "express-rate-limit";
+var tokenRateLimiter = rateLimit2({
+  windowMs: 1e3 * 30,
+  limit: 1,
+  handler: rateLimitHandler_utilts_default
+});
+var token_rate_limiter_default = tokenRateLimiter;
+
 // src/router/userInfo.router.ts
 var userInfoRouter = express12.Router();
 userInfoRouter.post("/reset/password", token_rate_limiter_default, userInfo_controller_default.sendPasswordReset);
 userInfoRouter.post("/reset/password/:token", userInfo_controller_default.passwordReset);
 userInfoRouter.post("/update/auth", isCompleteUser_middleware_default, userInfo_controller_default.updateInfoAuth);
 userInfoRouter.patch("/update", [isCompleteUser_middleware_default, isAuthorizedToUpdateInfo_middleware_default], userInfo_controller_default.updateInfo);
-userInfoRouter.get("/", isUser_middleware_default, userInfo_controller_default.getUser);
 var userInfo_router_default = userInfoRouter;
 
 // src/router/userRegister.router.ts
@@ -3421,6 +3423,26 @@ var UserSessionController = class {
       }
     });
   }
+  static async getUserSession(req, res, next) {
+    try {
+      const { user_id } = getSessionData_helper_default("user_info", req.session);
+      const edit_authorization = req.session.edit_authorization;
+      const user_info = await userInfo_service_default.getUserInfo(user_id);
+      req.session.user_info = user_info;
+      res.json({
+        data: {
+          edit_authorization,
+          user_info
+        }
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
 };
 var userSession_controller_default = UserSessionController;
 
@@ -3428,6 +3450,7 @@ var userSession_controller_default = UserSessionController;
 var UserSession = express14.Router();
 UserSession.post("/login", userSession_controller_default.login);
 UserSession.get("/logout", userSession_controller_default.logout);
+UserSession.get("/", isUser_middleware_default, userSession_controller_default.getUserSession);
 var userSession_router_default = UserSession;
 
 // src/router/userAddresess.router.ts
@@ -3449,7 +3472,7 @@ var UserAdresessModel = class extends model_utils_default {
     try {
       return await knex_config_default("user_addresses").insert(props);
     } catch (error) {
-      throw this.generateError(error, { "ER_DUP_ENTRY": "Ya contiene una direccion." });
+      throw this.generateError(error, { "ER_DUP_ENTRY": "El usuario ya contiene una direccion." });
     }
   }
   static async update({ user_fk, user_address_id, ...props }) {
@@ -3472,13 +3495,6 @@ var UserAddresessService = class {
     const { locality, province } = parseData;
     await this.validateLocation({ locality, province });
     const [insertID] = await userAddresess_model_default.insert(parseData);
-    if (!insertID) {
-      throw new errorHandler_utilts_default({
-        message: "Ya tienes una direccion creada.",
-        status: 400,
-        code: "address_already_exists"
-      });
-    }
     return {
       ...parseData,
       user_address_id: insertID
@@ -3512,12 +3528,7 @@ var UserAddresessService = class {
     if (locality || province) {
       await this.validateLocation({ locality, province });
     }
-    const res = await userAddresess_model_default.update(parseData);
-    if (res === 0) throw new errorHandler_utilts_default({
-      code: "update_user_address_failed",
-      message: "No se logro actualizar la direccion.",
-      status: 403
-    });
+    await userAddresess_model_default.update(parseData);
     return parseData;
   }
 };
@@ -3588,6 +3599,65 @@ userAddresessRouter.post("/", userAddresses_controller_default.createAddress);
 userAddresessRouter.patch("/", userAddresses_controller_default.updateAddress);
 var userAddresess_router_default = userAddresessRouter;
 
+// src/router/storeConfig.router.ts
+import { Router as Router4 } from "express";
+
+// src/controller/storeConfig.controller.ts
+var StoreConfigController = class {
+  static async getConfig(_, res, next) {
+    try {
+      const data = await storeConfig_service_default.getConfig();
+      res.json({
+        data
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async createConfig(req, res, next) {
+    try {
+      const data = storeConfig_service_default.createConfig(req.body);
+      res.json({
+        data,
+        message: "Configuracion creada exitosamente"
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+  static async updateConfig(req, res, next) {
+    try {
+      const data = storeConfig_service_default.updateConfig(req.body);
+      res.json({
+        data,
+        message: "Cambios aplicados exitosamente"
+      });
+    } catch (error) {
+      if (errorHandler_utilts_default.isInstanceOf(error)) {
+        error.response(res);
+      } else {
+        next();
+      }
+    }
+  }
+};
+var storeConfig_controller_default = StoreConfigController;
+
+// src/router/storeConfig.router.ts
+var storeConfig = Router4();
+storeConfig.get("/", storeConfig_controller_default.getConfig);
+storeConfig.post("/", isAdmin_middleware_default, storeConfig_controller_default.createConfig);
+storeConfig.patch("/", isAdmin_middleware_default, storeConfig_controller_default.updateConfig);
+var storeConfig_router_default = storeConfig;
+
 // src/router/index.ts
 var createRouters = (app2) => {
   app2.use("/categories", categories_router_default);
@@ -3607,6 +3677,7 @@ var createRouters = (app2) => {
   app2.use("/mercadopago", isCompleteUser_middleware_default, mercadoPago_router_default);
   app2.use("/orders", order_router_default);
   app2.use("/shopcart", shopcart_router_default);
+  app2.use("/store", storeConfig_router_default);
 };
 var router_default = createRouters;
 

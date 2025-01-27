@@ -15,8 +15,11 @@ const sql = knex({
    pool: {
       min: 1,
       max: 10,
-      createTimeoutMillis: 3000,
-      idleTimeoutMillis: 30000,
+      createTimeoutMillis: 3000,  // Tiempo máximo para crear una nueva conexión (en milisegundos)
+      acquireTimeoutMillis: 5000, // Tiempo máximo que se espera para obtener una conexión del pool (en milisegundos)
+      idleTimeoutMillis: 30000,  // Tiempo máximo en milisegundos que una conexión puede estar inactiva antes de ser destruida
+      reapIntervalMillis: 1000,  // Intervalo en milisegundos para revisar conexiones inactivas,
+   
    }
 })
 

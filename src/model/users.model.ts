@@ -69,16 +69,6 @@ class UsersModel extends ModelUtils {
             })
         }
     }
-
-    static async delete(userID: UserSchema.Delete) {
-        try {
-            return await sql("users")
-                .where("user_id", userID)
-                .delete()
-        } catch (error) {
-            throw this.generateError(error)
-        }
-    }
 }
 
 

@@ -1,30 +1,19 @@
-import sql from "../config/knex.config";
-import UserPurchaseProductsModel from "../model/userPurchaseProducts.model";
-import { DatabaseKeySchema } from "clothing-store-shared/schema";
-import ErrorHandler from "../utils/errorHandler.utilts";
+import { userPurchaseShippingSchema, UserPurchaseShippingSchema } from "clothing-store-shared/schema";
+import { Knex } from "knex";
+import zodParse from "../helper/zodParse.helper";
+import UserPurchaseShippingsModel from "../model/userPurchaseShippings.model";
 
 class UserPurchaseShippingsService {
 
-    static async calculateFreeShipping(user_purchase_fk: DatabaseKeySchema) {
-        const [res] = await UserPurchaseProductsModel.select(
-            { user_purchase_fk },
-            (builder) => {
-                builder.select(
-                    sql.raw("SUM(price * (1-(discount / 100)) * quantity) as total")
-                )
-            }
-        )
-        const { total } = res as unknown as { total: number }
-        if (!total) {
-            throw new ErrorHandler({
-                message: "No se pudo calcular el total porque no existen productos asociados a la orden con el ID especificado.",
-                status: 404,
-                code: "order_products_not_found"
-            });
-        }
-
-        return total
-
+    static async create(props: UserPurchaseShippingSchema.Insert, tsx: Knex.Transaction) {
+        const parse = zodParse(userPurchaseShippingSchema.insert)(props)
+        const [res] = await UserPurchaseShippingsModel.insert(parse, (builder) => builder.transacting(tsx))
+        return res
+    }
+    static async update(props: UserPurchaseShippingSchema.Update) {
+        const parse = zodParse(userPurchaseShippingSchema.update)(props)
+        await UserPurchaseShippingsModel.update(parse)
+        return parse
     }
 }
 

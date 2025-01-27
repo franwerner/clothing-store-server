@@ -4,13 +4,13 @@ import MercadoPagoService from "../service/mercadoPago.service";
 import UserPurchasesService from "../service/userPurchases.service";
 import UserPurchaseShippings from "../service/userPurchaseShippings.service";
 import ErrorHandler from "../utils/errorHandler.utilts";
-import { storeConfig } from "../constant/storeConfig.contant";
+import UserPurchaseProductsService from "../service/userPurchaseProducts.service";
 
 class MercadoPagoController {
 
     static async checkout(
         req: Request,
-        res: APP.ResponseTemplate<any,{expired_date : Date}>,
+        res: APP.ResponseTemplate<any, { expired_date: Date }>,
         next: NextFunction
     ) {
         try {
@@ -18,39 +18,32 @@ class MercadoPagoController {
 
             const { user_purchase_id = "" } = req.params
 
-            const transform = await MercadoPagoService.transformProductsToCheckoutItems({
-                user_fk: user_id,
-                user_purchase_fk: user_purchase_id
-            })
+            const transform = await MercadoPagoService.transformProductsToCheckoutItems(user_purchase_id)
 
-            const total = await UserPurchaseShippings.calculateFreeShipping({
-                user_fk : user_id,
-                user_purchase_fk : user_purchase_id
-            })
-            
+            const total = await UserPurchaseProductsService.calculateTotal(user_purchase_id)
+
             const { init_point, date_of_expiration, id } = await MercadoPagoService.createCheckout({
                 items: transform,
                 external_reference: user_purchase_id,
-                date_of_expiration : res.locals.expired_date,
-                shipments : {
-                    cost : 15000,
-                    free_shipping : total >= storeConfig.minFreeShipping
+                date_of_expiration: res.locals.expired_date,
+                shipments: {
+                    cost: 15000,
+                    free_shipping: total >= 0
                 }
             })
 
-            await UserPurchasesService.updateForUser({
+            await UserPurchasesService.update({
                 user_purchase_id,
                 preference_id: id,
-                user_fk: user_id
             })
 
             res.json({
-                message : "preferencia de pago obtenida exitosamente!",
+                message: "preferencia de pago obtenida exitosamente!",
                 data: {
                     init_point,
                     date_of_expiration,
                 },
-                
+
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

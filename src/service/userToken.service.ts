@@ -32,10 +32,9 @@ class UserTokenService {
         Omit<UserTokenSchema.Insert, "expired_at" | "token">,
         { maxTokens, ...tokenDate }: CreateToken
     ) {
-        const token = crypto.randomUUID()
         const data = zodParse(userTokenSchema.insert)({
             ...props,
-            token,
+            token: crypto.randomUUID(),
             expired_at: this.createTokenDate(tokenDate)
         })
         const [ResultSetHeader] = await UserTokensModel.insertWithTokenLimit(data, maxTokens)
@@ -70,10 +69,8 @@ class UserTokenService {
     }
 
     static async useToken(data: Token) {
-
         const userToken = await this.findActiveToken(data)
         await this.markTokenAsUsed(data.token)
-
         return userToken.user_fk
     }
 

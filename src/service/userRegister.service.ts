@@ -3,7 +3,6 @@ import UsersModel from "../model/users.model.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import { DatabaseKeySchema, UserSchema, userSchema } from "clothing-store-shared/schema"
 import zodParse from "../helper/zodParse.helper.js"
-import { storeConfig } from "../constant/storeConfig.contant.js"
 
 class UserRegisterService {
 
@@ -27,24 +26,18 @@ class UserRegisterService {
     }
 
     static async registerAccount(user: UserSchema.Insert) {
-
         const data = zodParse(userSchema.insert)(user)
-
         const hash = await this.createPassword(data.password)
-
         const [rawHeaders] = await UsersModel.insertByLimitIP({
             ...data,
             password: hash
-        }, storeConfig.maxAccountPerIp)
-
+        }, 10)
         const { insertId, affectedRows } = rawHeaders
-
         if (affectedRows == 0) throw new ErrorHandler({
-            message: `Superaste el limite de ${storeConfig.maxAccountPerIp} cuentas por IP.`,
+            message: `Superaste el limite de ${10} cuentas por IP.`,
             code: "limit_account_per_ip",
             status: 429
         })
-       
         return userSchema.formatUser.parse({
             ...data,
             user_id: insertId,

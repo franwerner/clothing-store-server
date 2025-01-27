@@ -7,22 +7,17 @@ class ProductColorImagesService extends ServiceUtils {
 
     static async update(productColorImages: Array<ProductColorImageSchema.Update>) {
         const data = zodParse(productColorImageSchema.update.array().min(1))(productColorImages)
-        const res = await this.writeOperationsHandler(data, (e) => ProductColorImagesModel.update(e),
-    )
-        res("product_color_images_update")
+        await this.writeOperationsHandler(data, (e) => ProductColorImagesModel.update(e))
     }
-    
+
     static async delete(productColorImages: Array<ProductColorImageSchema.Delete>) {
         const data = zodParse(productColorImageSchema.delete.array().min(1))(productColorImages)
-        const res =  await this.writeOperationsHandler(data, (e) => ProductColorImagesModel.delete(e),
-    )
-        res("product_color_images_delete")
+        await this.writeOperationsHandler(data, (e) => ProductColorImagesModel.delete(e))
     }
-    
+
     static async insert(productColorImages: Array<ProductColorImageSchema.Insert>) {
         const data = zodParse(productColorImageSchema.insert.array().min(1))(productColorImages)
-        const res = await this.writeOperationsHandler(data, (e) => ProductColorImagesModel.insert(e))
-        res("product_color_images_insert")
+        await this.writeOperationsHandler(data, (e) => ProductColorImagesModel.insert(e))
     }
 }
 

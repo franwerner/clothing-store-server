@@ -1,5 +1,5 @@
 import ErrorHandler from "./errorHandler.utilts.js"
-import {ResponseDataWriteOperationsInError} from "clothing-store-shared/types"
+import { ResponseDataWriteOperationsInError } from "clothing-store-shared/types"
 
 class ServiceUtils {
     static async writeOperationsHandler<T, U>(
@@ -10,10 +10,11 @@ class ServiceUtils {
 
         for (const e of input) {
             try {
-               const r = await operation(e)
-               if(!r) throw new ErrorHandler({
-                     message: "Al parece hubo un error al intentar realizar la operación, ya que no se modifico nada.",
-               })
+                const r = await operation(e)
+
+                if (!r) throw new ErrorHandler({
+                    message: "El recurso que intentas modificar o eliminar no existe o ya ha sido modificado/eliminado previamente."
+                })
             } catch (error) {
                 errors.push({
                     source: e,
@@ -21,12 +22,11 @@ class ServiceUtils {
                 })
             }
         }
-
-        return (code: string) => {
-            if (errors.length > 0) throw new ErrorHandler({
+        if (errors.length > 0) {
+            throw new ErrorHandler({
                 data: errors,
-                code: `${code}_write_failed`,
-                status: 206
+                code: "write_operation_failed",
+                message: "Hubo errores en algunos datos entrantes."
             })
         }
     }
