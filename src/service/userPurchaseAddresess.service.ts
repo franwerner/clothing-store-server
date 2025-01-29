@@ -5,20 +5,16 @@ import ErrorHandler from "../utils/errorHandler.utilts";
 import { Knex } from "knex";
 
 class UserPurchaseAddresessService {
-    static async create(props: UserPurchaseAddressesSchema.Insert,tsx: Knex.Transaction) {
+    static async create(props: UserPurchaseAddressesSchema.Insert, tsx: Knex.Transaction) {
         const parse = zodParse(userPurchaseAddressesSchema.insert)(props)
-        const [res] = await UserPurchaseAddresessModel.insert(parse,(builder) => builder.transacting(tsx))
-        if (!res) throw new ErrorHandler({
-            code: "userPurchaseAddresess_not_created",
-            status: 403,
-        })
+        await UserPurchaseAddresessModel.insert(parse, (builder) => builder.transacting(tsx))
         return parse
     }
     // static async get(user_purchase_address_id: DatabaseKeySchema) {
     //     const [res] = await UserPurchaseAddresessModel.select({ user_purchase_address_id: user_purchase_address_id })
     //     if (!res) throw new ErrorHandler({
     //         code: "userPurchaseAddresess_not_created",
-    //         status: 403,
+    //         status: 400,
     //     })
     // }
 }

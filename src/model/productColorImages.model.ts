@@ -1,6 +1,5 @@
 import sql from "../config/knex.config.js"
 import { ProductColorImageSchema } from "clothing-store-shared/schema"
-import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
 
@@ -17,8 +16,8 @@ class ProductColorImagesModel extends ModelUtils {
             throw this.generateError(error)
         }
     }
-    static async insert<T extends ProductColorImageSchema.Insert>
-        (colorImage: Exact<T, ProductColorImageSchema.Insert>) {
+    static async insert
+        (colorImage:  ProductColorImageSchema.Insert) {
         try {
             return await sql("product_color_images")
                 .insert(colorImage)
@@ -27,8 +26,8 @@ class ProductColorImagesModel extends ModelUtils {
         }
     }
 
-    static async update<T extends ProductColorImageSchema.Update>
-        ({ product_color_image_id, ...colorImage }: Exact<T, ProductColorImageSchema.Update>) {
+    static async update
+        ({ product_color_image_id, ...colorImage }: ProductColorImageSchema.Update) {
         try {
             return await sql("product_color_images")
                 .update(colorImage)

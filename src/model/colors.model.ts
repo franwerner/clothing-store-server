@@ -1,6 +1,5 @@
-import sql from "../config/knex.config.js"
 import { ColorSchema } from "clothing-store-shared/schema"
-import Exact from "../types/Exact.types.js"
+import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
 
 type ColorPartial = Partial<ColorSchema.Base>
@@ -16,7 +15,7 @@ class ColorsModel extends ModelUtils {
         }
     }
 
-    static async insert<T extends ColorSchema.Insert>(color: Exact<T, ColorSchema.Insert>) {
+    static async insert(color: ColorSchema.Insert) {
         try {
             return await sql("colors")
                 .insert(color)
@@ -28,8 +27,7 @@ class ColorsModel extends ModelUtils {
         }
     }
 
-
-    static async update<T extends ColorSchema.Update>({ color_id, ...color }: Exact<T, ColorSchema.Update>) {
+    static async update({ color_id, ...color }:  ColorSchema.Update) {
         try {
             return await sql("colors")
                 .update(color)

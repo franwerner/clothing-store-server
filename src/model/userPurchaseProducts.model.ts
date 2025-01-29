@@ -1,9 +1,8 @@
+import { UserPurchaseProductSchema } from "clothing-store-shared/schema"
+import { Knex } from "knex"
 import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config"
-import Exact from "../types/Exact.types"
 import ModelUtils from "../utils/model.utils"
-import { Knex } from "knex"
-import { DatabaseKeySchema, UserPurchaseProductSchema } from "clothing-store-shared/schema"
 
 type UserPurchaseProductPartial = Partial<UserPurchaseProductSchema.Base>
 
@@ -21,21 +20,6 @@ class UserPurchaseProductsModel extends ModelUtils {
         }
     }
 
-    static async selectForUser(
-        { user_fk, ...props }: UserPurchaseProductPartial & { user_fk: DatabaseKeySchema },
-        modify?: APP.ModifySQL
-    ) {
-        return this.select(props, (builder) => {
-            builder.whereExists(
-                sql("user_purchases")
-                    .select(1)
-                    .where({ user_fk: user_fk, user_purchase_id: props.user_purchase_fk })
-            )
-            modify && builder.modify(modify)
-        })
-    }
-
-
     static async selectDetailed(
         props: UserPurchaseProductPartial = {},
         modify?: APP.ModifySQL
@@ -49,25 +33,11 @@ class UserPurchaseProductsModel extends ModelUtils {
         })
     }
 
-    static async selectDetailedForUser(
-        { user_fk, ...props }: { user_fk: DatabaseKeySchema } & UserPurchaseProductPartial,
-        modify?: APP.ModifySQL
+    static async insert(
+        props: UserPurchaseProductSchema.Insert,
+        tsx: Knex.Transaction
     ) {
-        return this.selectDetailed(props, (builder) => {
-            builder.whereExists(
-                sql("user_purchases")
-                    .select(1)
-                    .where({ user_fk: user_fk, user_purchase_id: props.user_purchase_fk })
-            )
-            modify && builder.modify(modify)
-        })
-    }
-
-    static async insert<T extends UserPurchaseProductSchema.Insert>(
-        props: Exact<T, UserPurchaseProductSchema.Insert>,
-        tsx: Knex<any> = sql
-    ) {
-        const { color_fk, product_fk, size_fk, user_purchase_fk, quantity, price, discount = 0 } = props
+        const { color_fk, product_fk, size_fk, user_purchase_fk, quantity, price, discount  } = props
         try {
             /**
  * Solo se inserta en la base de datos si el producto, color y tamaño están relacionados.

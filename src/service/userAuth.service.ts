@@ -10,7 +10,7 @@ class UserAuthService {
         if (!user) throw new ErrorHandler({
             message: "El correo electrónico ingresado no está registrado en nuestro sistema.",
             code: "email_not_found",
-            status: 422,
+            status: 401,
         })
         return user
     }
@@ -19,7 +19,7 @@ class UserAuthService {
         if (!compare) throw new ErrorHandler({
             message: "La contraseña ingresada es incorrecta.",
             code: "wrong_password",
-            status: 422
+            status: 401,
         })
     }
 

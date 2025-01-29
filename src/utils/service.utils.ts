@@ -26,7 +26,8 @@ class ServiceUtils {
             throw new ErrorHandler({
                 data: errors,
                 code: "write_operation_failed",
-                message: "Hubo errores en algunos datos entrantes."
+                message: "Hubo errores en algunos datos entrantes.",
+                status: 400
             })
         }
     }

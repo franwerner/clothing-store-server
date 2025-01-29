@@ -9,7 +9,11 @@
     "noImplicitAny": true,                
     "outDir": "./dist",                    
     "rootDir": "./src",
-    "forceConsistentCasingInFileNames" : true
+    "forceConsistentCasingInFileNames" : true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*" : ["src/*"],
+    },
   },
   
   "include": [

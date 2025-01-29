@@ -8,12 +8,12 @@ import StoreConfigService from "./storeConfig.service";
 
 class ShopcartService {
 
-    static calculateTotal(products:ShopcartProductSchema.BaseInShopcart[]){
+    static calculateTotal(products: ShopcartProductSchema.BaseInShopcart[]) {
         const parse = zodParse(shopcartProductSchema.baseInShopcartProduct.array())(products)
-        return parse.reduce((acc,{discount,price,quantity}) => {
-            const calc =  (price) * (1 - (discount / 100)) * quantity
+        return parse.reduce((acc, { discount, price, quantity }) => {
+            const calc = (price) * (1 - (discount / 100)) * quantity
             return acc + calc
-        },0)
+        }, 0)
     }
     static async getDetailProduct(product: ShopcartProductSchema.BaseOutShopcart) {
         const parseProduct = zodParse(shopcartProductSchema.baseOutShopcartProduct)(product)
@@ -59,11 +59,11 @@ class ShopcartService {
     }
 
     static async createShopcart(shopcart?: Shopcart) {
-        if (!shopcart || (shopcart.expired_at || 0) < Date.now() || shopcart.products.length === 0) {
+        if (!shopcart || shopcart.expired_at < Date.now() || shopcart.products.length === 0) {
             const { min_free_shipping, cost_based_shipping } = await StoreConfigService.getConfig()
             const newShopcart: Shopcart = {
                 products: [],
-                expired_at: Date.now() + (1000 * 60 * 60 * 3), //3 hours
+                expired_at: Date.now() + (1000 * 60 * 30), //3 hours
                 shipping: {
                     cost_based_shipping,
                     min_free_shipping

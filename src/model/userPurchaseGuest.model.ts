@@ -1,17 +1,29 @@
 import { UserPurchaseGuestsSchema } from "clothing-store-shared/schema";
 import ModelUtils from "../utils/model.utils";
-import sql from "../config/knex.config";
+import { Knex } from "knex";
+import { ResultSetHeader } from "mysql2";
 
 class UserPurchaseGuestsModel extends ModelUtils {
     static async insert(
         props: UserPurchaseGuestsSchema.Insert,
-        modify?: APP.ModifySQL
+        trx: Knex.Transaction
     ) {
         try {
-            const query = sql("user_purchase_guests")
-                .insert(props)
-            modify && query.modify(modify)
-            return await query
+            const { email, lastname, name, user_purchase_fk } = props
+            return await trx.raw<Array<ResultSetHeader>>(`
+                INSERT INTO user_purchase_guests (name,lastname,email,user_purchase_fk)
+                SELECT ?,?,?,?
+                WHERE NOT EXISTS(
+                SELECT 1 FROM users
+                WHERE users.email = ?
+                )
+                `, [
+                name,
+                lastname,
+                email,
+                user_purchase_fk,
+                email
+            ])
         } catch (error) {
             throw this.generateError(error)
         }

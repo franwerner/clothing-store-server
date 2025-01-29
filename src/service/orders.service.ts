@@ -1,24 +1,23 @@
-import { DatabaseKeySchema, ShopcartProductSchema, UserPurchaseAddressesSchema, UserPurchaseGuestsSchema } from "clothing-store-shared/schema"
+import { ShopcartProductSchema, UserPurchaseAddressesSchema, UserPurchaseGuestsSchema } from "clothing-store-shared/schema"
+import { Shopcart } from "clothing-store-shared/types"
+import sql from "../config/knex.config"
 import ServiceUtils from "../utils/service.utils"
-import MercadoPagoService from "./mercadoPago.service"
+import MercadoPagoService, { CheckoutProductToTransform } from "./mercadoPago.service"
+import ShopcartService from "./shopcart.service"
 import UserPurchaseAddresessService from "./userPurchaseAddresess.service"
 import UserPurchaseGuestsService from "./userPurchaseGuests.service"
+import UserPurchaseProductsService from "./userPurchaseProducts.service"
 import UserPurchasesService, { CreateUserPurchase } from "./userPurchases.service"
 import UserPurchaseShippingsService from "./userPurchaseShippings.service"
-import UserPurchaseProductsService, { CreateUserPurchaseProducts } from "./userPurchaseProducts.service"
-import sql from "../config/knex.config"
-import { Shopcart } from "clothing-store-shared/types"
-import ShopcartService from "./shopcart.service"
-
 interface CreateOrder {
     order: CreateUserPurchase
-    order_products: ShopcartProductSchema.BaseInShopcart[]
+    order_products: Array<ShopcartProductSchema.BaseInShopcart>
     order_address: UserPurchaseAddressesSchema.Insert
     order_guest?: UserPurchaseGuestsSchema.Insert
     order_shipping: Shopcart["shipping"]
 }
 interface CreateOrderCheckout {
-    user_purchase_id: DatabaseKeySchema
+    order_products: Array<CheckoutProductToTransform>
     expired_date: Date
     uuid: string
     shipping_cost: number
@@ -28,12 +27,12 @@ class OrdersService extends ServiceUtils {
 
     private static async createOrderCheckout({
         expired_date,
-        user_purchase_id,
+        order_products,
         uuid,
         shipping_cost,
         free_shipping
     }: CreateOrderCheckout) {
-        const transform = await MercadoPagoService.transformProductsToCheckoutItems(user_purchase_id)
+        const transform = await MercadoPagoService.transformProductsToCheckoutItems(order_products)
         const data = await MercadoPagoService.createCheckout({
             items: transform,
             external_reference: uuid,
@@ -53,9 +52,8 @@ class OrdersService extends ServiceUtils {
         order_guest,
         order_shipping
     }: CreateOrder) {
-
         const { cost_based_shipping, min_free_shipping } = order_shipping
-        const res = await sql.transaction(async (trx) => {
+        return await sql.transaction(async (trx) => {
             const { user_purchase_id, uuid } = await UserPurchasesService.create(order, trx)
             const productsWithID = order_products.map((i) => ({ ...i, user_purchase_fk: user_purchase_id }))
             await UserPurchaseProductsService.create(productsWithID, trx)
@@ -70,28 +68,22 @@ class OrdersService extends ServiceUtils {
             if (order_guest) {
                 await UserPurchaseGuestsService.create({ ...order_guest, user_purchase_fk: user_purchase_id }, trx)
             }
-            return {
+            const { init_point, id, date_of_expiration } = await this.createOrderCheckout({
+                order_products,
+                uuid,
+                expired_date: order.expire_at,
+                free_shipping: free_shipping,
+                shipping_cost: cost_based_shipping
+            })
+            await UserPurchasesService.update({
                 user_purchase_id,
-                free_shipping,
-                uuid
+                preference_id: id,
+            }, trx)
+            return {
+                init_point: init_point,
+                date_of_expiration: date_of_expiration,
             }
         })
-        const { free_shipping, user_purchase_id, uuid } = res
-        const { init_point, id, date_of_expiration } = await this.createOrderCheckout({
-            user_purchase_id,
-            uuid,
-            expired_date: order.expire_at,
-            free_shipping: free_shipping,
-            shipping_cost: cost_based_shipping
-        })
-        await UserPurchasesService.update({
-            user_purchase_id,
-            preference_id: id,
-        })
-        return {
-            init_point,
-            date_of_expiration
-        }
     }
 
 }

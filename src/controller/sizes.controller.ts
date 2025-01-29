@@ -5,17 +5,17 @@ import ErrorHandler from "../utils/errorHandler.utilts.js";
 class SizeController {
     static async getSizes(
         _: Request,
-        res: APP.ResponseTemplate<Array<SizeSchema.Base>>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {
-            const data = await SizeService.get();
-            res.json({ data, });
+            const data = await SizeService.get()
+            res.json({ data, })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
-                error.response(res);
+                error.response(res)
             } else {
-                next();
+                next()
             }
         }
     }
@@ -33,9 +33,9 @@ class SizeController {
             });
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
-                error.response(res);
+                error.response(res)
             } else {
-                next();
+                next()
             }
         }
     }
@@ -53,7 +53,7 @@ class SizeController {
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
-                error.response(res);
+                error.response(res)
             } else {
                 next()
             }

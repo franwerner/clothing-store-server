@@ -1,7 +1,6 @@
 import { NextFunction, Request } from "express";
 import getSessionData from "../helper/getSessionData.helper";
 import OrdersService from "../service/orders.service";
-import UserPurchaseProductService from "../service/userPurchaseProducts.service";
 import UserPurchasesService from "../service/userPurchases.service";
 import ErrorHandler from "../utils/errorHandler.utilts";
 class OrderController {
@@ -19,7 +18,7 @@ class OrderController {
             const expired_date = new Date(expired_at)
             const { date_of_expiration, init_point } = await OrdersService.createOrder({
                 order: {
-                    user_fk: user?.user_id,
+                    user_fk: user.user_id,
                     expire_at: expired_date,
                     is_guest: false
                 },
@@ -56,7 +55,7 @@ class OrderController {
             const expired_date = new Date(expired_at)
             const { date_of_expiration, init_point } = await OrdersService.createOrder({
                 order: {
-                    user_fk: null,
+                    user_fk: undefined,
                     expire_at: expired_date,
                     is_guest: true
                 },
@@ -72,7 +71,6 @@ class OrderController {
                     date_of_expiration,
                 },
                 message: "Orden creada exitosamente."
-
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -91,7 +89,7 @@ class OrderController {
         try {
             const { user_purchase_id = "" } = req.params
             const { user_id } = getSessionData("user_info", req.session)
-            const data = await UserPurchasesService.getForUser({
+            const data = await UserPurchasesService.getByUser({
                 user_fk: user_id,
                 user_purchase_id: user_purchase_id
             })
@@ -106,28 +104,6 @@ class OrderController {
             }
         }
     }
-
-    static async getOrderDetails(
-        req: Request,
-        res: APP.ResponseTemplate,
-        next: NextFunction
-    ) {
-        try {
-            const { user_id } = getSessionData("user_info", req.session)
-            const { user_purchase_id } = req.params
-            const data = await UserPurchaseProductService.getForUser({ user_purchase_fk: user_purchase_id, user_fk: user_id })
-            res.json({
-                data,
-            })
-        } catch (error) {
-            if (ErrorHandler.isInstanceOf(error)) {
-                error.response(res)
-            } else {
-                next()
-            }
-        }
-    }
 }
-
 
 export default OrderController

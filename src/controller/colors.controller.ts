@@ -69,7 +69,7 @@ class ColorsController {
 
     static async getColors(
         _: Request,
-        res: APP.ResponseTemplate<ColorSchema.Base[]>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {

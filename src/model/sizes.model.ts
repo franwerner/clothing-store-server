@@ -1,21 +1,17 @@
-import sql from "../config/knex.config.js"
 import { SizeSchema } from "clothing-store-shared/schema"
-import Exact from "../types/Exact.types.js"
+import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
 
-
-type SizeKeys = keyof SizeSchema.Base
 type SizePartial = Partial<SizeSchema.Base>
-type SizeRequired = Required<SizeSchema.Base>
 
 class SizesModel extends ModelUtils {
     
-    static async select<T extends SizeKeys = SizeKeys>(
+    static async select(
         props: SizePartial = {},
-        modify?: APP.ModifySQL<Pick<SizeRequired, T>>
+        modify?: APP.ModifySQL
     ) {
         try {
-            const query = sql<Pick<SizeRequired, T>>("sizes")
+            const query = sql("sizes")
                 .where(props)
             modify && query.modify(modify)
             return await query
@@ -24,7 +20,7 @@ class SizesModel extends ModelUtils {
         }
     }
 
-    static async insert<T extends SizeSchema.Insert>(size:Exact<T,SizeSchema.Insert>) {
+    static async insert(size:SizeSchema.Insert) {
         try {
             return await sql("sizes")
                 .insert(size)
@@ -36,7 +32,7 @@ class SizesModel extends ModelUtils {
     }
 
    
-    static async update<T extends SizeSchema.Update>({ size_id, ...size }: Exact<T,SizeSchema.Update>) {
+    static async update({ size_id, ...size }:SizeSchema.Update) {
         try {
             return await sql("sizes")
                 .update(size)

@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import ErrorHandler from "../utils/errorHandler.utilts";
+import ErrorHandler from "@/utils/errorHandler.utilts";
 
 const isAuthorizedToUpdateInfo = (
     req: Request,

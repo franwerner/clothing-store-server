@@ -1,10 +1,10 @@
+import { DatabaseKeySchema, ShopcartProductSchema } from "clothing-store-shared/schema"
 import { Payment, Preference, } from "mercadopago"
-import { Items, Shipments } from "mercadopago/dist/clients/commonTypes"
-import sql from "../config/knex.config"
+import { Items } from "mercadopago/dist/clients/commonTypes"
 import mercadoPagoConfig from "../config/mercadopago.config"
-import UserPurchaseProductsModel from "../model/userPurchaseProducts.model"
-import { DatabaseKeySchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts"
+
+type CheckoutProductToTransform = Omit<ShopcartProductSchema.BaseInShopcart, "size_fk" | "color_fk" | "product_fk">
 
 interface createCheckout {
     items: Array<Items>,
@@ -28,7 +28,7 @@ class MercadoPagoService {
             return new ErrorHandler({
                 message: "Pago no encontrado.",
                 status: 404,
-                code: "payment_not_found"
+                code: "payment_not_found",
             })
         }
     }
@@ -51,39 +51,44 @@ class MercadoPagoService {
         date_of_expiration,
         shipments
     }: createCheckout) {
-        return await preferences.create({
-            body: {
-                items,
-                external_reference: external_reference.toString(),
-                expires: true,
-                date_of_expiration: this.toMercadoPagoFormat(date_of_expiration),
-                shipments: {
-                    ...shipments,
-                    mode: "not_specified"
-                }
-            },
-        })
+        try {
+            return await preferences.create({
+                body: {
+                    items,
+                    external_reference: external_reference.toString(),
+                    expires: true,
+                    date_of_expiration: this.toMercadoPagoFormat(date_of_expiration),
+                    shipments: {
+                        ...shipments,
+                        mode: "not_specified"
+                    }
+                },
+            })
+        } catch (error) {
+            throw new ErrorHandler({
+                message: "Error al intentar crear la preferencia de pago.",
+                status: 502,
+                code: "preference_not_created",
+            })
+        }
     }
 
-    static async transformProductsToCheckoutItems(user_purchase_fk: DatabaseKeySchema) {
-        const data = await UserPurchaseProductsModel.selectDetailed({ user_purchase_fk },
-            (build) => build.select(sql.raw(
-                `
-                user_purchase_product_id as id,
-                product as title,
+    static async transformProductsToCheckoutItems(products: Array<CheckoutProductToTransform>) {
+        return products.reduce((acc, current) => {
+            const { id, url, size, color, quantity, price, discount, product } = current
+            const items: Items = {
+                id,
                 quantity,
-                upp.price * (1 - (upp.discount / 100)) as unit_price,
-                CONCAT('Color:',' ',color,' | ','Talle:',' ',size) as description,
-                'ARS' as currency_id
-                `
-            ))
-        )
-        if (data.length == 0) throw new ErrorHandler({
-            status: 404,
-            message: "No se pueden generar productos para la preferencia, ya que no se encontraron productos asociados a la orden.",
-            code: "products_not_found"
-        })
-        return data as unknown as Array<Items>
+                title: product,
+                unit_price: price * (1 - (discount / 100)),
+                description: `Color: ${color} | Talle: ${size}`,
+                picture_url: url
+            }
+            return [
+                ...acc,
+                items
+            ]
+        }, [] as Array<Items>)
     }
 
     private static toMercadoPagoFormat(date: Date) {
@@ -98,3 +103,7 @@ class MercadoPagoService {
     }
 }
 export default MercadoPagoService
+
+export {
+    type CheckoutProductToTransform
+}

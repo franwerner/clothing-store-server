@@ -8,9 +8,14 @@ import adapteDateToDB from "../utils/adapteDateToDB.utilts"
 type CreateUserPurchase = Omit<UserPurchaseSchema.Insert, "note" | "uuid"> & { expire_at: Date }
 class UserPurchasesService {
 
-    static async update(props: UserPurchaseSchema.Update) {
+    static async update(
+        props: UserPurchaseSchema.Update,
+        trx?: Knex.Transaction
+    ) {
         const parse = zodParse(userPurchaseSchema.update)(props)
-        await UserPurchasesModel.update(parse)
+        await UserPurchasesModel.update(parse, (builder) => {
+            trx && builder.transacting(trx)
+        })
     }
 
     static async create({ expire_at, ...props }: CreateUserPurchase, trx: Knex.Transaction) {
@@ -28,7 +33,7 @@ class UserPurchasesService {
         }
     }
 
-    static async getForUser({ user_purchase_id, user_fk }: { user_purchase_id: DatabaseKeySchema, user_fk: DatabaseKeySchema }) {
+    static async getByUser({ user_purchase_id, user_fk }: { user_purchase_id: DatabaseKeySchema, user_fk: DatabaseKeySchema }) {
         const [res] = await UserPurchasesModel.select({ user_purchase_id, user_fk })
         if (!res) throw new ErrorHandler({
             message: "No se encontró ninguna compra con la id especificada.",

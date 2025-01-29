@@ -1,8 +1,8 @@
 import express from "express"
-import UserInfoController from "../controller/userInfo.controller.js"
-import isAuthorizedToUpdateInfo from "../middleware/isAuthorizedToUpdateInfo.middleware.js"
-import isCompleteUser from "../middleware/isCompleteUser.middleware.js"
-import tokenRateLimiter from "../rate-limiter/token.rate-limiter.js"
+import UserInfoController from "@/controller/userInfo.controller.js"
+import isCompleteUser from "@/middleware/isCompleteUser.middleware.js"
+import tokenRateLimiter from "@/rate-limiter/token.rate-limiter.js"
+import isAuthorizedToUpdateInfo from "./middleware/isAuthorizedToUpdateInfo.middleware.js"
 
 const userInfoRouter = express.Router()
 

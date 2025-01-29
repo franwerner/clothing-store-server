@@ -8,7 +8,7 @@ import ErrorHandler from "../utils/errorHandler.utilts.js";
 class CategoriesController {
 
     static async getByBrand(
-        req: Request<{brand_id:string}>,
+        req: Request,
         res: APP.ResponseTemplate,
         next: NextFunction
     ) {

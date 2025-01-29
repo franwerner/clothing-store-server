@@ -15,7 +15,6 @@ const getOrderField = (orderKey: OrderProducts) => {
     }
 }
 
-
 class ProductPreviewModel extends ModelUtils {
     static async select({
         filters,

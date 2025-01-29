@@ -1,6 +1,5 @@
 import { ProductSchema } from "clothing-store-shared/schema"
 import sql from "../config/knex.config.js"
-import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
 type ProductPartial = Partial<ProductSchema.Base>
@@ -37,7 +36,7 @@ class ProductsModel extends ModelUtils {
         })
     }
 
-    static async insert<T extends ProductSchema.Update>(product: Exact<T, ProductSchema.Insert>) {
+    static async insert(product: ProductSchema.Insert) {
         try {
             return await sql("products")
                 .insert(product)
@@ -46,18 +45,18 @@ class ProductsModel extends ModelUtils {
         }
     }
 
-    static async update<T extends ProductSchema.Update>({ product_id, ...props }: Exact<T, ProductSchema.Update>) {
+    static async update({ product_id, ...props }: ProductSchema.Update) {
         try {
             return await sql("products")
                 .update(props)
-                .where("product_id", product_id)
+                .where({product_id})
         } catch (error) {
             throw this.generateError(error)
         }
     }
 
-    static async updateByCategory<T extends ProductSchema.UpdateByCategory>(
-        { category_fk, ...props }: Exact<T, ProductSchema.UpdateByCategory>
+    static async updateByCategory(
+        { category_fk, ...props }: ProductSchema.UpdateByCategory
     ) {
         try {
             return await sql("products")

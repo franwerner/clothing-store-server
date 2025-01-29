@@ -10,6 +10,7 @@ const sessionConfig = session({
         secure: _env.NODE_ENV == "prod",
         httpOnly: true,
         sameSite : "strict",
+        priority : "high",
     },
 })
 

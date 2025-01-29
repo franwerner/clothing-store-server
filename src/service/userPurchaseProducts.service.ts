@@ -7,11 +7,9 @@ import zodParse from "../helper/zodParse.helper"
 import sql from "../config/knex.config"
 
 
-type CreateUserPurchaseProducts = Array<UserPurchaseProductSchema.Insert>
-
 class UserPurchaseProductsService extends ServiceUtils {
-    static async getForUser({ user_purchase_fk, user_fk }: { user_purchase_fk: DatabaseKeySchema, user_fk: DatabaseKeySchema }) {
-        const res = await UserPurchaseProductsModel.selectDetailedForUser({ user_purchase_fk, user_fk })
+    static async getProductsByPurchaseID(user_purchase_fk: DatabaseKeySchema) {
+        const res = await UserPurchaseProductsModel.selectDetailed({ user_purchase_fk })
         if (res.length == 0) throw new ErrorHandler({
             status: 404,
             message: "Los productos que intentas obtener no se encuentran disponibles.",
@@ -41,7 +39,7 @@ class UserPurchaseProductsService extends ServiceUtils {
     }
 
 
-    static async create(products: CreateUserPurchaseProducts, trx: Knex.Transaction) {
+    static async create(products: Array<UserPurchaseProductSchema.Insert>, trx: Knex.Transaction) {
         const productsData = zodParse(userPurchaseProductSchema.insert.array().min(1))(products)
 
         for (const i of productsData) {
@@ -57,7 +55,5 @@ class UserPurchaseProductsService extends ServiceUtils {
     }
 }
 
-export {
-    CreateUserPurchaseProducts
-}
+
 export default UserPurchaseProductsService

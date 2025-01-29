@@ -33,7 +33,7 @@ class UserAddresessService {
         const json = await res.json()
         if (!json.cantidad) {
             throw new ErrorHandler({
-                status: 403,
+                status: 400,
                 message: "La provincia o localidad ingresada es incorrecta.",
                 code: "wrong_location"
             })

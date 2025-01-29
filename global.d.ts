@@ -8,7 +8,7 @@ declare global {
     namespace APP {
         type SessionGlobal = session.Session & Partial<session.SessionData>
         type ModifySQL<TRecord extends {} = any, TResult = any> = (queryBuilder: Knex.QueryBuilder<TRecord, TResult>) => void
-        type ResponseTemplate<T = any, U extends Locals = Locals> = Response<ResponseToClient<T, any, any>, U>
+        type ResponseTemplate<T = any, U extends Locals = Locals> = Response<ResponseToClient<T>, U>
     }
 }
 

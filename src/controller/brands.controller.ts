@@ -7,7 +7,7 @@ class BrandsController {
 
     static async getBrands(
         _: Request,
-        res: APP.ResponseTemplate<BrandSchema.Base[]>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {

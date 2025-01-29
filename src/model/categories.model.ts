@@ -1,7 +1,6 @@
+import { CategorySchema } from "clothing-store-shared/schema"
 import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
-import { CategorySchema } from "clothing-store-shared/schema"
-import Exact from "../types/Exact.types.js"
 
 type CategoryPartial = Partial<CategorySchema.Base>
 
@@ -18,7 +17,7 @@ class CategoriesModel extends ModelUtils {
         }
     }
 
-    static async selectWithBrand({brand,...props}: CategoryPartial & { brand?: string } = {}, modify?: APP.ModifySQL<any>) {
+    static async selectWithBrand({ brand, ...props }: CategoryPartial & { brand?: string } = {}, modify?: APP.ModifySQL<any>) {
         return this.select(props, (builder) => {
             builder.innerJoin("brands as b", "c.brand_fk", "b.brand_id")
                 .where("b.brand", brand)
@@ -26,7 +25,7 @@ class CategoriesModel extends ModelUtils {
         })
     }
 
-    static async insert<T extends CategorySchema.Insert>(props: Exact<T, CategorySchema.Insert>) {
+    static async insert(props: CategorySchema.Insert) {
         try {
             return await sql("categories")
                 .insert(props)
@@ -37,7 +36,7 @@ class CategoriesModel extends ModelUtils {
         }
     }
 
-    static async update<T extends CategorySchema.Update>({ category_id, ...category }: Exact<T, CategorySchema.Update>) {
+    static async update({ category_id, ...category }: CategorySchema.Update) {
         try {
             return await sql("categories")
                 .update(category)

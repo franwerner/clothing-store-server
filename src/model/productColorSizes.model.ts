@@ -1,6 +1,5 @@
 import sql from "../config/knex.config.js"
 import { ProductColorSizeSchema} from "clothing-store-shared/schema"
-import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
 
 
@@ -32,8 +31,8 @@ class ProductColorSizesModel extends ModelUtils {
         })
     }
 
-    static async updatetByProductColor<T extends ProductColorSizeSchema.UpdateByProductColor>(
-        { product_color_fk, ...props }: Exact<T, ProductColorSizeSchema.UpdateByProductColor>
+    static async updatetByProductColor(
+        { product_color_fk, ...props }: ProductColorSizeSchema.UpdateByProductColor
     ) {
         try {
             return await sql("product_color_sizes").
@@ -44,7 +43,7 @@ class ProductColorSizesModel extends ModelUtils {
         }
     }
 
-    static async insert<T extends ProductColorSizeSchema.Insert>(size: Exact<T, ProductColorSizeSchema.Insert>) {
+    static async insert(size: ProductColorSizeSchema.Insert ) {
         try {
             return await sql("product_color_sizes")
                 .insert(size)
@@ -53,7 +52,7 @@ class ProductColorSizesModel extends ModelUtils {
         }
     }
 
-    static async update<T extends ProductColorSizeSchema.Update>({ product_color_size_id, ...size }: Exact<T, ProductColorSizeSchema.Update>) {
+    static async update({ product_color_size_id, ...size }: ProductColorSizeSchema.Update) {
         try {
             return await sql("product_color_sizes")
                 .update(size)

@@ -8,16 +8,17 @@ class StoreConfigService {
     static async createConfig(props: StoreConfigSchema.Insert) {
         const parse = zodParse(storeConfigSchema.insert)(props)
         await StoreConfigModel.insert(parse)
+        return parse
     }
     static async updateConfig(props: StoreConfigSchema.Update) {
         const parse = zodParse(storeConfigSchema.update)(props)
-        await StoreConfigModel.insert(parse)
+        await StoreConfigModel.update(parse)
         return parse
     }
     static async getConfig() {
         const [res] = await StoreConfigModel.select()
         if (!res) throw new ErrorHandler({
-            message: "configuracion de la tienda no encontrada.",
+            message: "Configuración de la tienda no encontrada.",
             code: "store_config_not_found",
             status: 404
         })

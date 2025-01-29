@@ -1,6 +1,5 @@
-import sql from "../config/knex.config.js"
 import { ProductColorSchema } from "clothing-store-shared/schema"
-import Exact from "../types/Exact.types.js"
+import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
 
 
@@ -21,7 +20,7 @@ class ProductColorsModel extends ModelUtils {
         }
     }
 
-    static async insert<T extends ProductColorSchema.Insert>(productColor: Exact<T, ProductColorSchema.Insert>) {
+    static async insert(productColor: ProductColorSchema.Insert) {
         try {
             return await sql("product_colors")
                 .insert(productColor)
@@ -30,8 +29,7 @@ class ProductColorsModel extends ModelUtils {
         }
     }
 
-
-    static async update<T extends ProductColorSchema.Insert>({ product_color_id, ...productColor }: Exact<T, ProductColorSchema.Update>) {
+    static async update({ product_color_id, ...productColor }: ProductColorSchema.Update) {
         try {
             return await sql("product_colors")
                 .update(productColor)
@@ -44,7 +42,7 @@ class ProductColorsModel extends ModelUtils {
     static async delete(productColorID: ProductColorSchema.Delete) {
         try {
             return await sql("product_colors")
-                .where("product_color_id", productColorID)
+                .where({ productColorID })
                 .delete()
         } catch (error) {
             throw this.generateError(error)

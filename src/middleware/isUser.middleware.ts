@@ -12,7 +12,6 @@ const isUser = (req: Request, res: Response, next: NextFunction) => {
                 code : "session_expired"
             }).response(res)
         }
-   
 }
 
 

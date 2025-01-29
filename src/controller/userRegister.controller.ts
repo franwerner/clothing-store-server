@@ -20,7 +20,7 @@ class UserRegisterController {
 
     static async register(
         req: Request,
-        res: APP.ResponseTemplate<{ created_id: DatabaseKeySchema }>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {

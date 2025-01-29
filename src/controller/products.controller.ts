@@ -1,5 +1,4 @@
 import { NextFunction, Request } from "express"
-import { ProductSchema } from "clothing-store-shared/schema"
 import ProductsService from "../service/products.service.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 
@@ -7,7 +6,7 @@ class ProductsController {
 
     static async getByCategory(
         req: Request<{category_id:string}>,
-        res: APP.ResponseTemplate<ProductSchema.Base[]>,
+        res: APP.ResponseTemplate,
         next: NextFunction
     ) {
         try {

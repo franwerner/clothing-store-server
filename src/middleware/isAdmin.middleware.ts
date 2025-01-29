@@ -9,7 +9,7 @@ const isAdmin = (req: Request, res: APP.ResponseTemplate, next: NextFunction) =>
    else {
      new ErrorHandler({
       message : "No estas autorizado para continuar con esta operacion.",
-      status : 401,
+      status : 403,
       code : "session_unauthorized"
      }).response(res)
    }

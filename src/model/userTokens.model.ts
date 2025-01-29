@@ -1,8 +1,7 @@
+import { UserTokenSchema } from "clothing-store-shared/schema"
 import { ResultSetHeader } from "mysql2"
 import sql from "../config/knex.config.js"
-import Exact from "../types/Exact.types.js"
 import ModelUtils from "../utils/model.utils.js"
-import { UserTokenSchema } from "clothing-store-shared/schema"
 
 type UserTokenPartial = Partial<UserTokenSchema.Base>
 
@@ -34,8 +33,8 @@ class UserTokensModel extends ModelUtils {
         })
     }
 
-    static async insertWithTokenLimit<T extends UserTokenSchema.Insert>(
-        props: Exact<T, UserTokenSchema.Insert>,
+    static async insertWithTokenLimit(
+        props: UserTokenSchema.Insert,
         tokenLimit: number
     ) {
 
@@ -60,8 +59,8 @@ class UserTokensModel extends ModelUtils {
     }
 
 
-    static async update<T extends UserTokenSchema.Update>(
-        { token, ...userToken }: Exact<T, UserTokenSchema.Update>,
+    static async update(
+        { token, ...userToken }: UserTokenSchema.Update,
         modify?: APP.ModifySQL
     ) {
         try {

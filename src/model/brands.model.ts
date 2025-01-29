@@ -1,6 +1,5 @@
-import sql from "../config/knex.config.js"
 import { BrandSchema } from "clothing-store-shared/schema"
-import Exact from "../types/Exact.types.js"
+import sql from "../config/knex.config.js"
 import ModelUtils from "../utils/model.utils.js"
 
 type BrandPartial = Partial<BrandSchema.Base>
@@ -17,7 +16,7 @@ class BrandsModel extends ModelUtils {
         }
     }
 
-    static async insert<T extends BrandSchema.Insert>(props: Exact<T, BrandSchema.Insert>) {
+    static async insert(props: BrandSchema.Insert) {
         try {
             return await sql("brands").insert(props)
         } catch (error) {
@@ -27,7 +26,7 @@ class BrandsModel extends ModelUtils {
         }
     }
 
-    static async update<T extends BrandSchema.Update>({ brand_id, ...brand }: Exact<T, BrandSchema.Update>) {
+    static async update({ brand_id, ...brand }: BrandSchema.Update) {
         try {
             return await sql("brands")
                 .update(brand)

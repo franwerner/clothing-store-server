@@ -14,8 +14,7 @@ class ProductColorImagesController {
             await ProductColorImagesService.insert(req.body)
 
             res.json({
-               message : "Imagenes agregadas correctamente."
-                
+                message: "Imagenes agregadas correctamente.",
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {
@@ -36,8 +35,8 @@ class ProductColorImagesController {
 
             await ProductColorImagesService.update(req.body)
             res.json({
-                message : "Imagenes modificadas correctamente."
-                
+                message: "Imagenes modificadas correctamente."
+
             })
 
         } catch (error) {
@@ -55,10 +54,10 @@ class ProductColorImagesController {
         res: APP.ResponseTemplate,
         next: NextFunction) {
         try {
-             await ProductColorImagesService.delete(req.body)
+            await ProductColorImagesService.delete(req.body)
             res.json({
-                message :"Imagenes eliminadas correctamente",
-                
+                message: "Imagenes eliminadas correctamente",
+
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

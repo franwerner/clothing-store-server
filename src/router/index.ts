@@ -5,20 +5,20 @@ import brandsRouter from "./brands.router"
 import categoriesRouter from "./categories.router"
 import colorsRouter from "./colors.router"
 import mercadoPagoRouter from "./mercadoPago.router"
-import orderRouter from "./order.router"
+import orderRouter from "./order"
 import productColorImagesRouter from "./ProductColorImages.router"
 import productColorsRouter from "./productColors.router"
 import productColorSizesRouter from "./ProductColorSizes.router"
 import productsRouter from "./products.router"
 import productRecomendationsRouter from "./productsRecomendations.router"
 import productsViewRouter from "./productsView.router"
-import shopcartRouter from "./shopcart.router"
 import sizesRouter from "./sizes.router"
-import userInfoRouter from "./userInfo.router"
+import userInfoRouter from "./user-info"
 import userRegisterRouter from "./userRegister.router"
 import UserSession from "./userSession.router"
 import userAddresessRouter from "./userAddresess.router"
 import storeConfig from "./storeConfig.router"
+import shopcartRouter from "./shopcart"
 
 const createRouters = (app: Application) => {
     app.use("/categories", categoriesRouter)
@@ -38,7 +38,7 @@ const createRouters = (app: Application) => {
     app.use("/mercadopago", isCompleteUser, mercadoPagoRouter)
     app.use("/orders", orderRouter)
     app.use("/shopcart", shopcartRouter)
-    app.use("/store", storeConfig)
+    app.use("/store/config", storeConfig)
 }
 
 export default createRouters
