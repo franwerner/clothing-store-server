@@ -1,9 +1,9 @@
-import { UserSchema } from "clothing-store-shared/schema";
-import { EditAuth, ResponseToClient, Shopcart } from "clothing-store-shared/types";
-import { Locals, Response } from "express";
+import { UserSchema } from "clothing-store-shared/schema"
+import { ResponseToClient, Shopcart } from "clothing-store-shared/types"
+import { Locals, Response } from "express"
 import { RateLimitInfo } from "express-rate-limit";
-import session from "express-session";
-import { Knex } from "knex";
+import session from "express-session"
+import { Knex } from "knex"
 declare global {
     namespace APP {
         type SessionGlobal = session.Session & Partial<session.SessionData>
@@ -16,10 +16,12 @@ declare module "express" {
     interface Request {
         rateLimit?: RateLimitInfo
     }
+
+  
 }
 declare module 'express-session' {
-    interface SessionData {
-        edit_authorization: EditAuth
+    interface SessionData { 
+        edit_expiration: string | Date
         user_info: UserSchema.FormatUser,
         shopcart: Shopcart
     }

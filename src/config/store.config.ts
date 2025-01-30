@@ -1,6 +1,6 @@
 import StoreConfigService from "@/service/storeConfig.service";
-import QuickStore from "@/utils/quickStore.utilts";
 import { StoreConfigSchema } from "clothing-store-shared/schema";
+import { QuickStore } from "my-utilities";
 
 /**
  * Mantenemos en memoria datos que sean parte del ciclo de vida durante el servidor funcionando.

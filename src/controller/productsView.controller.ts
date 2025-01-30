@@ -14,17 +14,15 @@ class ProductsViewController {
         try {
             const { brand, category } = req.params
             const { color, price, search, size, sortDirection, sortField, offset } = req.query as Record<string, any>
-            const filterParams = ProductsPreviewService
-                .generateProductPreviewFilters({
+            const data = await ProductsPreviewService.getProductPreview({
+                filters: {
                     brand,
                     category,
                     color,
                     price,
                     search,
-                    size,
-                })
-            const data = await ProductsPreviewService.getProductPreview({
-                filters: filterParams,
+                    size
+                },
                 order: { sortDirection, sortField },
                 pagination: { offset }
             })
@@ -48,8 +46,13 @@ class ProductsViewController {
     ) {
         try {
             const { price, search, size, brand, category } = req.query as Record<string, any>
-            const filterParams = ProductsPreviewService.generateProductPreviewFilters({ brand, category, price, search, size })
-            const data = await ProductsPreviewService.getProductColors(filterParams)
+            const data = await ProductsPreviewService.getProductColors({
+                brand,
+                category,
+                price,
+                search,
+                size
+            })
 
             res.json({
                 data
@@ -71,8 +74,13 @@ class ProductsViewController {
     ) {
         try {
             const { price, search, color, brand, category } = req.query as Record<string, any>
-            const filterParams = ProductsPreviewService.generateProductPreviewFilters({ brand, category, price, search, color })
-            const data = await ProductsPreviewService.getProductSizes(filterParams)
+            const data = await ProductsPreviewService.getProductSizes({
+                brand,
+                category,
+                price,
+                search,
+                color
+            })
             res.json({
                 data
             })

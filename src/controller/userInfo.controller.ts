@@ -25,12 +25,12 @@ class UserInfoController {
             const { email } = getSessionData("user_info", req.session)
             await UserAuthService.authenticar({ email, password })
 
-            const edit_authorization = UserInfoService.createEditAuthorization()
+            const edit_expiration = UserInfoService.createEditExpiration()
 
-            req.session.edit_authorization = edit_authorization
+            req.session.edit_expiration = edit_expiration
             res.json({
                 message: "Contraseña verificada con éxito.",
-                data: edit_authorization
+                data: edit_expiration
             })
 
         } catch (error) {

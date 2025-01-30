@@ -3,6 +3,7 @@ import UsersModel from "../model/users.model"
 import { UserSchema, userSchema, DatabaseKeySchema } from "clothing-store-shared/schema"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import UserRegisterService from "./userRegister.service"
+import { createUTCDate } from "my-utilities"
 
 const onlyInfo = userSchema.update.omit({ email_confirmed: true, email: true, guest_purchases_synced: true })
 
@@ -29,11 +30,8 @@ class UserInfoService {
         })
     }
 
-    static createEditAuthorization() {
-        return {
-            expired_at: Date.now() + (1000 * 60 * 15), //15m,
-            isAuthorized: true
-        }
+    static createEditExpiration() {
+        return createUTCDate({minutes : 15}).toISOString()
     }
 
     static async getUserInfo(user_id: DatabaseKeySchema) {

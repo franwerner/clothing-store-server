@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import ErrorHandler from "@/utils/errorHandler.utilts";
+import { parseDate } from "my-utilities";
 
 const isAuthorizedToUpdateInfo = (
     req: Request,
@@ -7,9 +8,9 @@ const isAuthorizedToUpdateInfo = (
     next: NextFunction
 ) => {
 
-    const edit_authorization = req.session.edit_authorization
+    const edit_expiration = req.session.edit_expiration || 0
 
-    if (!edit_authorization || Date.now() > edit_authorization.expired_at || !edit_authorization.isAuthorized)  new ErrorHandler({
+    if (!edit_expiration || new Date() > parseDate(edit_expiration)) new ErrorHandler({
         code: "not_edit_authorized",
         message: "No estas autorizado para editar la informacion de la cuenta.",
         status: 401

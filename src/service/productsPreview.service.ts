@@ -1,8 +1,9 @@
-import { OrderProducts } from "clothing-store-shared/types"
+import { SortProducts } from "clothing-store-shared/types"
 import ProductPreviewModel from "../model/productsPreview.model.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
+import { toNumber } from "my-utilities"
 
-interface ProductPreviewFilters {
+interface FilterProperties {
     color?: string[],
     search?: string,
     brand?: string,
@@ -11,21 +12,21 @@ interface ProductPreviewFilters {
     price?: [string, string] | [string],
 }
 
-interface ProductPreviewOrder {
+interface SortProperties {
     sortDirection: "asc" | "desc",
-    sortField: OrderProducts
+    sortField: SortProducts
 }
 
-interface ProductPreviewPagination {
-    offset: string
+interface PaginationProperties {
+    offset: number
 }
 
-type FilterProperties = { [K in keyof ProductPreviewFilters]?: string }
+type InputFilterProperties = { [K in keyof FilterProperties]?: string }
 class ProductsPreviewService {
-    static generateProductPreviewFilters(filterProperties: FilterProperties) {
-        let res = {} as ProductPreviewFilters
+    private static generateFilter(filterProperties: InputFilterProperties) {
+        let res = {} as FilterProperties
         for (const key in filterProperties) {
-            const k = key as keyof ProductPreviewFilters
+            const k = key as keyof FilterProperties
             const current = filterProperties[k]
             if (current) {
                 if (k === "price") {
@@ -48,19 +49,32 @@ class ProductsPreviewService {
         return res
     }
 
+    private static generateSort({ sortDirection, sortField }: SortProperties) {
+        return {
+            sortDirection: ["asc", "desc"].includes(sortDirection) ? sortDirection : "asc",
+            sortField
+        }
+    }
+
+    private static generatePagiantion({ offset }: PaginationProperties) {
+        return {
+            offset: toNumber(offset)
+        }
+    }
+
     static async getProductPreview({
         filters,
         order,
         pagination
     }: {
-        filters: ProductPreviewFilters
-        order: ProductPreviewOrder
-        pagination: ProductPreviewPagination
+        filters: InputFilterProperties
+        order: SortProperties
+        pagination: PaginationProperties
     }) {
         const res = await ProductPreviewModel.select({
-            filters,
-            order,
-            pagination
+            filters: this.generateFilter(filters),
+            order: this.generateSort(order),
+            pagination: this.generatePagiantion(pagination)
         })
         if (res.length == 0) {
             throw new ErrorHandler({
@@ -72,8 +86,8 @@ class ProductsPreviewService {
         return res
     }
 
-    static async getProductColors(filter: Omit<ProductPreviewFilters, "color">) {
-        const res = await ProductPreviewModel.selectProductColors(filter)
+    static async getProductColors(filter: Omit<InputFilterProperties, "color">) {
+        const res = await ProductPreviewModel.selectProductColors(this.generateFilter(filter))
         if (res.length === 0) throw new ErrorHandler({
             code: "product_colors_not_found",
             status: 404,
@@ -82,8 +96,8 @@ class ProductsPreviewService {
         return res
     }
 
-    static async getProductSizes(filter: Omit<ProductPreviewFilters, "size">) {
-        const res = await ProductPreviewModel.selectProductSizes(filter)
+    static async getProductSizes(filter: Omit<InputFilterProperties, "size">) {
+        const res = await ProductPreviewModel.selectProductSizes(this.generateFilter(filter))
         if (res.length === 0) throw new ErrorHandler({
             code: "product_color_sizes_not_found",
             message: "No se encontraron tamaños asociados a los productos.",
@@ -94,5 +108,5 @@ class ProductsPreviewService {
 
 }
 
-export type { ProductPreviewFilters, ProductPreviewOrder, ProductPreviewPagination }
+export type { FilterProperties, PaginationProperties, SortProperties }
 export default ProductsPreviewService

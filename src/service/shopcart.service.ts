@@ -1,11 +1,11 @@
 import { Shopcart } from "clothing-store-shared/types";
 import ErrorHandler from "../utils/errorHandler.utilts";
 import ShopcartModel from "../model/shopcart.model";
-import { isNumber } from "my-utilities";
+import { createUTCDate, isNumber, parseDate } from "my-utilities";
 import zodParse from "../helper/zodParse.helper";
 import { shopcartProductSchema, ShopcartProductSchema } from "clothing-store-shared/schema";
 import StoreConfigService from "./storeConfig.service";
-
+import shortUUID from "short-uuid";
 class ShopcartService {
 
     static calculateTotal(products: ShopcartProductSchema.BaseInShopcart[]) {
@@ -29,8 +29,7 @@ class ShopcartService {
         return zodParse(shopcartProductSchema.baseInShopcartProduct)({
             ...product,
             ...details,
-            url: "", //Cambiar esto es solo para prubeas, la url siempre contendra un string.
-            id: crypto.randomUUID()
+            id: shortUUID().generate()
         })
     }
 
@@ -59,11 +58,11 @@ class ShopcartService {
     }
 
     static async createShopcart(shopcart?: Shopcart) {
-        if (!shopcart || shopcart.expired_at < Date.now() || shopcart.products.length === 0) {
+        if (!shopcart || parseDate(shopcart.expired_at) < new Date() || shopcart.products.length === 0) {
             const { min_free_shipping, cost_based_shipping } = await StoreConfigService.getConfig()
             const newShopcart: Shopcart = {
                 products: [],
-                expired_at: Date.now() + (1000 * 60 * 30), //3 hours
+                expired_at: createUTCDate({ minutes : 60 }).toISOString(),
                 shipping: {
                     cost_based_shipping,
                     min_free_shipping

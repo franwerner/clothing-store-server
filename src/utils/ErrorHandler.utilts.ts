@@ -24,12 +24,10 @@ class ErrorHandler extends Error {
     static isInstanceOf(instance: any): instance is ErrorHandler {
         return instance instanceof ErrorHandler
     }
-
     log() {
         console.log(this.stack)
     }
     response<T extends any>(res: Response<ResponseToClientError<T>>) {
-        this.log()
         res.status(this.status)
             .json({
                 message: this.message || undefined,

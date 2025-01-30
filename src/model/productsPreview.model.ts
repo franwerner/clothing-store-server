@@ -1,19 +1,16 @@
-import { OrderProducts } from "clothing-store-shared/types";
+import ProductColorImagesService from "@/service/productColorImages.service.js";
+import { SortProducts } from "clothing-store-shared/types";
 import sql from "../config/knex.config.js";
-import { ProductPreviewFilters, ProductPreviewOrder, ProductPreviewPagination } from "../service/productsPreview.service.js";
+import { PaginationProperties, FilterProperties, SortProperties } from "../service/productsPreview.service.js";
 import ModelUtils from "../utils/model.utils.js";
 
-const getOrderField = (orderKey: OrderProducts) => {
-    if (orderKey === "name") {
-        return "p.product"
-    } else if (orderKey === "price") {
-        return "p.price"
-    } else if (orderKey === "offers") {
-        return "p.discount"
-    } else if (orderKey === "newest") {
-        return "p.create_at"
-    }
+const sortDatabase: Record<SortProducts, string> = {
+    name: "p.product",
+    price: "p.price",
+    offers: "p.discount",
+    newest: "p.create_at"
 }
+
 
 class ProductPreviewModel extends ModelUtils {
     static async select({
@@ -21,21 +18,17 @@ class ProductPreviewModel extends ModelUtils {
         order,
         pagination
     }: {
-        filters: ProductPreviewFilters
-        order: ProductPreviewOrder
-        pagination: ProductPreviewPagination
+        filters: FilterProperties
+        order: SortProperties
+        pagination: PaginationProperties
     }) {
         try {
             const { color, price, search, size, brand, category } = filters
             const { offset } = pagination
-            const orderField = getOrderField(order.sortField)
-            const defaultOrder = ["asc", "desc"].includes(order.sortDirection) ? order.sortDirection : "asc"
+            const { sortDirection, sortField } = order
+
+            const getSortDatabase = sortDatabase[sortField]
             const [min, max] = price || []
-            const subQueryForOneImagePerProductColor = sql('product_color_images as pci')
-                .select(
-                    'pci.*',
-                    sql.raw('ROW_NUMBER() OVER (PARTITION BY pci.product_color_fk) AS row_num')
-                );
             const query = sql('brands as pb')
                 .select(
                     'p.product',
@@ -43,19 +36,14 @@ class ProductPreviewModel extends ModelUtils {
                     'p.price',
                     'ct.category',
                     'pb.brand',
-                    'pci.url',
                     "c.color",
-                    "pc.product_color_id",
+                    "pc.product_color_id", //Funciona como indentificador unico.
                     "p.product_id"
                 )
                 .innerJoin('categories as ct', 'ct.brand_fk', 'pb.brand_id')
                 .innerJoin('products as p', 'p.category_fk', 'ct.category_id')
                 .innerJoin('product_colors as pc', 'pc.product_fk', 'p.product_id')
                 .innerJoin("colors as c", "c.color_id", "pc.color_fk")
-                .leftJoin(subQueryForOneImagePerProductColor.as("pci"), (pci) => {
-                    pci.on('pci.product_color_fk', '=', 'pc.product_color_id')
-                    pci.andOn('pci.row_num', '=', (1 as any))
-                })
                 .limit(15)
                 .where("p.status", true)
 
@@ -64,26 +52,35 @@ class ProductPreviewModel extends ModelUtils {
                     .select(1)
                     .whereRaw("pcs.product_color_fk = pc.product_color_id")
             )
-            offset && query.offset(Number(offset))
-            orderField && query.orderBy(orderField, defaultOrder)
+
+            offset && query.offset(offset)
+            getSortDatabase && query.orderBy(sortField, sortDirection)
             brand && query.where("pb.brand", brand)
             category && query.where("ct.category", category)
             search && query.whereILike("p.product", `%${search}%`)
             min && query.where("p.price", ">=", min)
             max && query.where("p.price", "<=", max)
             color && query.whereIn("c.color_id", color)
-            size && query.whereIn("pc.product_color_id",
-                sql("product_color_sizes")
-                    .select("product_color_fk")
+            size && query.whereIn("pc.product_color_id", (builder) => {
+                builder.select("product_color_fk")
+                    .from("product_color_sizes")
                     .whereIn("size_fk", size)
-            )
-            return await query
+            })
+
+            const res = await query
+            let fullProducts = []
+            for (const e of res) {
+                const { product_color_id, ...rest } = e
+                const url = await ProductColorImagesService.selectOneImageByProductColor(product_color_id)
+                fullProducts.push({ ...rest, url })
+            }
+
+            return fullProducts
         } catch (error) {
             throw this.generateError(error)
         }
     }
-
-    private static selectDetailBase(filters: Omit<ProductPreviewFilters, "size" | "color">) {
+    private static selectDetailBase(filters: Omit<FilterProperties, "size" | "color">) {
         /**
          * Se debe incluir esta base tanto para la seleccion de colores y tamaños,
          * debido a que se necesitar hacer los mismos filtros de los productos, para obtener los colores y tamaños relacionados correctamente.
@@ -106,8 +103,7 @@ class ProductPreviewModel extends ModelUtils {
         return query
 
     }
-
-    static async selectProductColors({ size, ...filters }: Omit<ProductPreviewFilters, "color">) {
+    static async selectProductColors({ size, ...filters }: Omit<FilterProperties, "color">) {
         try {
             const query = this.selectDetailBase(filters)
                 .innerJoin("colors as c", "c.color_id", "pc.color_fk")
@@ -130,7 +126,7 @@ class ProductPreviewModel extends ModelUtils {
         }
     }
 
-    static async selectProductSizes({ color, ...filters }: Omit<ProductPreviewFilters, "size">) {
+    static async selectProductSizes({ color, ...filters }: Omit<FilterProperties, "size">) {
         try {
             const query = this.selectDetailBase(filters)
                 .select("s.size_id", "s.size")

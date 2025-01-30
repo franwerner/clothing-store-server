@@ -1,5 +1,4 @@
 import { NextFunction, Request } from "express";
-import { BrandSchema } from "clothing-store-shared/schema";
 import BrandsService from "../service/brands.service.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
 

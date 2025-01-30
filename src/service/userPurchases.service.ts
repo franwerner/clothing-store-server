@@ -4,6 +4,7 @@ import UserPurchasesModel from "../model/userPurchases.model"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import { Knex } from "knex"
 import adapteDateToDB from "../utils/adapteDateToDB.utilts"
+import shortUUID from "short-uuid"
 
 type CreateUserPurchase = Omit<UserPurchaseSchema.Insert, "note" | "uuid"> & { expire_at: Date }
 class UserPurchasesService {
@@ -19,7 +20,7 @@ class UserPurchasesService {
     }
 
     static async create({ expire_at, ...props }: CreateUserPurchase, trx: Knex.Transaction) {
-        const uuid = crypto.randomUUID()
+        const uuid = shortUUID().generate()
         const orderData = zodParse(userPurchaseSchema.insert)({
             ...props,
             expire_at: adapteDateToDB(expire_at),

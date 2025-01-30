@@ -50,12 +50,12 @@ class UserSessionController {
     ) {
         try {
             const { user_id } = getSessionData("user_info", req.session)
-            const edit_authorization = req.session.edit_authorization
+            const edit_expiration = req.session.edit_expiration
             const user_info = await UserInfoService.getUserInfo(user_id)
             req.session.user_info = user_info
             res.json({
                 data: {
-                    edit_authorization,
+                    edit_expiration,
                     user_info
                 }
             })
