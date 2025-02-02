@@ -1,6 +1,7 @@
 import { NextFunction, Request } from "express"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import StoreConfigService from "../service/storeConfig.service"
+import store from "@/config/store.config"
 
 class StoreConfigController {
 
@@ -10,7 +11,7 @@ class StoreConfigController {
         next: NextFunction
     ) {
         try {
-            const data = await StoreConfigService.getConfig()
+            const data = store.ensure("config")
             res.json({
                 data,
             })
@@ -29,7 +30,8 @@ class StoreConfigController {
         next: NextFunction
     ) {
         try {
-            const data = StoreConfigService.createConfig(req.body)
+            const data = await StoreConfigService.createConfig(req.body)
+            store.set("config", data)
             res.json({
                 data,
                 message: "Configuracion creada exitosamente"
@@ -49,7 +51,8 @@ class StoreConfigController {
         next: NextFunction
     ) {
         try {
-            const data = StoreConfigService.updateConfig(req.body)
+            const data = await StoreConfigService.updateConfig(req.body)
+            store.set("config", { ...store.ensure("config"), ...data })
             res.json({
                 data,
                 message: "Cambios aplicados exitosamente"

@@ -10,9 +10,9 @@ const isMaintenance = (
 ) => {
     try {
         const config = store.get("config")
-        const is_maintenance = false
+        const is_maintenance = config?.is_maintenance
         const permission = req.session.user_info?.permission
-        if (permission === "admin" && is_maintenance || (!is_maintenance && config)) return next()
+        if (permission === "admin" || (!is_maintenance && config)) return next()
         throw new ErrorHandler({
             message: "La aplicación está en mantenimiento. Intenta más tarde, por favor.",
             code: "app_maintenance",

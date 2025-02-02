@@ -4,35 +4,36 @@ import isUser from "./isUser.middleware"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import errorGlobal from "./errorGlobal.middleware"
 
-/**
- * Este middleware es para aquellos usuarios que cumples con todos los requisitos para la interaccion con el sistema.
- */
+
 const isCompleteUser = async (
     req: Request,
     res: APP.ResponseTemplate,
     next: NextFunction
 ) => {
 
-    const user = req.session.user_info
-
-    if (!user) return isUser(req, res, next)
-    else if (user.email_confirmed) return next()
-
     try {
-        const [u] = await UsersModel.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"))
-        const { email_confirmed } = u
+        const user = req.session.user_info
+        if (!user) return isUser(req, res, next)
+        else if (user.email_confirmed) return next()
+
+        const [{ email_confirmed }] = await UsersModel.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"))
+
         if (email_confirmed) {
             user.email_confirmed = true
             next()
         } else {
-            new ErrorHandler({
+            throw new ErrorHandler({
                 status: 403,
                 message: "Por favor, confirma tu dirección de correo electrónico para continuar con esta operación.",
                 code: "session_not_complete"
-            }).response(res)
+            })
         }
     } catch (error) {
-        errorGlobal(req, res)
+        if (ErrorHandler.isInstanceOf(error)) {
+            error.response(res)
+        } else {
+            errorGlobal(req, res)
+        }
     }
 }
 

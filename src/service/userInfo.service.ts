@@ -21,15 +21,6 @@ class UserInfoService {
         await UsersModel.update(selectedInfo)
     }
 
-    static async syncGuestPurchases(user_id: DatabaseKeySchema) {
-        //Falta agregar la logica de sincronizacion de compras de invitado
-        const res = await UsersModel.update({ user_id, guest_purchases_synced: true })
-        if (res === 0) throw new ErrorHandler({
-            message: "No se logro sincronizar las compras de invitado.",
-            code: "sync_guest_purchases_failed"
-        })
-    }
-
     static createEditExpiration() {
         return createUTCDate({minutes : 15}).toISOString()
     }

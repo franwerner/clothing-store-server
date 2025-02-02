@@ -1,5 +1,5 @@
-import ProductColorImagesService from "@/service/productColorImages.service";
-import { ShopcartProductSchema } from "clothing-store-shared/schema";
+
+import { DatabaseKeySchema, ShopcartProductSchema } from "clothing-store-shared/schema";
 import sql from "../config/knex.config";
 import ModelUtils from "../utils/model.utils";
 
@@ -10,6 +10,8 @@ interface ProductDetails {
     color: string
     size: string
     url: string
+    product_color_id: DatabaseKeySchema
+    id: DatabaseKeySchema
 }
 
 class ShopcartModel extends ModelUtils {
@@ -24,6 +26,7 @@ class ShopcartModel extends ModelUtils {
                     'c.color',
                     's.size',
                     'pc.product_color_id',
+                    "pcs.product_color_size_id as id"
                 )
                 .innerJoin('product_colors as pc', 'pc.product_fk', 'p.product_id')
                 .innerJoin('product_color_sizes as pcs', 'pcs.product_color_fk', 'pc.product_color_id')
@@ -37,13 +40,8 @@ class ShopcartModel extends ModelUtils {
                     'pcs.stock': true
                 })
 
-            let fullProducts = []
-            for (const e of query) {
-                const { product_color_id, ...rest } = e
-                const url = await ProductColorImagesService.selectOneImageByProductColor(product_color_id)
-                fullProducts.push({ ...rest, url })
-            }
-            return fullProducts
+
+            return query
         } catch (error) {
             throw this.generateError(error)
         }

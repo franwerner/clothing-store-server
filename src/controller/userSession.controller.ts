@@ -1,8 +1,8 @@
 import { NextFunction, Request } from "express";
-import UserAuthService from "../service/userAuth.service.js";
-import ErrorHandler from "../utils/errorHandler.utilts.js";
 import getSessionData from "../helper/getSessionData.helper.js";
+import UserAuthService from "../service/userAuth.service.js";
 import UserInfoService from "../service/userInfo.service.js";
+import ErrorHandler from "../utils/errorHandler.utilts.js";
 
 class UserSessionController {
     static async login(
@@ -13,7 +13,8 @@ class UserSessionController {
         try {
             const { email, password } = req.body
             const user = await UserAuthService.authenticar({ email, password })
-            req.session.user_info = user
+            const session = req.session
+            session.user_info = user
             res.json({
                 data: user,
                 message: "¡Inicio de sesión exitoso! Bienvenido de nuevo."

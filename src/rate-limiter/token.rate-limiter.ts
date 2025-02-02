@@ -1,5 +1,5 @@
+import rateLimitHandler from "@/helper/rateLimiterHandler.helper"
 import { rateLimit } from "express-rate-limit"
-import rateLimitHandler from "../utils/rateLimitHandler.utilts"
 
 const tokenRateLimiter = rateLimit({
     windowMs: 1000 * 60,

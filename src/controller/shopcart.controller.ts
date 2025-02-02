@@ -31,14 +31,11 @@ class ShopcartController {
     ) {
         try {
             const shopcart = getSessionData("shopcart", req.session)
-            const {
-                recentProductsChanges,
-                products
-            } = await ShopcartService.addProducts(shopcart.products, req.body.products)
+            const products = await ShopcartService.addProducts(shopcart.products, req.body.products)
             shopcart.products = products
             res.json({
                 message: "Productos agregados al carrito correctamente.",
-                data: recentProductsChanges
+                data: products
             })
         } catch (error) {
             if (ErrorHandler.isInstanceOf(error)) {

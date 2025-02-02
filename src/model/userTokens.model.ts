@@ -78,7 +78,7 @@ class UserTokensModel extends ModelUtils {
     static async deleteAllExpiredTokens() {
         try {
             return await sql("user_tokens")
-                .whereRaw("expired_at < NOW()")
+                .whereRaw("expired_at < current_timestamp")
                 .orWhere("used", true)
                 .delete()
         } catch (error) {

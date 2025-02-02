@@ -13,12 +13,8 @@ export default {
     {
       dir: resolve(__dirname, 'dist'), 
       format: 'esm',
-      preserveModulesRoot: 'src', 
     }
   ],
-  build : {
-
-  },
   watch: {
     include: 'src/**',
     exclude: 'node_modules/**',

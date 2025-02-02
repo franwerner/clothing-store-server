@@ -1,10 +1,12 @@
-import { DatabaseKeySchema, UserPurchaseSchema, userPurchaseSchema } from "clothing-store-shared/schema"
+import { DatabaseKeySchema, UserPurchaseSchema, userPurchaseSchema, UserSchema } from "clothing-store-shared/schema"
 import zodParse from "../helper/zodParse.helper"
 import UserPurchasesModel from "../model/userPurchases.model"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import { Knex } from "knex"
 import adapteDateToDB from "../utils/adapteDateToDB.utilts"
 import shortUUID from "short-uuid"
+import UsersModel from "@/model/users.model"
+import sql from "@/config/knex.config"
 
 type CreateUserPurchase = Omit<UserPurchaseSchema.Insert, "note" | "uuid"> & { expire_at: Date }
 class UserPurchasesService {
@@ -16,6 +18,14 @@ class UserPurchasesService {
         const parse = zodParse(userPurchaseSchema.update)(props)
         await UserPurchasesModel.update(parse, (builder) => {
             trx && builder.transacting(trx)
+        })
+    }
+
+    static async syncGuestPurchases({ email, user_id, guest_purchases_synced, email_confirmed }: UserSchema.FormatUser) {
+        if (guest_purchases_synced || !email_confirmed) return
+        await sql.transaction(async (tsx) => {
+            await UserPurchasesModel.updateGuestPurchases({ email, user_fk: user_id }, (b) => b.transacting(tsx))
+            await UsersModel.update({ user_id, guest_purchases_synced: true }, (b) => b.transacting(tsx).where({ guest_purchases_synced: false }))
         })
     }
 

@@ -2,6 +2,7 @@ import { SortProducts } from "clothing-store-shared/types"
 import ProductPreviewModel from "../model/productsPreview.model.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import { toNumber } from "my-utilities"
+import ProductColorImagesService from "./productColorImages.service.js"
 
 interface FilterProperties {
     color?: string[],
@@ -31,12 +32,12 @@ class ProductsPreviewService {
             if (current) {
                 if (k === "price") {
                     const [min, max] = current.split("-")
-                    if (min !== "0" || max !== "0") {
-                        if (Number(min) > Number(max)) {
-                            res[k] = [min]
-                        } else {
-                            res[k] = [min, max]
-                        }
+                    const _min = toNumber(min).toString()
+                    const _max = toNumber(max).toString()
+                    if (_min > _max) {
+                        res[k] = [_min]
+                    } else if (_max !== "0") {
+                        res[k] = [_min, _max]
                     }
                 } else if (k == "color" || k == "size") {
                     const split = current.split("-").filter(Boolean)
@@ -55,7 +56,6 @@ class ProductsPreviewService {
             sortField
         }
     }
-
     private static generatePagiantion({ offset }: PaginationProperties) {
         return {
             offset: toNumber(offset)
@@ -83,7 +83,14 @@ class ProductsPreviewService {
                 code: "product_not_found"
             })
         }
-        return res
+
+        const fullProduct = []
+        for (const e of res) {
+            const url = await ProductColorImagesService.selectOneImageByProductColor(e.product_color_id)
+            fullProduct.push({ ...e, url })
+        }
+
+        return fullProduct
     }
 
     static async getProductColors(filter: Omit<InputFilterProperties, "color">) {

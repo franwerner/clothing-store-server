@@ -1,5 +1,6 @@
 import { z, ZodError } from "zod";
 import ErrorHandler from "./errorHandler.utilts.js";
+
 function transformErrorToClient(zod_error: ZodError) {
     const formErrors = zod_error.formErrors
     if(formErrors.formErrors.length === 0) return formErrors.fieldErrors

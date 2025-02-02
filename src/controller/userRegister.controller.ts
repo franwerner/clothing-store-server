@@ -1,11 +1,11 @@
-import { NextFunction, Request } from "express"
-import getSessionData from "../helper/getSessionData.helper.js"
 import { DatabaseKeySchema } from "clothing-store-shared/schema"
+import { NextFunction, Request } from "express"
+import tokenSettings from "../constant/tokenSettings.constant.js"
+import getSessionData from "../helper/getSessionData.helper.js"
 import emailService from "../service/email/index.js"
 import UserRegisterService from "../service/userRegister.service.js"
 import UserTokenService from "../service/userToken.service.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
-import tokenSettings from "../constant/tokenSettings.constant.js"
 
 const handlerRegisterToken = async ({ ip, email, user_fk }: { ip: any, email: string, user_fk: DatabaseKeySchema }) => {
     const token = await UserTokenService.createToken({

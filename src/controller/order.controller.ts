@@ -55,7 +55,7 @@ class OrderController {
             const expired_date = new Date(expired_at)
             const { date_of_expiration, init_point } = await OrdersService.createOrder({
                 order: {
-                    user_fk: undefined,
+                    user_fk: null,
                     expire_at: expired_date,
                     is_guest: true
                 },

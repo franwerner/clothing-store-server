@@ -63,7 +63,8 @@ class OrdersService extends ServiceUtils {
             await UserPurchaseShippingsService.create({
                 free_shipping,
                 cost: cost_based_shipping,
-                user_purchase_fk: user_purchase_id
+                user_purchase_fk: user_purchase_id,
+                tracking_id : null
             }, trx)
             if (order_guest) {
                 await UserPurchaseGuestsService.create({ ...order_guest, user_purchase_fk: user_purchase_id }, trx)

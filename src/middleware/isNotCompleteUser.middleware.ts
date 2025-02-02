@@ -11,23 +11,24 @@ const errorHandler = new ErrorHandler({
 })
 
 const isNotCompleteUser = async (req: Request, res: Response, next: NextFunction) => {
-    const user = req.session.user_info
-
-    if (!user) return isUser(req, res, next)
-    else if (user.email_confirmed) return errorHandler.response(res)
 
     try {
-        const [u] = await UsersModel.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"))
-        const { email_confirmed } = u
-
+        const user = req.session.user_info
+        if (!user) return isUser(req, res, next)
+        else if (user.email_confirmed) throw errorHandler
+        const [{ email_confirmed }] = await UsersModel.select({ user_id: user.user_id }, (builder) => builder.select("email_confirmed"))
         if (!email_confirmed) {
             next()
         } else {
             user.email_confirmed = true
-            errorHandler.response(res)
+            throw errorHandler
         }
     } catch (error) {
-        errorGlobal(req, res)
+        if (ErrorHandler.isInstanceOf(error)) {
+            error.response(res)
+        } else {
+            errorGlobal(req, res)
+        }
     }
 
 }

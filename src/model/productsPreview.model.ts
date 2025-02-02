@@ -1,4 +1,3 @@
-import ProductColorImagesService from "@/service/productColorImages.service.js";
 import { SortProducts } from "clothing-store-shared/types";
 import sql from "../config/knex.config.js";
 import { PaginationProperties, FilterProperties, SortProperties } from "../service/productsPreview.service.js";
@@ -10,7 +9,6 @@ const sortDatabase: Record<SortProducts, string> = {
     offers: "p.discount",
     newest: "p.create_at"
 }
-
 
 class ProductPreviewModel extends ModelUtils {
     static async select({
@@ -54,7 +52,7 @@ class ProductPreviewModel extends ModelUtils {
             )
 
             offset && query.offset(offset)
-            getSortDatabase && query.orderBy(sortField, sortDirection)
+            getSortDatabase && query.orderBy(getSortDatabase, sortDirection)
             brand && query.where("pb.brand", brand)
             category && query.where("ct.category", category)
             search && query.whereILike("p.product", `%${search}%`)
@@ -67,15 +65,7 @@ class ProductPreviewModel extends ModelUtils {
                     .whereIn("size_fk", size)
             })
 
-            const res = await query
-            let fullProducts = []
-            for (const e of res) {
-                const { product_color_id, ...rest } = e
-                const url = await ProductColorImagesService.selectOneImageByProductColor(product_color_id)
-                fullProducts.push({ ...rest, url })
-            }
-
-            return fullProducts
+            return await query
         } catch (error) {
             throw this.generateError(error)
         }

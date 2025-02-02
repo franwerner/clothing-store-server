@@ -4,8 +4,9 @@ import ShopcartModel from "../model/shopcart.model";
 import { createUTCDate, isNumber, parseDate } from "my-utilities";
 import zodParse from "../helper/zodParse.helper";
 import { shopcartProductSchema, ShopcartProductSchema } from "clothing-store-shared/schema";
-import StoreConfigService from "./storeConfig.service";
-import shortUUID from "short-uuid";
+import ProductColorImagesService from "./productColorImages.service";
+import store from "@/config/store.config";
+
 class ShopcartService {
 
     static calculateTotal(products: ShopcartProductSchema.BaseInShopcart[]) {
@@ -26,10 +27,13 @@ class ShopcartService {
                 data: product
             })
         }
+        const { product_color_id, ...restDetails } = details
+        const url = await ProductColorImagesService.selectOneImageByProductColor(product_color_id) || ""
+
         return zodParse(shopcartProductSchema.baseInShopcartProduct)({
             ...product,
-            ...details,
-            id: shortUUID().generate()
+            ...restDetails,
+            url
         })
     }
 
@@ -37,32 +41,25 @@ class ShopcartService {
         const cloneProducts = structuredClone(products)
         const parseNewProducts = zodParse(shopcartProductSchema.baseOutShopcartProduct.array())(newProducts)
 
-        const recentProductsChanges = []
-
         for (const product of parseNewProducts) {
             const { color_fk, product_fk, quantity, size_fk, } = product
             const repeated = cloneProducts.find(i => i.color_fk == color_fk && i.product_fk == product_fk && i.size_fk == size_fk)
             if (repeated) {
                 repeated.quantity += quantity
-                recentProductsChanges.push(repeated)
             } else {
                 const details = await this.getDetailProduct(product)
                 cloneProducts.push(details)
-                recentProductsChanges.push(details)
             }
         }
-        return {
-            products: cloneProducts,
-            recentProductsChanges
-        }
+        return cloneProducts
     }
 
     static async createShopcart(shopcart?: Shopcart) {
         if (!shopcart || parseDate(shopcart.expired_at) < new Date() || shopcart.products.length === 0) {
-            const { min_free_shipping, cost_based_shipping } = await StoreConfigService.getConfig()
+            const { min_free_shipping = 0, cost_based_shipping = 0 } = store.ensure("config")
             const newShopcart: Shopcart = {
                 products: [],
-                expired_at: createUTCDate({ minutes : 60 }).toISOString(),
+                expired_at: createUTCDate({ hours : 1 }).toISOString(),
                 shipping: {
                     cost_based_shipping,
                     min_free_shipping

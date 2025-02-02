@@ -12,7 +12,6 @@ class ErrorHandler extends Error {
     status: number
     data: any
     code?: string
-
     constructor({ message, status, data, code }: ErrorHandlerProps) {
         super()
         this.message = message || ""

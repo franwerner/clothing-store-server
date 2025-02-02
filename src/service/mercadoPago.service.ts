@@ -77,7 +77,7 @@ class MercadoPagoService {
         return products.reduce((acc, current) => {
             const { id, url, size, color, quantity, price, discount, product } = current
             const items: Items = {
-                id,
+                id: id.toString(),
                 quantity,
                 title: product,
                 unit_price: price * (1 - (discount / 100)),
