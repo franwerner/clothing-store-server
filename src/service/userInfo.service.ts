@@ -5,12 +5,10 @@ import ErrorHandler from "../utils/errorHandler.utilts"
 import UserRegisterService from "./userRegister.service"
 import { createUTCDate } from "my-utilities"
 
-const onlyInfo = userSchema.update.omit({ email_confirmed: true, email: true, guest_purchases_synced: true })
-
 class UserInfoService {
 
     static async updateInfo(update: UserSchema.Update) {
-        const { password, phone, name, lastname, user_id } = zodParse(onlyInfo)(update)
+        const { password, phone, name, lastname, user_id } = zodParse(userSchema.update)(update)
         const selectedInfo = {
             password: password && await UserRegisterService.createPassword(password),
             phone,

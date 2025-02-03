@@ -33,7 +33,7 @@ class UserTokensModel extends ModelUtils {
         })
     }
 
-    static async insertWithTokenLimit(
+    static async insert(
         props: UserTokenSchema.Insert,
         tokenLimit: number
     ) {

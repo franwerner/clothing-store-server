@@ -17,8 +17,7 @@ export default {
   ],
   watch: {
     include: 'src/**',
-    exclude: 'node_modules/**',
-    clearScreen: false,
+    exclude: 'node_modules/**'
   },
   plugins: [
     typescript({ tsconfig: './tsconfig.json', useTsconfigDeclarationDir: true }),

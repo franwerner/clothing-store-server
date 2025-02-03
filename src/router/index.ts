@@ -19,6 +19,7 @@ import UserSession from "./userSession.router"
 import userAddresessRouter from "./userAddresess.router"
 import storeConfig from "./storeConfig.router"
 import shopcartRouter from "./shopcart"
+import userQuestionsRouter from "./userQuestions.router"
 
 const createRouters = (app: Application) => {
     app.use("/categories", categoriesRouter)
@@ -35,6 +36,7 @@ const createRouters = (app: Application) => {
     app.use("/users/register", userRegisterRouter)
     app.use("/users/info", userInfoRouter)
     app.use("/users/addresess", isCompleteUser, userAddresessRouter)
+    app.use("/users/questions",userQuestionsRouter)
     app.use("/mercadopago", isCompleteUser, mercadoPagoRouter)
     app.use("/orders", orderRouter)
     app.use("/shopcart", shopcartRouter)

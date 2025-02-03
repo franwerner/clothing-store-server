@@ -5,13 +5,13 @@ import { QuickStore } from "my-utilities";
 
 const errorHandler = new ErrorHandler({
     status: 404,
-    message: "Problemas internos para encontrar la configuracion de la tienda.",
-    code: "store_not_found"
+    message: "Problemas internos para encontrar la configuracion del servidor",
+    code: "config_not_found"
 })
 
 const store = QuickStore.create<
     {
-        config: StoreConfigSchema.Insert
+        config: StoreConfigSchema.Base
     },
     ErrorHandler
 >({

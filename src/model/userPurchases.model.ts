@@ -1,6 +1,8 @@
 import { databaseKeySchema, DatabaseKeySchema, UserPurchaseSchema } from "clothing-store-shared/schema"
 import sql from "../config/knex.config"
 import ModelUtils from "../utils/model.utils"
+import knex, { Knex } from "knex"
+import { ResultSetHeader } from "mysql2"
 
 type UserPurchasePartial = Partial<UserPurchaseSchema.Base>
 class UserPurchasesModel extends ModelUtils {
@@ -19,14 +21,21 @@ class UserPurchasesModel extends ModelUtils {
         }
     }
 
-    static async selectPurchasesCount(
-        props:UserPurchasePartial & {user_fk : DatabaseKeySchema},
+    static async selectCountByIpToday(
+        ip: string,
         modify?: APP.ModifySQL
-    ){
-        return await this.select(props,(b) => {
-            b.count("*")
-            modify && b.modify(modify)
-        })
+    ) {
+        try {
+            const query = sql("user_purchases")
+                .count("* as count")
+                .where({ ip })
+                .whereRaw("DATE(create_at) = DATE(now())")
+            modify && query.modify(modify)
+            const [{ count }] = await query
+            return count
+        } catch (error) {
+            throw this.generateError(error)
+        }
     }
 
     static async updateGuestPurchases(
@@ -50,13 +59,30 @@ class UserPurchasesModel extends ModelUtils {
     }
 
     static async insert(
-        user_purchase: UserPurchaseSchema.Insert,
-        modify?: APP.ModifySQL
+        user_purchase: UserPurchaseSchema.Insert & { limit_by_ip: number },
+        trx: Knex = sql
     ) {
         try {
-            const query = sql("user_purchases")
-                .insert(user_purchase)
-            modify && query.modify(modify)
+            const { expire_at, ip, is_guest, note, user_fk, uuid, limit_by_ip = 0 } = user_purchase
+            const query = trx.raw<Array<ResultSetHeader>>(`
+                INSERT INTO user_purchases (uuid,note,expire_at,is_guest,user_fk,ip)
+                SELECT ?,?,?,?,?,?
+                WHERE (
+                SELECT COUNT(*) FROM user_purchases 
+                WHERE ip = ?
+                AND DATE(create_at) = DATE(NOW())
+                ) < ?
+                `, [
+                uuid,
+                note,
+                expire_at,
+                is_guest,
+                user_fk,
+                ip,
+                ip,
+                limit_by_ip
+            ])
+
             return await query
         } catch (error) {
             throw this.generateError(error)
@@ -79,5 +105,7 @@ class UserPurchasesModel extends ModelUtils {
     }
 
 }
+
+
 
 export default UserPurchasesModel

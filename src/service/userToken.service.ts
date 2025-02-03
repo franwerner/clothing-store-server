@@ -3,41 +3,23 @@ import crypto from "crypto";
 import zodParse from "../helper/zodParse.helper.js";
 import UserTokensModel from "../model/userTokens.model.js";
 import ErrorHandler from "../utils/errorHandler.utilts.js";
-
-interface TokenDate {
-    timeUnit: "minute" | "hour" | "day",
-    timeValue: number,
-}
-interface CreateToken extends TokenDate {
-    maxTokens: number
-}
+import { createUTCDate } from "my-utilities";
+import { TokenSettings } from "@/constant/tokenSettings.constant.js";
 
 interface Token { token: string, request: UserTokenSchema.RequestToken }
-
 class UserTokenService {
-
-    private static createTokenDate({ timeUnit, timeValue }: TokenDate) {
-        const date = new Date()
-        if (timeUnit == "day") {
-            date.setUTCDate(date.getUTCDate() + timeValue)
-        } else if (timeUnit == "hour") {
-            date.setUTCHours(date.getUTCHours() + timeValue)
-        } else {
-            date.setUTCMinutes(date.getUTCMinutes() + timeValue)
-        }
-        return date.toISOString().replace('T', ' ').substring(0, 19) //Quitamos para que se adapte el CURRENT_TIMESTAMP DE MYSQL
-    }
 
     static async createToken(props:
         Omit<UserTokenSchema.Insert, "expired_at" | "token">,
-        { maxTokens, ...tokenDate }: CreateToken
+        tokenSettings: TokenSettings
     ) {
+        const { timeUnit, timeValue, maxTokens } = tokenSettings
         const data = zodParse(userTokenSchema.insert)({
             ...props,
             token: crypto.randomUUID(),
-            expired_at: this.createTokenDate(tokenDate)
+            expired_at: createUTCDate({ [timeUnit]: timeValue })
         })
-        const [ResultSetHeader] = await UserTokensModel.insertWithTokenLimit(data, maxTokens)
+        const [ResultSetHeader] = await UserTokensModel.insert(data, maxTokens)
         if (ResultSetHeader.affectedRows == 0) {
             throw new ErrorHandler({
                 status: 429,
@@ -111,7 +93,5 @@ class UserTokenService {
     }
 
 }
-
-export { type CreateToken };
 
 export default UserTokenService

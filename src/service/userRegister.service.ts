@@ -30,7 +30,7 @@ class UserRegisterService {
     static async registerAccount(user: UserSchema.Insert) {
         const data = zodParse(userSchema.insert)(user)
         const hash = await this.createPassword(data.password)
-        const [rawHeaders] = await UsersModel.insertByLimitIP({
+        const [rawHeaders] = await UsersModel.insert({
             ...data,
             password: hash
         }, max_count_per_ip)

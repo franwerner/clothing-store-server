@@ -15,12 +15,13 @@ class OrderController {
             const shopcart = getSessionData("shopcart", req.session)
             const { order_address } = req.body
             const { products, expired_at, shipping } = shopcart
-            const expired_date = new Date(expired_at)
+            const expired_date = new Date(expired_at) //Llega como un string desde la session.
             const { date_of_expiration, init_point } = await OrdersService.createOrder({
                 order: {
                     user_fk: user.user_id,
                     expire_at: expired_date,
-                    is_guest: false
+                    is_guest: false,
+                    ip: req.ip || ""
                 },
                 order_products: products,
                 order_shipping: shipping,
@@ -57,7 +58,8 @@ class OrderController {
                 order: {
                     user_fk: null,
                     expire_at: expired_date,
-                    is_guest: true
+                    is_guest: true,
+                    ip: req.ip || ""
                 },
                 order_products: products,
                 order_shipping: shipping,

@@ -51,7 +51,9 @@ class StoreConfigController {
         next: NextFunction
     ) {
         try {
-            const data = await StoreConfigService.updateConfig(req.body)
+            const config = store.ensure("config")
+
+            const data = await StoreConfigService.updateConfig({ ...req.body, store_config_id: config.store_config_id })
             store.set("config", { ...store.ensure("config"), ...data })
             res.json({
                 data,

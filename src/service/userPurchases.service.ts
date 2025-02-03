@@ -3,12 +3,11 @@ import zodParse from "../helper/zodParse.helper"
 import UserPurchasesModel from "../model/userPurchases.model"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import { Knex } from "knex"
-import adapteDateToDB from "../utils/adapteDateToDB.utilts"
 import shortUUID from "short-uuid"
 import UsersModel from "@/model/users.model"
 import sql from "@/config/knex.config"
 
-type CreateUserPurchase = Omit<UserPurchaseSchema.Insert, "note" | "uuid"> & { expire_at: Date }
+type CreateUserPurchase = Omit<UserPurchaseSchema.Insert, "note" | "uuid">
 class UserPurchasesService {
 
     static async update(
@@ -20,6 +19,7 @@ class UserPurchasesService {
             trx && builder.transacting(trx)
         })
     }
+
 
     static async syncGuestPurchases({ email, user_id, guest_purchases_synced, email_confirmed }: UserSchema.FormatUser) {
         if (guest_purchases_synced || !email_confirmed) return
@@ -33,13 +33,17 @@ class UserPurchasesService {
         const uuid = shortUUID().generate()
         const orderData = zodParse(userPurchaseSchema.insert)({
             ...props,
-            expire_at: adapteDateToDB(expire_at),
+            expire_at,
             uuid
         })
-        const [user_purchase_id] = await UserPurchasesModel.insert(orderData, (builder) => builder.transacting(trx))
-
+        const [{ affectedRows, insertId }] = await UserPurchasesModel.insert({ ...orderData, limit_by_ip: 99999, expire_at }, trx)
+        if (!affectedRows) throw new ErrorHandler({
+            message: "Alcanzaste un máximo de 10 compras por día",
+            code: "limit_purchases",
+            status: 429
+        })
         return {
-            user_purchase_id,
+            user_purchase_id: insertId,
             uuid
         }
     }
@@ -59,5 +63,4 @@ class UserPurchasesService {
 export {
     type CreateUserPurchase
 }
-
 export default UserPurchasesService

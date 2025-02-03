@@ -6,8 +6,11 @@ class StoreConfigService {
 
     static async createConfig(props: StoreConfigSchema.Insert) {
         const parse = zodParse(storeConfigSchema.insert)(props)
-        await StoreConfigModel.insert(parse)
-        return parse
+        const [store_config_id] = await StoreConfigModel.insert(parse)
+        return {
+            ...parse,
+            store_config_id
+        }
     }
     static async updateConfig(props: StoreConfigSchema.Update) {
         const parse = zodParse(storeConfigSchema.update)(props)

@@ -59,7 +59,7 @@ class ShopcartService {
             const { min_free_shipping = 0, cost_based_shipping = 0 } = store.ensure("config")
             const newShopcart: Shopcart = {
                 products: [],
-                expired_at: createUTCDate({ hours : 1 }).toISOString(),
+                expired_at: createUTCDate({ hours : 1 }),
                 shipping: {
                     cost_based_shipping,
                     min_free_shipping

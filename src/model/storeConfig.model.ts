@@ -18,9 +18,10 @@ class StoreConfigModel extends ModelUtils {
             throw this.generateError(error)
         }
     }
-    static async update(props: StoreConfigSchema.Update) {
+    static async update({ store_config_id, ...props }: StoreConfigSchema.Update) {
         try {
             return await sql("store_config")
+                .where({ store_config_id })
                 .update(props)
         } catch (error) {
             throw this.generateError(error)
