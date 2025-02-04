@@ -1,14 +1,14 @@
 import { CategorySchema, categorySchema } from "clothing-store-shared/schema";
-import zodParse from "../helper/zodParse.helper.js";
-import CategoriesModel from "../model/categories.model.js";
-import ErrorHandler from "../utils/errorHandler.utilts.js";
-import ServiceUtils from "../utils/service.utils.js";
+import zodParse from "@/helper/zodParse.helper.js";
+import CategoriesModel from "@/model/categories.model.js";
+import ErrorHandler from "@/utils/errorHandler.utilts.js";
+import ServiceUtils from "@/utils/service.utils.js";
 
 
 class CategoriesService extends ServiceUtils {
 
     static async getByBrand(brand: string) {
-        const categories = await CategoriesModel.selectWithBrand({ brand }, (builder) => builder.select("c.category_id", "c.category"))
+        const categories = await CategoriesModel.select({ brand_fk : brand }, (builder) => builder.select("c.category_id", "c.category"))
         if (categories.length === 0) throw new ErrorHandler({
             message: "No se encontraron categorias.",
             status: 404,

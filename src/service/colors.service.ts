@@ -1,8 +1,8 @@
-import zodParse from "../helper/zodParse.helper.js"
-import ColorsModel from "../model/colors.model.js"
+import zodParse from "@/helper/zodParse.helper.js"
 import { ColorSchema,colorSchema } from "clothing-store-shared/schema"
-import ErrorHandler from "../utils/errorHandler.utilts.js"
-import ServiceUtils from "../utils/service.utils.js"
+import ErrorHandler from "@/utils/errorHandler.utilts.js"
+import ServiceUtils from "@/utils/service.utils.js"
+import ColorsModel from "@/model/colors.model"
 
 class ColorsService extends ServiceUtils {
     static async get() {

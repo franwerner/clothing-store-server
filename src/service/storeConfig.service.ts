@@ -1,7 +1,7 @@
 import { storeConfigSchema, StoreConfigSchema } from "clothing-store-shared/schema";
-import StoreConfigModel from "../model/storeConfig.model";
 import zodParse from "../helper/zodParse.helper";
-import ErrorHandler from "../utils/errorHandler.utilts";
+import ErrorHandler from "@/utils/errorHandler.utilts";
+import StoreConfigModel from "@/model/storeConfig.model";
 class StoreConfigService {
 
     static async createConfig(props: StoreConfigSchema.Insert) {

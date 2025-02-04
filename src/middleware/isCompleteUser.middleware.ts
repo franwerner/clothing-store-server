@@ -1,8 +1,8 @@
 import { NextFunction, Request } from "express"
-import UsersModel from "../model/users.model"
 import isUser from "./isUser.middleware"
 import ErrorHandler from "../utils/errorHandler.utilts"
 import errorGlobal from "./errorGlobal.middleware"
+import UsersModel from "@/model/users/users.model"
 
 
 const isCompleteUser = async (

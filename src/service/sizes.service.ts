@@ -1,8 +1,8 @@
-import zodParse from "../helper/zodParse.helper.js";
-import SizesModel from "../model/sizes.model.js";
+import zodParse from "@/helper/zodParse.helper.js";
+import SizesModel from "@/model/sizes.model.js";
 import { SizeSchema, sizeSchema } from "clothing-store-shared/schema";
-import ErrorHandler from "../utils/errorHandler.utilts.js";
-import ServiceUtils from "../utils/service.utils.js";
+import ErrorHandler from "@/utils/errorHandler.utilts.js";
+import ServiceUtils from "@/utils/service.utils.js";
 
 class SizeService extends ServiceUtils {
     static async get() {

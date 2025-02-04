@@ -1,11 +1,11 @@
 import { Shopcart } from "clothing-store-shared/types";
 import ErrorHandler from "../utils/errorHandler.utilts";
-import ShopcartModel from "../model/shopcart.model";
+import ShopcartModel from "../model/views/shopcart.model";
 import { createUTCDate, isNumber, parseDate } from "my-utilities";
 import zodParse from "../helper/zodParse.helper";
 import { shopcartProductSchema, ShopcartProductSchema } from "clothing-store-shared/schema";
-import ProductColorImagesService from "./productColorImages.service";
 import store from "@/config/store.config";
+import ProductColorImagesService from "./products/productColorImages.service";
 
 class ShopcartService {
 

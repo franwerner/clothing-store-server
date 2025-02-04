@@ -12,7 +12,7 @@ import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js"
  */
 
 const zodParse = <T extends ZodSchema>(z: T) => {
-    return (data: unknown): ReturnType<T['parse']> => {
+    return (data: unknown ): ReturnType<T['parse']> => {
         try {
             return z.parse(data)
         } catch (error) {

@@ -1,5 +1,5 @@
-import transport from "../../config/nodemailer.config.js";
-import _env from "../../constant/_env.constant.js";
+import transport from "@/config/nodemailer.config.js";
+import _env from "@/constant/_env.constant.js";
 import { EmailService } from "./index.js";
 
 const sendPasswordReset = async ({ to, token }: EmailService) => {

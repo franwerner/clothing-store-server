@@ -1,6 +1,6 @@
 import { StoreConfigSchema } from "clothing-store-shared/schema";
-import ModelUtils from "../utils/model.utils";
-import sql from "../config/knex.config";
+import ModelUtils from "@/utils/model.utils";
+import sql from "@/config/knex.config";
 
 class StoreConfigModel extends ModelUtils {
     static async select() {

@@ -1,12 +1,14 @@
 import { CategorySchema } from "clothing-store-shared/schema"
-import sql from "../config/knex.config.js"
-import ModelUtils from "../utils/model.utils.js"
+import sql from "@/config/knex.config.js"
+import ModelUtils from "@/utils/model.utils.js"
 
 type CategoryPartial = Partial<CategorySchema.Base>
 
 class CategoriesModel extends ModelUtils {
 
-    static async select(props: CategoryPartial = {}, modify?: APP.ModifySQL) {
+    static async select(
+        props: CategoryPartial = {},
+        modify?: APP.ModifySQL) {
         try {
             const query = sql("categories as c")
                 .where(props)
@@ -15,14 +17,6 @@ class CategoriesModel extends ModelUtils {
         } catch (error) {
             throw this.generateError(error)
         }
-    }
-
-    static async selectWithBrand({ brand, ...props }: CategoryPartial & { brand?: string } = {}, modify?: APP.ModifySQL<any>) {
-        return this.select(props, (builder) => {
-            builder.innerJoin("brands as b", "c.brand_fk", "b.brand_id")
-                .where("b.brand", brand)
-            modify && modify(builder)
-        })
     }
 
     static async insert(props: CategorySchema.Insert) {

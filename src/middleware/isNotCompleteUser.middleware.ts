@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from "express"
-import UsersModel from "../model/users.model.js"
 import isUser from "./isUser.middleware.js"
 import ErrorHandler from "../utils/errorHandler.utilts.js"
 import errorGlobal from "./errorGlobal.middleware.js"
+import UsersModel from "@/model/users/users.model.js"
 
 const errorHandler = new ErrorHandler({
     message: "El email ya está confirmado, no puedes continuar con esta operacion.",

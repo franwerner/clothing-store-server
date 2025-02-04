@@ -1,25 +1,25 @@
 import { Application } from "express"
 import isAdmin from "../middleware/isAdmin.middleware"
 import isCompleteUser from "../middleware/isCompleteUser.middleware"
-import brandsRouter from "./brands.router"
-import categoriesRouter from "./categories.router"
-import colorsRouter from "./colors.router"
-import mercadoPagoRouter from "./mercadoPago.router"
-import orderRouter from "./order"
-import productColorImagesRouter from "./ProductColorImages.router"
-import productColorsRouter from "./productColors.router"
-import productColorSizesRouter from "./ProductColorSizes.router"
-import productsRouter from "./products.router"
-import productRecomendationsRouter from "./productsRecomendations.router"
-import productsViewRouter from "./productsView.router"
-import sizesRouter from "./sizes.router"
-import userInfoRouter from "./user-info"
-import userRegisterRouter from "./userRegister.router"
-import UserSession from "./userSession.router"
-import userAddresessRouter from "./userAddresess.router"
-import storeConfig from "./storeConfig.router"
-import shopcartRouter from "./shopcart"
-import userQuestionsRouter from "./userQuestions.router"
+import categoriesRouter from "./categories/categories.router"
+import mercadoPagoRouter from "./mercadopago/mercadoPago.router"
+import orderRouter from "./order/order.router"
+import shopcartRouter from "./shopcart/shopcart.router"
+import guestQuestionsRouter from "./guest-questions/guestQuestions.router"
+import brandsRouter from "./brands/brands.router"
+import userInfoRouter from "./user-info/userInfo.router"
+import colorsRouter from "./colors/colors.router"
+import productColorImagesRouter from "./product-color-images/ProductColorImages.router"
+import productsRouter from "./products/products.router"
+import productRecomendationsRouter from "./product-recomendations/productRecomendations.router"
+import productColorsRouter from "./product-colors/productColors.router"
+import productColorSizesRouter from "./product-color-sizes/ProductColorSizes.router"
+import sizesRouter from "./sizes/sizes.router"
+import productsViewRouter from "./products-view/productsView.router"
+import userRegisterRouter from "./user-register/userRegister.router"
+import UserSession from "./user-session/userSession.router"
+import userAddresessRouter from "./user-addresess/userAddresess.router"
+import storeConfigRouter from "./store-config/storeConfig.router"
 
 const createRouters = (app: Application) => {
     app.use("/categories", categoriesRouter)
@@ -36,11 +36,11 @@ const createRouters = (app: Application) => {
     app.use("/users/register", userRegisterRouter)
     app.use("/users/info", userInfoRouter)
     app.use("/users/addresess", isCompleteUser, userAddresessRouter)
-    app.use("/users/questions",userQuestionsRouter)
+    app.use("/guests/questions", guestQuestionsRouter)
     app.use("/mercadopago", isCompleteUser, mercadoPagoRouter)
     app.use("/orders", orderRouter)
     app.use("/shopcart", shopcartRouter)
-    app.use("/store/config", storeConfig)
+    app.use("/store/config", storeConfigRouter)
 }
 
 export default createRouters

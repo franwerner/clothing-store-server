@@ -9,7 +9,7 @@ import errorGlobal from "./middleware/errorGlobal.middleware.js"
 import isMaintenance from "./middleware/isMaintenance.middleware.js"
 import limiter from "./rate-limiter/default.rate-limiter.js"
 import createRouters from "./router/index"
-import UserTokenService from "./service/userToken.service.js"
+import UserTokenService from "./service/users/userToken.service.js"
 
 const port = _env.BACKEND_PORT
 const app = express()

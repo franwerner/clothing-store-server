@@ -1,8 +1,8 @@
-import zodParse from "../helper/zodParse.helper.js"
-import BrandsModel from "../model/brands.model.js"
+import zodParse from "@/helper/zodParse.helper.js"
 import { BrandSchema, brandSchema } from "clothing-store-shared/schema"
-import ErrorHandler from "../utils/errorHandler.utilts.js"
-import ServiceUtils from "../utils/service.utils.js"
+import ErrorHandler from "@/utils/errorHandler.utilts.js"
+import ServiceUtils from "@/utils/service.utils.js"
+import BrandsModel from "@/model/brands.model"
 
 class BrandsService extends ServiceUtils {
     static async get() {

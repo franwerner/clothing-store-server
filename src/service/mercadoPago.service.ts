@@ -1,8 +1,8 @@
 import { DatabaseKeySchema, ShopcartProductSchema } from "clothing-store-shared/schema"
 import { Payment, Preference, } from "mercadopago"
 import { Items } from "mercadopago/dist/clients/commonTypes"
-import mercadoPagoConfig from "../config/mercadopago.config"
-import ErrorHandler from "../utils/errorHandler.utilts"
+import mercadoPagoConfig from "@/config/mercadopago.config"
+import ErrorHandler from "@/utils/errorHandler.utilts"
 
 type CheckoutProductToTransform = Omit<ShopcartProductSchema.BaseInShopcart, "size_fk" | "color_fk" | "product_fk">
 

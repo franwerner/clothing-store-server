@@ -2,13 +2,13 @@ import { ShopcartProductSchema, UserPurchaseAddressesSchema, UserPurchaseGuestsS
 import { Shopcart } from "clothing-store-shared/types"
 import sql from "../config/knex.config"
 import ServiceUtils from "../utils/service.utils"
-import MercadoPagoService, { CheckoutProductToTransform } from "./mercadoPago.service"
 import ShopcartService from "./shopcart.service"
-import UserPurchaseAddresessService from "./userPurchaseAddresess.service"
-import UserPurchaseGuestsService from "./userPurchaseGuests.service"
-import UserPurchaseProductsService from "./userPurchaseProducts.service"
-import UserPurchasesService, { CreateUserPurchase } from "./userPurchases.service"
-import UserPurchaseShippingsService from "./userPurchaseShippings.service"
+import UserPurchaseAddresessService from "./users/purchase/userPurchaseAddresess.service"
+import UserPurchaseGuestsService from "./users/purchase/userPurchaseGuests.service"
+import UserPurchaseProductsService from "./users/purchase/userPurchaseProducts.service"
+import UserPurchasesService, { CreateUserPurchase } from "./users/purchase/userPurchases.service"
+import UserPurchaseShippingsService from "./users/purchase/userPurchaseShippings.service"
+import MercadoPagoService, { CheckoutProductToTransform } from "./mercadoPago.service"
 interface CreateOrder {
     order: CreateUserPurchase
     order_products: Array<ShopcartProductSchema.BaseInShopcart>
@@ -64,7 +64,6 @@ class OrdersService extends ServiceUtils {
                 free_shipping,
                 cost: cost_based_shipping,
                 user_purchase_fk: user_purchase_id,
-                tracking_id : null
             }, trx)
             if (order_guest) {
                 await UserPurchaseGuestsService.create({ ...order_guest, user_purchase_fk: user_purchase_id }, trx)
