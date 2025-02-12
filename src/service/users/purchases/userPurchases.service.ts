@@ -6,6 +6,7 @@ import shortUUID from "short-uuid"
 import sql from "@/config/knex.config"
 import UserPurchasesModel from "@/model/users/purchases/userPurchases.model"
 import UsersModel from "@/model/users/users.model"
+import creationLimits from "@/constant/creationLimit.constants"
 
 type CreateUserPurchase = Omit<UserPurchaseSchema.Insert, "note" | "uuid">
 class UserPurchasesService {
@@ -19,7 +20,6 @@ class UserPurchasesService {
             trx && builder.transacting(trx)
         })
     }
-
 
     static async syncGuestPurchases({ email, user_id, guest_purchases_synced, email_confirmed }: UserSchema.FormatUser) {
         if (guest_purchases_synced || !email_confirmed) return
@@ -36,7 +36,7 @@ class UserPurchasesService {
             expire_at,
             uuid
         })
-        const [{ affectedRows, insertId }] = await UserPurchasesModel.insert({ ...orderData, limit: 99999, expire_at }, trx)
+        const [{ affectedRows, insertId }] = await UserPurchasesModel.insert({ ...orderData, limit: creationLimits.user_purchases.limit, expire_at }, trx)
         if (!affectedRows) throw new ErrorHandler({
             message: "Alcanzaste un máximo de 10 compras por día",
             code: "limit_purchases",

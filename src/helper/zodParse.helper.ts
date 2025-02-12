@@ -1,4 +1,4 @@
-import { ZodSchema } from "zod"
+import { z, ZodSchema } from "zod"
 import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js"
 
 /**
@@ -12,7 +12,7 @@ import ZodErrorHandler from "../utils/zodErrorHandler.utilts.js"
  */
 
 const zodParse = <T extends ZodSchema>(z: T) => {
-    return (data: unknown ): ReturnType<T['parse']> => {
+    return (data: unknown): z.infer<T> => {
         try {
             return z.parse(data)
         } catch (error) {
@@ -23,6 +23,5 @@ const zodParse = <T extends ZodSchema>(z: T) => {
         }
     }
 }
-
 
 export default zodParse

@@ -3,6 +3,7 @@ import ErrorHandler from "@/utils/errorHandler.utilts.js"
 import { DatabaseKeySchema, UserSchema, userSchema } from "clothing-store-shared/schema"
 import zodParse from "@/helper/zodParse.helper.js"
 import UsersModel from "@/model/users/users.model.js"
+import creationLimits from "@/constant/creationLimit.constants"
 
 const max_count_per_ip = 10
 class UserRegisterService {
@@ -36,7 +37,7 @@ class UserRegisterService {
         },)
         const { insertId, affectedRows } = rawHeaders
         if (affectedRows == 0) throw new ErrorHandler({
-            message: `Superaste el limite de ${max_count_per_ip} cuentas por IP.`,
+            message: `Superaste el limite de ${creationLimits.user.limit} cuentas por IP.`,
             code: "limit_account_per_ip",
             status: 429
         })

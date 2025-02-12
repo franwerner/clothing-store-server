@@ -1,9 +1,9 @@
 import { NextFunction, Request } from "express"
 import isUser from "@/middleware/isUser.middleware"
-import UserPurchasesService from "@/service/users/purchase/userPurchases.service"
 import errorGlobal from "@/middleware/errorGlobal.middleware"
 import ErrorHandler from "@/utils/errorHandler.utilts"
 import UsersModel from "@/model/users/users.model"
+import UserPurchasesService from "@/service/users/purchases/userPurchases.service"
 
 const syncGuestPurchases = async (
     req: Request,

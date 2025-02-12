@@ -3,11 +3,11 @@ import { Shopcart } from "clothing-store-shared/types"
 import sql from "../config/knex.config"
 import ServiceUtils from "../utils/service.utils"
 import ShopcartService from "./shopcart.service"
-import UserPurchaseAddresessService from "./users/purchase/userPurchaseAddresess.service"
-import UserPurchaseGuestsService from "./users/purchase/userPurchaseGuests.service"
-import UserPurchaseProductsService from "./users/purchase/userPurchaseProducts.service"
-import UserPurchasesService, { CreateUserPurchase } from "./users/purchase/userPurchases.service"
-import UserPurchaseShippingsService from "./users/purchase/userPurchaseShippings.service"
+import UserPurchaseAddresessService from "./users/purchases/userPurchaseAddresess.service"
+import UserPurchaseGuestsService from "./users/purchases/userPurchaseGuests.service"
+import UserPurchaseProductsService from "./users/purchases/userPurchaseProducts.service"
+import UserPurchasesService, { CreateUserPurchase } from "./users/purchases/userPurchases.service"
+import UserPurchaseShippingsService from "./users/purchases/userPurchaseShippings.service"
 import MercadoPagoService, { CheckoutProductToTransform } from "./mercadoPago.service"
 interface CreateOrder {
     order: CreateUserPurchase
@@ -18,7 +18,7 @@ interface CreateOrder {
 }
 interface CreateOrderCheckout {
     order_products: Array<CheckoutProductToTransform>
-    expired_date: Date
+    expire_date: Date
     uuid: string
     shipping_cost: number
     free_shipping: boolean
@@ -26,7 +26,7 @@ interface CreateOrderCheckout {
 class OrdersService extends ServiceUtils {
 
     private static async createOrderCheckout({
-        expired_date,
+        expire_date,
         order_products,
         uuid,
         shipping_cost,
@@ -36,7 +36,7 @@ class OrdersService extends ServiceUtils {
         const data = await MercadoPagoService.createCheckout({
             items: transform,
             external_reference: uuid,
-            date_of_expiration: expired_date,
+            date_of_expiration: expire_date,
             shipments: {
                 cost: shipping_cost,
                 free_shipping: free_shipping
@@ -71,7 +71,7 @@ class OrdersService extends ServiceUtils {
             const { init_point, id, date_of_expiration } = await this.createOrderCheckout({
                 order_products,
                 uuid,
-                expired_date: order.expire_at,
+                expire_date: order.expire_at,
                 free_shipping: free_shipping,
                 shipping_cost: cost_based_shipping
             })

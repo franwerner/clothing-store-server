@@ -45,13 +45,13 @@ class UserPurchasesModel extends ModelUtils {
         trx: Knex = sql
     ) {
         try {
-            const { expire_at, ip, is_guest, note, user_fk, uuid, limit } = user_purchase
+            const { expire_at, is_guest, note, user_fk, uuid, limit } = user_purchase
             const query = trx.raw<Array<ResultSetHeader>>(`
-                INSERT INTO user_purchases (uuid,note,expire_at,is_guest,user_fk,ip)
-                SELECT ?,?,?,?,?,?
+                INSERT INTO user_purchases (uuid,note,expire_at,is_guest,user_fk)
+                SELECT ?,?,?,?,?
                 WHERE (
                 SELECT COUNT(*) FROM user_purchases 
-                WHERE ip = ?
+                WHERE user_fk = ?
                 AND DATE(create_at) = DATE(NOW())
                 ) < ?
                 `, [
@@ -60,8 +60,7 @@ class UserPurchasesModel extends ModelUtils {
                 expire_at,
                 is_guest,
                 user_fk,
-                ip,
-                ip,
+                user_fk,
                 limit
             ])
 

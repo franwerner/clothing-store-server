@@ -15,7 +15,7 @@ const isExitsShopcart = async (
             message: "No hay un carrito de compras creado",
         }).response(res)
     }
-    else if (parseDate(shopcart.expired_at) < new Date()) {
+    else if (parseDate(shopcart.expire_at) < new Date()) {
         req.session.shopcart = undefined
         new ErrorHandler({
             status: 404,

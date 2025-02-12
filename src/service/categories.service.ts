@@ -4,7 +4,6 @@ import CategoriesModel from "@/model/categories.model.js";
 import ErrorHandler from "@/utils/errorHandler.utilts.js";
 import ServiceUtils from "@/utils/service.utils.js";
 
-
 class CategoriesService extends ServiceUtils {
 
     static async getByBrand(brand: string) {

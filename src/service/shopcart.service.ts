@@ -55,11 +55,11 @@ class ShopcartService {
     }
 
     static async createShopcart(shopcart?: Shopcart) {
-        if (!shopcart || parseDate(shopcart.expired_at) < new Date() || shopcart.products.length === 0) {
+        if (!shopcart || parseDate(shopcart.expire_at) < new Date() || shopcart.products.length === 0) {
             const { min_free_shipping = 0, cost_based_shipping = 0 } = store.ensure("config")
             const newShopcart: Shopcart = {
                 products: [],
-                expired_at: createUTCDate({ hours : 1 }),
+                expire_at: createUTCDate({ hours : 1 }),
                 shipping: {
                     cost_based_shipping,
                     min_free_shipping
