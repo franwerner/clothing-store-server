@@ -9,7 +9,7 @@ class UserPurchaseGuestsService {
 
     static async isLimitExceeded(email: string, trx: Knex.Transaction) {
         const res = await UserPurchaseGuestsModel.select({ email }, (b) => b.transacting(trx).forUpdate())
-        if (res.length >= creationLimits.user_purchase_guests.limit) throw new ErrorHandler({
+        if (res.length >= creationLimits.user_purchase_guests) throw new ErrorHandler({
             message: "Has superado el límite de compras diarias con este correo electrónico.",
             code: "too_many_purchase_guests",
             status: 429

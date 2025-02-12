@@ -37,7 +37,7 @@ class UserRegisterService {
         },)
         const { insertId, affectedRows } = rawHeaders
         if (affectedRows == 0) throw new ErrorHandler({
-            message: `Superaste el limite de ${creationLimits.user.limit} cuentas por IP.`,
+            message: `Superaste el limite de ${creationLimits.user} cuentas por IP.`,
             code: "limit_account_per_ip",
             status: 429
         })

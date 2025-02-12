@@ -1,24 +1,9 @@
 const creationLimits = {
-    user_purchases: {
-        limit: 10,
-        condition: "user_fk",
-    },
-    guest_questions: {
-        limit: 10,
-        condition: "email"
-    },
-    user: {
-        limit: 10,
-        condition: "ip"
-    },
-    user_tickets: {
-        limit: 10,
-        condition: "user_fk"
-    },
-    user_purchase_guests: {
-        limit: 10,
-        condition: "email"
-    }
+    user_purchases: 10,
+    guest_questions: 10,
+    user: 10,
+    user_tickets: 10,
+    user_purchase_guests: 10
 }
 
 export default creationLimits

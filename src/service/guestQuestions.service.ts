@@ -1,3 +1,4 @@
+import creationLimits from "@/constant/creationLimit.constants";
 import zodParse from "@/helper/zodParse.helper";
 import UserQuestionsModel from "@/model/guestQuestions.model";
 import ErrorHandler from "@/utils/errorHandler.utilts";
@@ -6,7 +7,7 @@ import { DatabaseKeySchema, guestQuestionSchema, GuestQuestionSchema } from "clo
 class GuestQuestionsService {
     static async create(props: GuestQuestionSchema.Insert) {
         const parse = zodParse(guestQuestionSchema.insert)(props)
-        const [{ affectedRows }] = await UserQuestionsModel.insert({ ...parse, limit: 10 })
+        const [{ affectedRows }] = await UserQuestionsModel.insert({ ...parse, limit: creationLimits.guest_questions })
         if (!affectedRows) throw new ErrorHandler({
             message: "Demasiados consultas realizas, por favor espere.",
             code: "too_many_quetions",

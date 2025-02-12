@@ -36,7 +36,7 @@ class UserPurchasesService {
             expire_at,
             uuid
         })
-        const [{ affectedRows, insertId }] = await UserPurchasesModel.insert({ ...orderData, limit: creationLimits.user_purchases.limit, expire_at }, trx)
+        const [{ affectedRows, insertId }] = await UserPurchasesModel.insert({ ...orderData, limit: creationLimits.user_purchases, expire_at }, trx)
         if (!affectedRows) throw new ErrorHandler({
             message: "Alcanzaste un máximo de 10 compras por día",
             code: "limit_purchases",
